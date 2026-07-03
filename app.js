@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeModal = (el) => { if (!el) return; el.classList.add('hidden'); document.body.classList.remove('modal-active'); };
   
     // --- shared state ---------------------------------------------------------
+    let pendingPayload = null;   // form data awaiting confirmation (not yet sent)
     let currentBooking = null;   // the pending booking returned by POST /api/bookings
     let selectedMethod = 'gcash';
   
@@ -109,7 +110,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4) RSVP form submit -> create a pending booking
     // --------------------------------------------------------------------------
     const form = $('rsvp-form');
-    form && form.addEventListener('submit', async (e) => {
+  
+    // Step A: form submit -> review details in the confirmation modal (no API call yet)
+    form && form.addEventListener('submit', (e) => {
       e.preventDefault();
   
       const terms = $('verify-terms');
@@ -118,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
   
-      const payload = {
+      pendingPayload = {
         full_name: getVal('fullname'),
         email: getVal('email'),
         phone: getVal('phone'),
@@ -128,33 +131,73 @@ document.addEventListener('DOMContentLoaded', () => {
         accept_terms: !!(terms && terms.checked),
       };
   
-      const submitBtn = form.querySelector('button[type="submit"]');
-      const originalLabel = submitBtn ? submitBtn.textContent : '';
-      setBusy(submitBtn, true, 'Processing\u2026');
+      // fill the confirmation modal from what they typed
+      setText('confirm-name', pendingPayload.full_name);
+      setText('confirm-email', pendingPayload.email);
+      setText('confirm-package', pendingPayload.package);
+      setText('confirm-guests', pendingPayload.guests);
+      setText('confirm-total', peso(computeTotal(pendingPayload.package, pendingPayload.guests)));
   
+      openModal($('confirm-modal'));
+    });
+  
+    // Step B: "Back to edit" -> close, form stays filled as-is
+    const editBtn = $('edit-booking');
+    editBtn && editBtn.addEventListener('click', () => closeModal($('confirm-modal')));
+  
+    // Step C: "Confirm request" -> create the pending booking, then show the submitted modal
+    const confirmBtn = $('confirm-booking');
+    confirmBtn && confirmBtn.addEventListener('click', async () => {
+      if (!pendingPayload) return;
+  
+      const originalLabel = confirmBtn.textContent;
+      setBusy(confirmBtn, true, 'Submitting\u2026');
       try {
         const res = await fetch(`${API_BASE}/api/bookings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(pendingPayload),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(extractError(data) || 'Could not create your booking. Please try again.');
+          throw new Error(extractError(data) || 'Could not submit your request. Please try again.');
         }
   
         currentBooking = data;
-        populatePaymentSummary(data);
   
-        const payPhone = $('payment-phone');
-        if (payPhone) payPhone.value = data.phone || payload.phone || '';
+        // fill the "RSVP submitted" modal
+        setText('submitted-name', data.full_name);
+        setText('submitted-package', data.package);
+        setText('submitted-guests', data.guests);
+        setText('submitted-total', peso(data.total_amount));
   
-        openModal($('payment-modal'));
+        closeModal($('confirm-modal'));
+        openModal($('submitted-modal'));
       } catch (err) {
         alert(err.message);
       } finally {
-        setBusy(submitBtn, false, originalLabel || 'Apply & continue to payment');
+        setBusy(confirmBtn, false, originalLabel || 'Confirm request');
       }
+    });
+  
+    // Step D: "Continue to payment" -> hand the confirmed booking to the checkout modal
+    const continueBtn = $('continue-to-payment');
+    continueBtn && continueBtn.addEventListener('click', () => {
+      if (!currentBooking) return;
+      populatePaymentSummary(currentBooking);
+      const payPhone = $('payment-phone');
+      if (payPhone) payPhone.value = currentBooking.phone || '';
+      closeModal($('submitted-modal'));
+      openModal($('payment-modal'));
+    });
+  
+    // "I'll pay later" -> close + reset the form for the next guest
+    const payLaterBtn = $('close-submitted');
+    payLaterBtn && payLaterBtn.addEventListener('click', () => {
+      closeModal($('submitted-modal'));
+      if (form) form.reset();
+      updateEstimate();
+      loadAvailability();
     });
   
     function populatePaymentSummary(b) {
@@ -232,8 +275,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --------------------------------------------------------------------------
     // 7) Modal close handlers
     // --------------------------------------------------------------------------
+    const confirmModalEl = $('confirm-modal');
+    const submittedModalEl = $('submitted-modal');
     const paymentModal = $('payment-modal');
     const receiptModal = $('receipt-modal');
+  
+    const closeConfirm = $('close-confirm');
+    closeConfirm && closeConfirm.addEventListener('click', () => closeModal(confirmModalEl));
   
     const closeBtn = $('close-modal');
     closeBtn && closeBtn.addEventListener('click', () => closeModal(paymentModal));
@@ -245,14 +293,19 @@ document.addEventListener('DOMContentLoaded', () => {
       updateEstimate();
     });
   
-    // click on the dimmed backdrop closes the modal
-    [paymentModal, receiptModal].forEach((m) => {
+    // click on the dimmed backdrop closes that modal
+    [confirmModalEl, submittedModalEl, paymentModal, receiptModal].forEach((m) => {
       m && m.addEventListener('click', (e) => { if (e.target === m) closeModal(m); });
     });
   
     // Esc closes whichever booking modal is open
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') { closeModal(paymentModal); closeModal(receiptModal); }
+      if (e.key === 'Escape') {
+        closeModal(confirmModalEl);
+        closeModal(submittedModalEl);
+        closeModal(paymentModal);
+        closeModal(receiptModal);
+      }
     });
   
     // --------------------------------------------------------------------------

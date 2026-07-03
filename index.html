@@ -563,6 +563,44 @@
     </div>
   </section>
 
+  <div id="confirm-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-brand-obsidian/80 backdrop-blur-md hidden transition-all duration-300">
+    <div class="bg-brand-slate border border-brand-gold/30 rounded-3xl p-8 max-w-md w-full shadow-2xl">
+      <div class="flex justify-between items-center border-b border-white/5 pb-4 mb-6">
+        <h3 class="font-serif text-2xl font-medium text-brand-gold tracking-tight">Confirm your request</h3>
+        <button id="close-confirm" class="text-brand-muted hover:text-brand-ice text-xl font-bold font-mono outline-none">×</button>
+      </div>
+      <p class="text-brand-muted text-xs font-light mb-6 leading-relaxed">Double-check your details before we hold your spot — names are locked at booking for guestlist screening.</p>
+      <div class="bg-brand-obsidian/40 border border-white/5 rounded-2xl p-4 space-y-2 text-xs font-mono mb-6">
+        <div class="flex justify-between"><span class="text-brand-muted">GUEST NAME</span><span id="confirm-name" class="text-brand-ice">—</span></div>
+        <div class="flex justify-between"><span class="text-brand-muted">EMAIL</span><span id="confirm-email" class="text-brand-ice truncate ml-4 max-w-[60%] text-right">—</span></div>
+        <div class="flex justify-between"><span class="text-brand-muted">PACKAGE</span><span id="confirm-package" class="text-brand-ice">—</span></div>
+        <div class="flex justify-between"><span class="text-brand-muted">GUESTS</span><span id="confirm-guests" class="text-brand-ice">—</span></div>
+        <div class="border-t border-white/5 pt-2 flex justify-between text-sm font-bold"><span class="text-brand-gold">TOTAL</span><span id="confirm-total" class="text-brand-gold">₱0.00</span></div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <button id="edit-booking" class="py-4 rounded-full border border-white/10 hover:border-brand-gold hover:text-brand-gold font-mono text-xs font-bold tracking-widest text-brand-muted transition-colors duration-300 uppercase">Back to edit</button>
+        <button id="confirm-booking" class="py-4 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-widest hover:bg-brand-ice transition-colors duration-300 uppercase">Confirm request</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="submitted-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-brand-obsidian/85 backdrop-blur-md hidden transition-all duration-300">
+    <div class="bg-brand-slate border border-brand-gold/40 rounded-3xl p-8 max-w-md w-full shadow-2xl text-center relative overflow-hidden animate-glow">
+      <div class="absolute inset-0 bg-gradient-to-t from-brand-goldDim/10 to-transparent pointer-events-none"></div>
+      <div class="w-16 h-16 rounded-full border border-brand-gold flex items-center justify-center text-2xl text-brand-gold mx-auto mb-6">✓</div>
+      <h3 class="font-serif text-3xl font-medium text-brand-ice tracking-tight mb-2">Request received</h3>
+      <p class="text-brand-muted text-xs font-light mb-8 max-w-xs mx-auto">Your spot is being held. Lock it in now with payment, or come back to it later — we've noted your request.</p>
+      <div class="bg-brand-obsidian/40 border border-white/5 rounded-2xl p-4 space-y-2 text-xs font-mono mb-8 text-left">
+        <div class="flex justify-between"><span class="text-brand-muted">GUEST NAME</span><span id="submitted-name" class="text-brand-ice">—</span></div>
+        <div class="flex justify-between"><span class="text-brand-muted">PACKAGE</span><span id="submitted-package" class="text-brand-ice">—</span></div>
+        <div class="flex justify-between"><span class="text-brand-muted">GUESTS</span><span id="submitted-guests" class="text-brand-ice">—</span></div>
+        <div class="border-t border-white/5 pt-2 flex justify-between text-sm font-bold"><span class="text-brand-gold">TOTAL DUE</span><span id="submitted-total" class="text-brand-gold">₱0.00</span></div>
+      </div>
+      <button id="continue-to-payment" class="w-full py-4 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-[0.2em] hover:bg-brand-ice transition-colors duration-300 uppercase mb-3">Continue to payment</button>
+      <button id="close-submitted" class="w-full py-3 rounded-full border border-white/10 hover:border-brand-gold hover:text-brand-gold font-mono text-[11px] font-bold tracking-[0.2em] text-brand-muted transition-colors duration-300 uppercase">I'll pay later</button>
+    </div>
+  </div>
+
   <div id="payment-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-brand-obsidian/80 backdrop-blur-md hidden transition-all duration-300">
     <div class="bg-brand-slate border border-brand-gold/30 rounded-3xl p-8 max-w-md w-full shadow-2xl animate-glow">
       <div class="flex justify-between items-center border-b border-white/5 pb-4 mb-6">
@@ -730,7 +768,7 @@
 
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = document.getElementById('lightbox-img');
-    const lightboxClose = document.getElementById('lightbox-close');
+    const lightboxClose = document. getElementById('lightbox-close');
     const openLightbox = (src) => { if (!lightbox) return; lightboxImg.src = src; lightbox.classList.remove('closed'); document.body.classList.add('modal-active'); };
     const closeLightbox = () => { if (!lightbox) return; lightbox.classList.add('closed'); document.body.classList.remove('modal-active'); };
     document.querySelectorAll('.gallery-item').forEach((item) => item.addEventListener('click', () => openLightbox(item.getAttribute('data-img'))));
