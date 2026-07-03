@@ -180,7 +180,7 @@
         </div>
       </div>
       <div class="font-mono text-[11px] tracking-[0.15em] text-brand-ice shrink-0">
-        <span id="spots-left" class="text-brand-gold font-bold">42</span> <span class="text-brand-muted">of 300 spots left</span>
+        <span id="spots-left" class="text-brand-gold font-bold">—</span> <span class="text-brand-muted">of <span id="spots-capacity">300</span> spots left</span>
       </div>
     </div>
   </section>
@@ -344,7 +344,7 @@
             </div>
           </div>
           <div class="px-8 pb-8">
-            <a href="#rsvp" class="select-package-btn w-full block text-center py-4 rounded-full bg-brand-goldDim border border-brand-gold/30 hover:border-brand-gold hover:bg-brand-gold hover:text-brand-obsidian font-mono text-xs font-bold tracking-widest text-brand-gold transition-all duration-300 uppercase">Select</a>
+            <a href="#rsvp" class="select-package-btn w-full block text-center py-4 rounded-full bg-brand-goldDim border border-brand-gold/30 hover:border-brand-gold hover:bg-brand-gold hover:text-brand-obsidian font-mono text-xs font-bold tracking-widest text-brand-gold transition-all duration-300 uppercase" data-package="General Admission">Select</a>
           </div>
         </div>
 
@@ -368,7 +368,7 @@
             </div>
           </div>
           <div class="px-8 pb-8">
-            <a href="#rsvp" class="select-package-btn w-full block text-center py-4 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-widest hover:bg-brand-ice transition-colors duration-300 uppercase">Select</a>
+            <a href="#rsvp" class="select-package-btn w-full block text-center py-4 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-widest hover:bg-brand-ice transition-colors duration-300 uppercase" data-package="VIP Cockpit Lounge">Select</a>
           </div>
         </div>
 
@@ -391,7 +391,7 @@
             </div>
           </div>
           <div class="px-8 pb-8">
-            <a href="#rsvp" class="select-package-btn w-full block text-center py-4 rounded-full bg-brand-goldDim border border-brand-gold/30 hover:border-brand-gold hover:bg-brand-gold hover:text-brand-obsidian font-mono text-xs font-bold tracking-widest text-brand-gold transition-all duration-300 uppercase">Select</a>
+            <a href="#rsvp" class="select-package-btn w-full block text-center py-4 rounded-full bg-brand-goldDim border border-brand-gold/30 hover:border-brand-gold hover:bg-brand-gold hover:text-brand-obsidian font-mono text-xs font-bold tracking-widest text-brand-gold transition-all duration-300 uppercase" data-package="VVIP Main Cabin Table">Select</a>
           </div>
         </div>
       </div>
@@ -655,6 +655,9 @@
     </div>
   </footer>
 
+  <!-- Backend configuration: point this at your FastAPI server -->
+  <script>window.API_BASE = "http://localhost:8000";</script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="js/three-anim.js"></script>
   <script src="js/app.js"></script>
@@ -714,21 +717,6 @@
         });
       }, { threshold: 0.12 });
       revealEls.forEach((el) => io.observe(el));
-    }
-
-    const fill = document.getElementById('scarcity-fill');
-    if (fill) {
-      const total = 300, left = 42;
-      const pct = ((total - left) / total) * 100;
-      if (reduceMotion) { fill.style.width = pct + '%'; }
-      else {
-        const so = new IntersectionObserver((entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) { requestAnimationFrame(() => { fill.style.width = pct + '%'; }); so.disconnect(); }
-          });
-        }, { threshold: 0.4 });
-        so.observe(fill);
-      }
     }
 
     document.querySelectorAll('.faq-trigger').forEach((btn) => {
