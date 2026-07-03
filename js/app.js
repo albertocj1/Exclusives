@@ -52,7 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- shared state ---------------------------------------------------------
     let pendingPayload = null;   // form data awaiting confirmation (not yet sent)
     let currentBooking = null;   // the pending booking returned by POST /api/bookings
-    let selectedMethod = 'gcash';
   
     const pkgSel = $('package');
     const guestsSel = $('guests');
@@ -195,15 +194,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   
-    // Step D: "Continue to payment" -> hand the confirmed booking to the checkout modal
+    // Step D: "Continue to payment" -> create a PayMongo checkout session and
+    // redirect the browser to PayMongo's hosted page (GCash / Maya / card).
     const continueBtn = $('continue-to-payment');
     continueBtn && continueBtn.addEventListener('click', () => {
-      if (!currentBooking) return;
-      populatePaymentSummary(currentBooking);
-      const payPhone = $('payment-phone');
-      if (payPhone) payPhone.value = currentBooking.phone || '';
-      closeModal($('submitted-modal'));
-      openModal($('payment-modal'));
+      if (currentBooking) startCheckout(currentBooking.id, continueBtn);
     });
   
     // "I'll pay later" -> close + reset the form for the next guest
@@ -215,70 +210,65 @@ document.addEventListener('DOMContentLoaded', () => {
       loadAvailability();
     });
   
-    function populatePaymentSummary(b) {
-      setText('summary-name', b.full_name);
-      setText('summary-package', b.package);
-      setText('summary-guests', b.guests);
-      setText('summary-total', peso(b.total_amount));
+    async function startCheckout(bookingId, btn) {
+      const originalLabel = btn ? btn.textContent : '';
+      setBusy(btn, true, 'Redirecting to payment\u2026');
+      try {
+        const res = await fetch(`${API_BASE}/api/bookings/${bookingId}/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.checkout_url) {
+          throw new Error(extractError(data) || 'Could not start payment. Please try again.');
+        }
+        window.location.href = data.checkout_url; // hand off to PayMongo
+      } catch (err) {
+        alert(err.message);
+        setBusy(btn, false, originalLabel || 'Continue to payment');
+      }
     }
   
     // --------------------------------------------------------------------------
-    // 5) Payment method toggle (GCash / Maya)
+    // 5) Returning from PayMongo -> verify payment, then show the ticket
     // --------------------------------------------------------------------------
-    const methodBtns = document.querySelectorAll('.payment-method-btn');
-    methodBtns.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        selectedMethod = btn.getAttribute('data-method') || 'gcash';
-        methodBtns.forEach((b) => {
-          const active = b === btn;
-          b.classList.toggle('border-brand-gold', active);
-          b.classList.toggle('bg-brand-goldDim/20', active);
-          b.classList.toggle('text-brand-gold', active);
-          b.classList.toggle('border-white/10', !active);
-          b.classList.toggle('text-brand-muted', !active);
-        });
-      });
-    });
+    // PayMongo redirects back to  index.html?booking_id=...&paid=1  (or &cancelled=1).
+    async function handlePaymentReturn() {
+      const params = new URLSearchParams(window.location.search);
+      const bookingId = params.get('booking_id');
+      if (!bookingId) return;
   
-    // --------------------------------------------------------------------------
-    // 6) Pay -> confirm the booking, get the ticket code
-    // --------------------------------------------------------------------------
-    const payBtn = $('pay-button');
-    payBtn && payBtn.addEventListener('click', async () => {
-      if (!currentBooking) return;
+      // Clean the URL so a refresh doesn't re-trigger this.
+      const cleanUrl = window.location.pathname + window.location.hash;
   
-      const phone = getVal('payment-phone');
-      if (phone.length < 7) {
-        alert('Enter the phone number registered to your ' + selectedMethod.toUpperCase() + ' account.');
+      if (params.get('cancelled')) {
+        history.replaceState({}, '', cleanUrl);
+        alert('Payment was cancelled. Your spot is still held — you can pay again from the confirmation email.');
         return;
       }
+      if (!params.get('paid')) return;
   
-      const originalLabel = payBtn.textContent;
-      setBusy(payBtn, true, 'Authorising\u2026');
-  
-      try {
-        const res = await fetch(`${API_BASE}/api/bookings/${currentBooking.id}/pay`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ payment_method: selectedMethod, payment_phone: phone }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(extractError(data) || 'Payment could not be completed. Please try again.');
-        }
-  
-        closeModal($('payment-modal'));
-        populateReceipt(data);
-        openModal($('receipt-modal'));
-  
-        // refresh the scarcity bar now that a spot is confirmed
-        loadAvailability();
-      } catch (err) {
-        alert(err.message);
-      } finally {
-        setBusy(payBtn, false, originalLabel || 'Authorise & pay');
+      // PayMongo may take a moment to mark the session paid; retry a few times.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          const res = await fetch(`${API_BASE}/api/bookings/${bookingId}/verify`);
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.status === 'confirmed') {
+            populateReceipt(data);
+            openModal($('receipt-modal'));
+            loadAvailability();
+            history.replaceState({}, '', cleanUrl);
+            return;
+          }
+        } catch (_) { /* transient — retry */ }
+        await new Promise((r) => setTimeout(r, 1500));
       }
-    });
+  
+      history.replaceState({}, '', cleanUrl);
+      alert('We could not confirm your payment yet. If you completed it, please contact us with your name and email.');
+    }
+    handlePaymentReturn();
   
     function populateReceipt(b) {
       setText('ticket-name', b.full_name);
@@ -292,14 +282,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // --------------------------------------------------------------------------
     const confirmModalEl = $('confirm-modal');
     const submittedModalEl = $('submitted-modal');
-    const paymentModal = $('payment-modal');
     const receiptModal = $('receipt-modal');
   
     const closeConfirm = $('close-confirm');
     closeConfirm && closeConfirm.addEventListener('click', () => closeModal(confirmModalEl));
-  
-    const closeBtn = $('close-modal');
-    closeBtn && closeBtn.addEventListener('click', () => closeModal(paymentModal));
   
     const closeReceipt = $('close-receipt');
     closeReceipt && closeReceipt.addEventListener('click', () => {
@@ -309,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   
     // click on the dimmed backdrop closes that modal
-    [confirmModalEl, submittedModalEl, paymentModal, receiptModal].forEach((m) => {
+    [confirmModalEl, submittedModalEl, receiptModal].forEach((m) => {
       m && m.addEventListener('click', (e) => { if (e.target === m) closeModal(m); });
     });
   
@@ -318,7 +304,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.key === 'Escape') {
         closeModal(confirmModalEl);
         closeModal(submittedModalEl);
-        closeModal(paymentModal);
         closeModal(receiptModal);
       }
     });
