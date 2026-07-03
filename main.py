@@ -22,14 +22,14 @@ SETUP
 
 2) Environment variables (e.g. a .env, or exported in the shell):
      SUPABASE_URL          = https://<project>.supabase.co
-     SUPABASE_KEY          = <service_role key>   # server-side only, keep secret
+     SUPABASE_KEY          = <service_role / secret key>   # server-side only, keep secret
      ADMIN_API_KEY         = <any long random string>   # protects GET /api/bookings
      EVENT_CAPACITY        = 300        # optional, default 300
      ALLOWED_ORIGINS       = https://yourdomain.com,http://localhost:5500  # optional
 
 3) Install and run:
-     pip install "fastapi[standard]" supabase pydantic[email]
-     uvicorn main:app --reload --port 8000
+     pip install "fastapi[standard]" supabase "pydantic[email]"
+     uvicorn main:app --reload --port 8000 --env-file .env
 
    Interactive docs then live at http://localhost:8000/docs
 """
@@ -77,13 +77,19 @@ create index if not exists bookings_email_idx  on public.bookings (email);
 # Event configuration — the source of truth for pricing and capacity
 # --------------------------------------------------------------------------- #
 # For "table" packages the price is flat regardless of headcount; for the
-# per-person ticket the total scales with the number of guests.
+# per-person entrance fee the total scales with the number of guests.
 PACKAGES: dict[str, dict] = {
-    "General Admission":     {"price": 5000,  "per": "person", "max_guests": 8},
-    "VIP Cockpit Lounge":    {"price": 45000, "per": "table",  "max_guests": 6},
-    "VVIP Main Cabin Table": {"price": 75000, "per": "table",  "max_guests": 8},
+    "Entrance Fee":           {"price": 2500,  "per": "person", "max_guests": 8},
+    "Standing Table (4 pax)": {"price": 8000,  "per": "table",  "max_guests": 4},
+    "Couch (6 pax)":          {"price": 15000, "per": "table",  "max_guests": 6},
+    "Couch (8 pax)":          {"price": 20000, "per": "table",  "max_guests": 8},
 }
-PackageName = Literal["General Admission", "VIP Cockpit Lounge", "VVIP Main Cabin Table"]
+PackageName = Literal[
+    "Entrance Fee",
+    "Standing Table (4 pax)",
+    "Couch (6 pax)",
+    "Couch (8 pax)",
+]
 
 EVENT_CAPACITY = int(os.getenv("EVENT_CAPACITY", "300"))
 
@@ -167,7 +173,7 @@ class Availability(BaseModel):
 # --------------------------------------------------------------------------- #
 # App
 # --------------------------------------------------------------------------- #
-app = FastAPI(title="Exclusives PH API", version="1.0.0")
+app = FastAPI(title="Exclusives PH API", version="1.1.0")
 
 app.add_middleware(
     CORSMiddleware,

@@ -19,9 +19,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- pricing config: must match the backend's rules -----------------------
     // GA is charged per person; the two table packages are a flat rate.
     const PACKAGES = {
-      'General Admission':     { price: 5000,  per: 'person' },
-      'VIP Cockpit Lounge':    { price: 45000, per: 'table'  },
-      'VVIP Main Cabin Table': { price: 75000, per: 'table'  },
+      'Entrance Fee':           { price: 2500,  per: 'person', maxGuests: 8 },
+      'Standing Table (4 pax)': { price: 8000,  per: 'table',  maxGuests: 4 },
+      'Couch (6 pax)':          { price: 15000, per: 'table',  maxGuests: 6 },
+      'Couch (8 pax)':          { price: 20000, per: 'table',  maxGuests: 8 },
     };
   
     const peso = (n) => '\u20B1' + Number(n || 0).toLocaleString('en-PH');
@@ -59,8 +60,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // --------------------------------------------------------------------------
     // 1) Live estimated total on the RSVP form
     // --------------------------------------------------------------------------
+    // Grey out guest counts above the selected package's max, and clamp the
+    // current selection down if it's now too high. Mirrors the backend's
+    // per-package max_guests so a valid form can't produce a 422.
+    function applyGuestLimit() {
+      if (!pkgSel || !guestsSel) return;
+      const cfg = PACKAGES[pkgSel.value];
+      const max = cfg ? cfg.maxGuests : 8;
+      Array.prototype.forEach.call(guestsSel.options, (opt) => {
+        opt.disabled = parseInt(opt.value, 10) > max;
+      });
+      if (parseInt(guestsSel.value, 10) > max) guestsSel.value = String(max);
+    }
+  
     function updateEstimate() {
       if (!pkgSel || !guestsSel) return;
+      applyGuestLimit();
       const total = computeTotal(pkgSel.value, parseInt(guestsSel.value, 10) || 1);
       setText('estimated-total', peso(total));
     }
