@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exclusives PH — Manila Bay Yacht Sessions</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['Fraunces', 'serif'],
+            sans: ['Archivo', 'sans-serif'],
+            mono: ['Space Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              obsidian: '#0A1A24',
+              slate: '#102A38',
+              gold: '#F5C518',
+              goldDim: 'rgba(245, 197, 24, 0.15)',
+              ice: '#F2EADD',
+              muted: '#8AA0AD',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(245, 197, 24, 0.15); border-color: rgba(245, 197, 24, 0.2); }
+      50% { box-shadow: 0 0 30px rgba(245, 197, 24, 0.5); border-color: #F5C518; }
+    }
+    .animate-glow { animation: pulseGlow 4s infinite; }
+    .glow-hover:hover { box-shadow: 0 0 25px rgba(245, 197, 24, 0.35); border-color: #F5C518; }
+    .modal-active { overflow: hidden; }
+    .horizon-glow {
+      background: radial-gradient(120% 80% at 50% 100%, rgba(245,197,24,0.22) 0%, rgba(255,214,102,0.10) 35%, rgba(10,26,36,0) 70%);
+    }
+    #scroll-progress {
+      position: fixed; top: 0; left: 0; height: 2px; width: 0%;
+      background: linear-gradient(90deg, #F5C518, #FFDE59);
+      z-index: 60; box-shadow: 0 0 12px rgba(245,197,24,0.6);
+      transition: width 0.1s linear;
+    }
+    [data-reveal] {
+      opacity: 0; transform: translateY(28px);
+      transition: opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1);
+    }
+    [data-reveal].revealed { opacity: 1; transform: translateY(0); }
+    #mobile-menu { transition: opacity 0.4s ease, visibility 0.4s ease; }
+    #mobile-menu.closed { opacity: 0; visibility: hidden; pointer-events: none; }
+    .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.45s cubic-bezier(0.16,1,0.3,1); }
+    .faq-item.open .faq-answer { max-height: 240px; }
+    .faq-item.open .faq-icon { transform: rotate(45deg); }
+    .faq-icon { transition: transform 0.35s ease; }
+    #lightbox { transition: opacity 0.35s ease, visibility 0.35s ease; }
+    #lightbox.closed { opacity: 0; visibility: hidden; pointer-events: none; }
+    #back-to-top { transition: opacity 0.4s ease, transform 0.4s ease; }
+    #back-to-top.hidden-btn { opacity: 0; transform: translateY(20px); pointer-events: none; }
+    #scarcity-fill { transition: width 1.4s cubic-bezier(0.16,1,0.3,1); }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+      [data-reveal] { opacity: 1 !important; transform: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-brand-obsidian text-brand-ice font-sans antialiased overflow-x-hidden">
+
+  <div id="scroll-progress"></div>
+
+  <div class="fixed inset-0 z-0 bg-brand-obsidian pointer-events-none">
+    <canvas id="hero-canvas" class="absolute inset-0 w-full h-full opacity-80"></canvas>
+    <div class="absolute inset-0 bg-gradient-to-t from-brand-obsidian via-brand-obsidian/40 to-black/70 z-10"></div>
+    <div class="absolute inset-0 horizon-glow z-10"></div>
+  </div>
+
+  <nav id="navbar" class="fixed top-0 left-0 w-full z-50 bg-transparent border-b border-white/0 transition-all duration-500 backdrop-blur-none">
+    <div class="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
+      <a href="#" aria-label="Exclusives PH — home" class="group flex items-center h-24 shrink-0">
+        <img src="images/logo.png" alt="Exclusives PH"
+             class="h-8 md:h-10 w-auto object-contain object-left drop-shadow-[0_0_18px_rgba(245,197,24,0.35)] group-hover:drop-shadow-[0_0_26px_rgba(245,197,24,0.6)] transition-all duration-300">
+      </a>
+      <div class="hidden md:flex items-center space-x-10 font-mono text-[11px] tracking-[0.2em] text-brand-muted">
+        <a href="#event" class="hover:text-brand-ice transition-colors">THE EVENT</a>
+        <a href="#itinerary" class="hover:text-brand-ice transition-colors">ITINERARY</a>
+        <a href="#lineup" class="hover:text-brand-ice transition-colors">LINEUP</a>
+        <a href="#packages" class="hover:text-brand-ice transition-colors">TABLES</a>
+        <a href="#rsvp" class="hover:text-brand-ice transition-colors">RSVP</a>
+      </div>
+      <div class="flex items-center space-x-4">
+        <a href="#rsvp" class="hidden sm:inline-block font-mono text-[10px] tracking-[0.2em] bg-brand-gold text-brand-obsidian px-5 py-3 font-bold rounded-full hover:bg-brand-ice hover:text-brand-obsidian transition-all shadow-lg hover:shadow-brand-gold/20">
+          REQUEST INVITE
+        </a>
+        <button id="menu-toggle" aria-label="Open menu" class="md:hidden flex flex-col justify-center items-center w-10 h-10 rounded-full border border-white/10 hover:border-brand-gold transition-colors space-y-[5px] group">
+          <span class="block w-5 h-[1.5px] bg-brand-gold group-hover:w-6 transition-all"></span>
+          <span class="block w-5 h-[1.5px] bg-brand-gold"></span>
+          <span class="block w-5 h-[1.5px] bg-brand-gold group-hover:w-6 transition-all"></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <div id="mobile-menu" class="closed fixed inset-0 z-[55] bg-brand-obsidian/97 backdrop-blur-xl flex flex-col items-center justify-center md:hidden">
+    <button id="menu-close" aria-label="Close menu" class="absolute top-8 right-6 text-brand-muted hover:text-brand-gold text-3xl font-mono">×</button>
+    <div class="flex flex-col items-center space-y-8 font-serif text-2xl tracking-tight text-brand-ice">
+      <a href="#event" class="mobile-link hover:text-brand-gold transition-colors">The Event</a>
+      <a href="#itinerary" class="mobile-link hover:text-brand-gold transition-colors">Itinerary</a>
+      <a href="#lineup" class="mobile-link hover:text-brand-gold transition-colors">Lineup</a>
+      <a href="#packages" class="mobile-link hover:text-brand-gold transition-colors">Tables</a>
+      <a href="#gallery" class="mobile-link hover:text-brand-gold transition-colors">Gallery</a>
+      <a href="#faq" class="mobile-link hover:text-brand-gold transition-colors">FAQ</a>
+    </div>
+    <a href="#rsvp" class="mobile-link mt-12 font-mono text-xs tracking-[0.2em] bg-brand-gold text-brand-obsidian px-10 py-4 font-bold rounded-full hover:bg-brand-ice transition-colors">
+      REQUEST INVITE
+    </a>
+  </div>
+
+  <header class="relative min-h-[100svh] w-full flex flex-col items-center justify-center overflow-hidden z-20 pt-24 pb-16">
+    <div class="relative z-20 text-center max-w-4xl px-6 flex flex-col items-center">
+      <span class="font-mono text-xs tracking-[0.35em] text-brand-gold mb-4 uppercase mt-4">MANILA BAY · 22 AUG 2026</span>
+      <h1 class="font-serif text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight leading-[0.95] mb-6 text-brand-ice">
+        The bay,<br>
+        <span class="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-brand-gold via-amber-300 to-brand-gold">after dark.</span>
+      </h1>
+      <p class="text-brand-muted text-sm md:text-base max-w-xl mb-10 leading-relaxed font-light">
+        One yacht, a hand-picked crowd, and the Manila skyline at golden hour. We cast off at sunset and don't stop until the deck lights fade.
+      </p>
+
+      <div class="mb-10">
+        <span class="font-mono text-[10px] tracking-[0.35em] text-brand-muted uppercase block mb-4">Doors on the dock in</span>
+        <div id="countdown" class="flex items-start justify-center space-x-4 md:space-x-8">
+          <div class="flex flex-col items-center">
+            <span id="cd-days" class="font-serif text-3xl md:text-5xl font-medium text-brand-gold tabular-nums">00</span>
+            <span class="font-mono text-[9px] tracking-[0.3em] text-brand-muted uppercase mt-2">days</span>
+          </div>
+          <span class="font-serif text-2xl md:text-4xl text-brand-gold/40 leading-none pt-1">:</span>
+          <div class="flex flex-col items-center">
+            <span id="cd-hours" class="font-serif text-3xl md:text-5xl font-medium text-brand-ice tabular-nums">00</span>
+            <span class="font-mono text-[9px] tracking-[0.3em] text-brand-muted uppercase mt-2">hrs</span>
+          </div>
+          <span class="font-serif text-2xl md:text-4xl text-brand-gold/40 leading-none pt-1">:</span>
+          <div class="flex flex-col items-center">
+            <span id="cd-mins" class="font-serif text-3xl md:text-5xl font-medium text-brand-ice tabular-nums">00</span>
+            <span class="font-mono text-[9px] tracking-[0.3em] text-brand-muted uppercase mt-2">min</span>
+          </div>
+          <span class="font-serif text-2xl md:text-4xl text-brand-gold/40 leading-none pt-1">:</span>
+          <div class="flex flex-col items-center">
+            <span id="cd-secs" class="font-serif text-3xl md:text-5xl font-medium text-brand-ice tabular-nums">00</span>
+            <span class="font-mono text-[9px] tracking-[0.3em] text-brand-muted uppercase mt-2">sec</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6">
+        <a href="#rsvp" class="font-mono text-xs tracking-[0.2em] bg-brand-gold text-brand-obsidian hover:bg-brand-ice px-8 py-4 font-bold rounded-full transition-all duration-300 uppercase">
+          Claim your spot
+        </a>
+        <a href="#packages" class="font-mono text-xs tracking-[0.2em] border border-brand-gold text-brand-gold hover:bg-brand-gold hover:text-brand-obsidian px-8 py-4 font-bold rounded-full transition-all duration-300 uppercase">
+          Book a table
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <section class="relative z-20 bg-brand-gold/5 border-y border-brand-gold/20 backdrop-blur-md py-6">
+    <div class="max-w-5xl mx-auto px-6 flex flex-col md:flex-row items-center gap-6 md:gap-10">
+      <div class="flex items-center space-x-3 shrink-0">
+        <span class="w-2 h-2 rounded-full bg-brand-gold animate-pulse"></span>
+        <span class="font-mono text-[11px] tracking-[0.25em] text-brand-gold uppercase">Guestlist filling</span>
+      </div>
+      <div class="flex-1 w-full">
+        <div class="h-[6px] w-full bg-brand-slate border border-white/5 rounded-full overflow-hidden">
+          <div id="scarcity-fill" class="h-full w-0 bg-gradient-to-r from-brand-gold to-amber-300 rounded-full"></div>
+        </div>
+      </div>
+      <div class="font-mono text-[11px] tracking-[0.15em] text-brand-ice shrink-0">
+        <span id="spots-left" class="text-brand-gold font-bold">42</span> <span class="text-brand-muted">of 300 spots left</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="event" class="py-28 bg-brand-obsidian/60 backdrop-blur-md border-b border-white/5 relative z-20">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="grid md:grid-cols-2 gap-16 items-center">
+        <div data-reveal class="relative bg-brand-slate p-3 rounded-3xl border border-white/5 glow-hover transition-all duration-500">
+          <div class="h-96 md:h-[500px] overflow-hidden rounded-2xl relative">
+            <div class="w-full h-full bg-cover bg-center" style="background-image: url('assets/images/yacht_night_party.png');"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-brand-obsidian via-transparent to-transparent"></div>
+          </div>
+          <div class="absolute bottom-8 left-8 right-8 bg-brand-obsidian/95 border border-white/10 rounded-2xl p-6 backdrop-blur">
+            <h4 class="font-mono text-brand-gold text-[11px] tracking-widest uppercase mb-1">Manila Yacht Club</h4>
+            <p class="text-sm text-brand-ice font-light leading-relaxed">
+              Cast off at sunset, dance under the bay's night sky, and glide back before midnight.
+            </p>
+          </div>
+        </div>
+
+        <div data-reveal>
+          <span class="font-mono text-[11px] tracking-[0.3em] text-brand-gold uppercase block mb-3">A different kind of night out</span>
+          <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight mb-6 leading-[1.0]">
+            A private deck on
+            <span class="italic text-transparent bg-clip-text bg-gradient-to-r from-brand-gold to-amber-300">open water</span>
+          </h2>
+          <div class="w-12 h-[2px] bg-brand-gold mb-8 rounded-full"></div>
+          <p class="text-brand-muted text-base leading-relaxed mb-6 font-light">
+            <strong class="text-brand-ice font-semibold">Exclusives PH</strong> takes the best of Manila's nightlife off the grid and out onto the water. A wide-deck yacht, a crowd we curate ourselves, and nowhere to be but here.
+          </p>
+          <p class="text-brand-muted text-base leading-relaxed mb-8 font-light">
+            Cocktails poured all evening, plates passed as the city skyline slides by, and a sound system that wakes up the moment the sun drops below the horizon.
+          </p>
+          <div class="grid grid-cols-2 gap-6 text-sm">
+            <div class="flex items-center space-x-3"><span class="text-brand-gold font-serif text-lg">→</span><span class="text-brand-ice font-light">Bottomless premium bar</span></div>
+            <div class="flex items-center space-x-3"><span class="text-brand-gold font-serif text-lg">→</span><span class="text-brand-ice font-light">Chef-passed canapés</span></div>
+            <div class="flex items-center space-x-3"><span class="text-brand-gold font-serif text-lg">→</span><span class="text-brand-ice font-light">Full-deck light & sound</span></div>
+            <div class="flex items-center space-x-3"><span class="text-brand-gold font-serif text-lg">→</span><span class="text-brand-ice font-light">Strictly 18+, vetted list</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="itinerary" class="py-28 bg-brand-slate/40 backdrop-blur-md border-b border-white/5 relative z-20">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="text-center max-w-2xl mx-auto mb-20" data-reveal>
+        <span class="font-mono text-[11px] tracking-[0.3em] text-brand-gold uppercase block mb-3">How the evening sails</span>
+        <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">The Timeline</h2>
+        <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
+      </div>
+      <div class="grid md:grid-cols-4 gap-8">
+        <div data-reveal class="bg-brand-slate border border-white/5 rounded-2xl p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
+          <div>
+            <span class="font-mono text-brand-gold text-sm tracking-widest block mb-4">16:00 — 16:30</span>
+            <h3 class="font-serif text-xl font-medium text-brand-ice mb-3">Boarding</h3>
+            <p class="text-brand-muted text-xs font-light leading-relaxed">Check in at the dock, grab a welcome cocktail, and settle in on deck while the crew runs the safety brief.</p>
+          </div>
+          <span class="font-mono text-[10px] tracking-widest text-brand-gold/60 uppercase block">Port-side dock</span>
+        </div>
+        <div data-reveal class="bg-brand-slate border border-white/5 rounded-2xl p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
+          <div>
+            <span class="font-mono text-brand-gold text-sm tracking-widest block mb-4">16:30 — 18:30</span>
+            <h3 class="font-serif text-xl font-medium text-brand-ice mb-3">Golden Hour</h3>
+            <p class="text-brand-muted text-xs font-light leading-relaxed">We push out into the bay as catering opens and the warm-up sets keep things easy against the sunset.</p>
+          </div>
+          <span class="font-mono text-[10px] tracking-widest text-brand-gold/60 uppercase block">Outbound bay</span>
+        </div>
+        <div data-reveal class="bg-brand-slate border border-brand-gold/30 rounded-2xl p-8 animate-glow flex flex-col justify-between h-72">
+          <div>
+            <span class="font-mono text-brand-gold text-sm tracking-widest block mb-4">18:30 — 20:30</span>
+            <h3 class="font-serif text-xl font-medium text-brand-gold mb-3">Peak Hours</h3>
+            <p class="text-brand-muted text-xs font-light leading-relaxed">Headliners take the deck, the skyline lights up behind them, and the bar keeps pouring. This is the part you came for.</p>
+          </div>
+          <span class="font-mono text-[10px] tracking-widest text-brand-gold/60 uppercase block">Mid-bay</span>
+        </div>
+        <div data-reveal class="bg-brand-slate border border-white/5 rounded-2xl p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
+          <div>
+            <span class="font-mono text-brand-gold text-sm tracking-widest block mb-4">20:30 — 21:00</span>
+            <h3 class="font-serif text-xl font-medium text-brand-ice mb-3">Last Call</h3>
+            <p class="text-brand-muted text-xs font-light leading-relaxed">We ease back toward the club, wrap the final set, and dock. Same crowd, better stories.</p>
+          </div>
+          <span class="font-mono text-[10px] tracking-widest text-brand-gold/60 uppercase block">Manila Yacht Club</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="lineup" class="py-28 bg-brand-obsidian/60 backdrop-blur-md border-b border-white/5 relative z-20">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="text-center max-w-2xl mx-auto mb-20" data-reveal>
+        <span class="font-mono text-[11px] tracking-[0.3em] text-brand-gold uppercase block mb-3">Who's on the decks</span>
+        <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">The Lineup</h2>
+        <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
+      </div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div data-reveal class="group relative bg-brand-slate border border-white/5 rounded-2xl overflow-hidden hover:border-brand-gold/40 transition-all duration-500">
+          <div class="h-64 relative overflow-hidden">
+            <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('assets/images/yacht_night_party.png');"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-brand-slate via-brand-slate/40 to-transparent"></div>
+            <span class="absolute top-4 left-4 font-mono text-[9px] tracking-widest bg-brand-gold text-brand-obsidian px-3 py-1 rounded-full font-bold uppercase">Headliner</span>
+          </div>
+          <div class="p-8">
+            <h3 class="font-serif text-2xl font-medium text-brand-ice tracking-tight mb-1">Odessa Rae</h3>
+            <p class="font-mono text-[11px] tracking-widest text-brand-gold uppercase mb-4">Deep house · Berlin</p>
+            <p class="text-brand-muted text-xs font-light leading-relaxed">Closes the night with a slow-burn sunset-to-midnight journey.</p>
+          </div>
+        </div>
+        <div data-reveal class="group relative bg-brand-slate border border-white/5 rounded-2xl overflow-hidden hover:border-brand-gold/40 transition-all duration-500">
+          <div class="h-64 relative overflow-hidden">
+            <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('assets/images/hero_yacht_sunset.png');"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-brand-slate via-brand-slate/40 to-transparent"></div>
+            <span class="absolute top-4 left-4 font-mono text-[9px] tracking-widest border border-brand-gold text-brand-gold bg-brand-obsidian/80 px-3 py-1 rounded-full font-bold uppercase">Sunset set</span>
+          </div>
+          <div class="p-8">
+            <h3 class="font-serif text-2xl font-medium text-brand-ice tracking-tight mb-1">Tala Cruz</h3>
+            <p class="font-mono text-[11px] tracking-widest text-brand-gold uppercase mb-4">Melodic techno · Manila</p>
+            <p class="text-brand-muted text-xs font-light leading-relaxed">Warms the crowd as the yacht clears the harbor mouth.</p>
+          </div>
+        </div>
+        <div data-reveal class="group relative bg-brand-slate border border-white/5 rounded-2xl overflow-hidden hover:border-brand-gold/40 transition-all duration-500">
+          <div class="h-64 relative overflow-hidden">
+            <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('assets/images/vip_lounge_interior.png');"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-brand-slate via-brand-slate/40 to-transparent"></div>
+            <span class="absolute top-4 left-4 font-mono text-[9px] tracking-widest border border-brand-gold text-brand-gold bg-brand-obsidian/80 px-3 py-1 rounded-full font-bold uppercase">Cabin lounge</span>
+          </div>
+          <div class="p-8">
+            <h3 class="font-serif text-2xl font-medium text-brand-ice tracking-tight mb-1">Mika Solis</h3>
+            <p class="font-mono text-[11px] tracking-widest text-brand-gold uppercase mb-4">Nu-disco · Singapore</p>
+            <p class="text-brand-muted text-xs font-light leading-relaxed">Keeps the indoor cabin grooving low and warm all night.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="packages" class="py-28 bg-brand-obsidian/60 backdrop-blur-md relative z-20">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="text-center max-w-2xl mx-auto mb-20" data-reveal>
+        <span class="font-mono text-[11px] tracking-[0.3em] text-brand-gold uppercase block mb-3">Pick your spot</span>
+        <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">Entry & Tables</h2>
+        <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
+      </div>
+      <div class="grid md:grid-cols-3 gap-8">
+        <div data-reveal class="bg-brand-slate border border-white/5 rounded-3xl overflow-hidden group hover:border-brand-gold/40 transition-all duration-500 flex flex-col justify-between">
+          <div>
+            <div class="h-56 bg-neutral-900 relative">
+              <div class="absolute inset-0 bg-gradient-to-t from-brand-slate to-transparent z-10"></div>
+              <div class="absolute top-4 left-4 z-20 font-mono text-[10px] tracking-widest bg-brand-gold text-brand-obsidian px-3 py-1 rounded-full font-bold uppercase">Solo ticket</div>
+              <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('assets/images/hero_yacht_sunset.png');"></div>
+            </div>
+            <div class="p-8">
+              <h3 class="font-serif text-2xl font-medium tracking-tight mb-1 text-brand-ice">General Admission</h3>
+              <p class="font-mono text-xs text-brand-gold mb-4">₱5,000 / ticket</p>
+              <p class="text-brand-muted text-sm font-light leading-relaxed mb-6">Your ticket aboard: full run of the main deck, open bar all evening, and the whole sunset-to-night set.</p>
+              <ul class="text-xs text-brand-ice/80 space-y-3 font-light mb-8">
+                <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>Sunset sail across Manila Bay</span></li>
+                <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>Premium open bar included</span></li>
+                <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>Full main-deck access</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="px-8 pb-8">
+            <a href="#rsvp" class="select-package-btn w-full block text-center py-4 rounded-full bg-brand-goldDim border border-brand-gold/30 hover:border-brand-gold hover:bg-brand-gold hover:text-brand-obsidian font-mono text-xs font-bold tracking-widest text-brand-gold transition-all duration-300 uppercase">Select</a>
+          </div>
+        </div>
+
+        <div data-reveal class="bg-brand-slate border border-brand-gold/40 glow-hover rounded-3xl overflow-hidden group transition-all duration-500 flex flex-col justify-between relative">
+          <div class="absolute top-4 right-4 z-20 font-mono text-[9px] tracking-widest border border-brand-gold text-brand-gold px-2 py-1 rounded-full uppercase bg-brand-obsidian/90">Crowd favourite</div>
+          <div>
+            <div class="h-56 bg-neutral-900 relative">
+              <div class="absolute inset-0 bg-gradient-to-t from-brand-slate to-transparent z-10"></div>
+              <div class="absolute top-4 left-4 z-20 font-mono text-[10px] tracking-widest bg-brand-gold text-brand-obsidian px-3 py-1 rounded-full font-bold uppercase">Table group</div>
+              <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('assets/images/vip_lounge_interior.png');"></div>
+            </div>
+            <div class="p-8">
+              <h3 class="font-serif text-2xl font-medium tracking-tight mb-1 text-brand-ice">VIP Cockpit Lounge</h3>
+              <p class="font-mono text-xs text-brand-gold mb-4">₱45,000 / table</p>
+              <p class="text-brand-muted text-sm font-light leading-relaxed mb-6">Your own reserved corner in the cockpit lounge, with a dedicated host, food pairings, and bottle service.</p>
+              <ul class="text-xs text-brand-ice/80 space-y-3 font-light mb-8">
+                <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>Reserved seating for up to 6</span></li>
+                <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>3 premium bottles on the table</span></li>
+                <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>Dedicated host & food service</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="px-8 pb-8">
+            <a href="#rsvp" class="select-package-btn w-full block text-center py-4 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-widest hover:bg-brand-ice transition-colors duration-300 uppercase">Select</a>
+          </div>
+        </div>
+
+        <div data-reveal class="bg-brand-slate border border-white/5 rounded-3xl overflow-hidden group hover:border-brand-gold/40 transition-all duration-500 flex flex-col justify-between">
+          <div>
+            <div class="h-56 bg-neutral-900 relative">
+              <div class="absolute inset-0 bg-gradient-to-t from-brand-slate to-transparent z-10"></div>
+              <div class="absolute top-4 left-4 z-20 font-mono text-[10px] tracking-widest bg-brand-gold text-brand-obsidian px-3 py-1 rounded-full font-bold uppercase">Top tier</div>
+              <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('assets/images/yacht_night_party.png');"></div>
+            </div>
+            <div class="p-8">
+              <h3 class="font-serif text-2xl font-medium tracking-tight mb-1 text-brand-ice">VVIP Main Cabin Table</h3>
+              <p class="font-mono text-xs text-brand-gold mb-4">₱75,000 / table</p>
+              <p class="text-brand-muted text-sm font-light leading-relaxed mb-6">The best seat on the boat: air-conditioned cabin privileges paired with prime table space right on the deck.</p>
+              <ul class="text-xs text-brand-ice/80 space-y-3 font-light mb-8">
+                <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>Private cabin access for up to 8</span></li>
+                <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>5 premium bottles on the table</span></li>
+                <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>Concierge boarding & private catering</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="px-8 pb-8">
+            <a href="#rsvp" class="select-package-btn w-full block text-center py-4 rounded-full bg-brand-goldDim border border-brand-gold/30 hover:border-brand-gold hover:bg-brand-gold hover:text-brand-obsidian font-mono text-xs font-bold tracking-widest text-brand-gold transition-all duration-300 uppercase">Select</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="gallery" class="py-28 bg-brand-slate/40 backdrop-blur-md border-y border-white/5 relative z-20">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="text-center max-w-2xl mx-auto mb-20" data-reveal>
+        <span class="font-mono text-[11px] tracking-[0.3em] text-brand-gold uppercase block mb-3">Scenes from the deck</span>
+        <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">The lookbook</h2>
+        <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4" data-reveal>
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="assets/images/yacht_night_party.png">
+          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('assets/images/yacht_night_party.png');"></div>
+          <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
+          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Night deck</span>
+        </button>
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all md:row-span-2 md:h-auto" data-img="assets/images/hero_yacht_sunset.png">
+          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('assets/images/hero_yacht_sunset.png');"></div>
+          <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
+          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Sunset cruise</span>
+        </button>
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="assets/images/vip_lounge_interior.png">
+          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('assets/images/vip_lounge_interior.png');"></div>
+          <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
+          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Cabin lounge</span>
+        </button>
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="assets/images/yacht_night_party.png">
+          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('assets/images/yacht_night_party.png');"></div>
+          <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
+          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Main deck</span>
+        </button>
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="assets/images/hero_yacht_sunset.png">
+          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('assets/images/hero_yacht_sunset.png');"></div>
+          <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
+          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Horizon</span>
+        </button>
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="assets/images/vip_lounge_interior.png">
+          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('assets/images/vip_lounge_interior.png');"></div>
+          <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
+          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Golden hour</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section id="rsvp" class="py-28 bg-brand-slate/60 backdrop-blur-md border-t border-white/5 relative z-20">
+    <div class="max-w-4xl mx-auto px-6">
+      <div class="text-center max-w-2xl mx-auto mb-16" data-reveal>
+        <span class="font-mono text-[11px] tracking-[0.3em] text-brand-gold uppercase block mb-3">Get on the list</span>
+        <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">Request your invite</h2>
+        <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
+      </div>
+      <div class="bg-brand-obsidian border border-white/5 rounded-3xl p-8 md:p-12 glow-hover transition-all duration-500" data-reveal>
+        <form id="rsvp-form" class="space-y-6">
+          <div class="grid md:grid-cols-2 gap-6">
+            <div>
+              <label for="fullname" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Full Name</label>
+              <input type="text" id="fullname" required placeholder="Efren Karl Atienza" class="w-full bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice font-light text-sm px-4 py-3 outline-none transition-colors duration-300">
+            </div>
+            <div>
+              <label for="email" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Email Address</label>
+              <input type="email" id="email" required placeholder="karl@chrysanthemum.dev" class="w-full bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice font-light text-sm px-4 py-3 outline-none transition-colors duration-300">
+            </div>
+          </div>
+          <div class="grid md:grid-cols-2 gap-6">
+            <div>
+              <label for="phone" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Phone Number</label>
+              <input type="tel" id="phone" required placeholder="0917XXXXXXX" class="w-full bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice font-light text-sm px-4 py-3 outline-none transition-colors duration-300">
+            </div>
+            <div>
+              <label for="instagram" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Instagram Handle</label>
+              <input type="text" id="instagram" required placeholder="@karl_atienza" class="w-full bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice font-light text-sm px-4 py-3 outline-none transition-colors duration-300">
+            </div>
+          </div>
+          <div class="grid md:grid-cols-2 gap-6">
+            <div>
+              <label for="package" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Ticket / Table</label>
+              <div class="relative">
+                <select id="package" class="w-full bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice font-light text-sm px-4 py-3 outline-none appearance-none cursor-pointer transition-colors duration-300">
+                  <option value="General Admission" data-price="5000">General Admission — ₱5,000</option>
+                  <option value="VIP Cockpit Lounge" data-price="45000">VIP Cockpit Lounge — ₱45,000</option>
+                  <option value="VVIP Main Cabin Table" data-price="75000">VVIP Main Cabin Table — ₱75,000</option>
+                </select>
+                <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none text-brand-gold">▼</div>
+              </div>
+            </div>
+            <div>
+              <label for="guests" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Number of Guests</label>
+              <div class="relative">
+                <select id="guests" class="w-full bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice font-light text-sm px-4 py-3 outline-none appearance-none cursor-pointer transition-colors duration-300">
+                  <option value="1">1 Person</option>
+                  <option value="2">2 People</option>
+                  <option value="3">3 People</option>
+                  <option value="4">4 People</option>
+                  <option value="5">5 People</option>
+                  <option value="6">6 People (Table Maximum)</option>
+                  <option value="7">7 People</option>
+                  <option value="8">8 People (VVIP Maximum)</option>
+                </select>
+                <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none text-brand-gold">▼</div>
+              </div>
+            </div>
+          </div>
+          <div class="border-t border-white/10 pt-6 flex justify-between items-center font-mono">
+            <span class="text-xs text-brand-muted uppercase">Estimated total</span>
+            <span id="estimated-total" class="text-xl md:text-2xl font-bold text-brand-gold">₱5,000</span>
+          </div>
+          <div class="flex items-start space-x-3 pt-2">
+            <input type="checkbox" id="verify-terms" required class="mt-1 w-4 h-4 accent-brand-gold border-white/10 bg-brand-slate rounded cursor-pointer">
+            <label for="verify-terms" class="text-xs text-brand-muted font-light leading-relaxed cursor-pointer select-none">
+              I confirm every guest is 18 or older and that I'll follow the crew's maritime safety directives during boarding.
+            </label>
+          </div>
+          <button type="submit" class="w-full py-4 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-[0.2em] hover:bg-brand-ice transition-colors duration-300 uppercase">
+            Apply & continue to payment
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq" class="py-28 bg-brand-obsidian/60 backdrop-blur-md border-t border-white/5 relative z-20">
+    <div class="max-w-3xl mx-auto px-6">
+      <div class="text-center mb-16" data-reveal>
+        <span class="font-mono text-[11px] tracking-[0.3em] text-brand-gold uppercase block mb-3">Before you board</span>
+        <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">Frequently Asked Questions</h2>
+        <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
+      </div>
+      <div class="space-y-4" data-reveal>
+        <div class="faq-item bg-brand-slate border border-white/5 rounded-2xl hover:border-brand-gold/30 transition-colors">
+          <button class="faq-trigger w-full flex justify-between items-center text-left px-6 py-5">
+            <span class="font-serif text-lg md:text-xl text-brand-ice tracking-tight">What should I wear?</span>
+            <span class="faq-icon text-brand-gold text-xl font-mono shrink-0 ml-4">+</span>
+          </button>
+          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">Smart resort-luxe. Skip the flip-flops, gym wear, and beach shorts — and go for footwear you can comfortably board and dance in.</p></div>
+        </div>
+        <div class="faq-item bg-brand-slate border border-white/5 rounded-2xl hover:border-brand-gold/30 transition-colors">
+          <button class="faq-trigger w-full flex justify-between items-center text-left px-6 py-5">
+            <span class="font-serif text-lg md:text-xl text-brand-ice tracking-tight">How early do I need to arrive?</span>
+            <span class="faq-icon text-brand-gold text-xl font-mono shrink-0 ml-4">+</span>
+          </button>
+          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">Check-in opens at 16:00 at the Manila Yacht Club dock. We sail at 16:30 sharp — once we're off the dock, we can't turn back for latecomers.</p></div>
+        </div>
+        <div class="faq-item bg-brand-slate border border-white/5 rounded-2xl hover:border-brand-gold/30 transition-colors">
+          <button class="faq-trigger w-full flex justify-between items-center text-left px-6 py-5">
+            <span class="font-serif text-lg md:text-xl text-brand-ice tracking-tight">Can I pass my spot to someone else?</span>
+            <span class="faq-icon text-brand-gold text-xl font-mono shrink-0 ml-4">+</span>
+          </button>
+          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">Names are locked at booking for screening. To hand your spot to someone, email us with their details at least 72 hours before the event.</p></div>
+        </div>
+        <div class="faq-item bg-brand-slate border border-white/5 rounded-2xl hover:border-brand-gold/30 transition-colors">
+          <button class="faq-trigger w-full flex justify-between items-center text-left px-6 py-5">
+            <span class="font-serif text-lg md:text-xl text-brand-ice tracking-tight">What if the weather turns?</span>
+            <span class="faq-icon text-brand-gold text-xl font-mono shrink-0 ml-4">+</span>
+          </button>
+          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">We sail rain or shine — the covered deck and cabin keep the night going. If the coast guard issues an advisory, every booking rolls over to the new date.</p></div>
+        </div>
+        <div class="faq-item bg-brand-slate border border-white/5 rounded-2xl hover:border-brand-gold/30 transition-colors">
+          <button class="faq-trigger w-full flex justify-between items-center text-left px-6 py-5">
+            <span class="font-serif text-lg md:text-xl text-brand-ice tracking-tight">Is the open bar actually unlimited?</span>
+            <span class="faq-icon text-brand-gold text-xl font-mono shrink-0 ml-4">+</span>
+          </button>
+          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">Yes — spirits, cocktails, wine, and soft drinks pour throughout the cruise. Our crew may pace service where maritime safety calls for it.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="payment-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-brand-obsidian/80 backdrop-blur-md hidden transition-all duration-300">
+    <div class="bg-brand-slate border border-brand-gold/30 rounded-3xl p-8 max-w-md w-full shadow-2xl animate-glow">
+      <div class="flex justify-between items-center border-b border-white/5 pb-4 mb-6">
+        <h3 class="font-serif text-2xl font-medium text-brand-gold tracking-tight">Checkout</h3>
+        <button id="close-modal" class="text-brand-muted hover:text-brand-ice text-xl font-bold font-mono outline-none">×</button>
+      </div>
+      <div class="space-y-6">
+        <div class="bg-brand-obsidian/40 border border-white/5 rounded-2xl p-4 space-y-2 text-xs font-mono">
+          <div class="flex justify-between"><span class="text-brand-muted">GUEST NAME</span><span id="summary-name" class="text-brand-ice">—</span></div>
+          <div class="flex justify-between"><span class="text-brand-muted">PACKAGE</span><span id="summary-package" class="text-brand-ice">—</span></div>
+          <div class="flex justify-between"><span class="text-brand-muted">GUESTS</span><span id="summary-guests" class="text-brand-ice">—</span></div>
+          <div class="border-t border-white/5 pt-2 flex justify-between text-sm font-bold"><span class="text-brand-gold">TOTAL</span><span id="summary-total" class="text-brand-gold">₱0.00</span></div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <button class="payment-method-btn border border-brand-gold bg-brand-goldDim/20 rounded-full py-3 text-center text-xs font-mono font-bold tracking-widest text-brand-gold cursor-pointer uppercase" data-method="gcash">GCash</button>
+          <button class="payment-method-btn border border-white/10 hover:border-brand-gold hover:text-brand-gold rounded-full py-3 text-center text-xs font-mono font-bold tracking-widest text-brand-muted cursor-pointer uppercase" data-method="maya">Maya</button>
+        </div>
+        <div id="phone-payment-section" class="space-y-4">
+          <div>
+            <label for="payment-phone" class="block font-mono text-[10px] tracking-wider text-brand-muted mb-2 uppercase">Registered phone number</label>
+            <input type="tel" id="payment-phone" required placeholder="0917XXXXXXX" class="w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice font-light text-sm px-4 py-3 outline-none transition-colors duration-300">
+          </div>
+        </div>
+        <button id="pay-button" class="w-full py-4 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-[0.2em] hover:bg-brand-ice transition-colors duration-300 uppercase">Authorise & pay</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="receipt-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-brand-obsidian/90 backdrop-blur-md hidden transition-all duration-300">
+    <div class="bg-brand-slate border border-brand-gold rounded-3xl p-8 max-w-md w-full shadow-2xl text-center relative overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-t from-brand-goldDim/10 to-transparent pointer-events-none"></div>
+      <div class="w-16 h-16 rounded-full border border-brand-gold flex items-center justify-center text-2xl text-brand-gold mx-auto mb-6">✓</div>
+      <h3 class="font-serif text-3xl font-medium text-brand-ice tracking-tight mb-2">You're on the list</h3>
+      <p class="text-brand-muted text-xs font-light mb-8 max-w-xs mx-auto">Your booking is confirmed. Show this pass at the Manila Yacht Club dock when you board.</p>
+      <div class="bg-brand-obsidian border-dashed border-2 border-brand-gold/30 rounded-2xl p-6 space-y-4 text-left font-mono text-xs mb-8 relative">
+        <div class="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-brand-slate rounded-full"></div>
+        <div class="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-brand-slate rounded-full"></div>
+        <div class="flex justify-between border-b border-white/5 pb-3"><span class="text-brand-muted">PASSENGER</span><span id="ticket-name" class="text-brand-ice font-bold">—</span></div>
+        <div class="flex justify-between"><span class="text-brand-muted">TICKET TYPE</span><span id="ticket-package" class="text-brand-ice">—</span></div>
+        <div class="flex justify-between"><span class="text-brand-muted">GUESTS</span><span id="ticket-guests" class="text-brand-ice">—</span></div>
+        <div class="flex justify-between"><span class="text-brand-muted">BOARDING POINT</span><span class="text-brand-ice">Manila Yacht Club</span></div>
+        <div class="flex justify-between border-t border-white/5 pt-3 text-sm font-bold text-brand-gold"><span>CODE</span><span id="ticket-code">EXC-PENDING</span></div>
+      </div>
+      <button id="close-receipt" class="w-full py-4 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-[0.2em] hover:bg-brand-ice transition-colors duration-300 uppercase">Close & download pass</button>
+    </div>
+  </div>
+
+  <div id="lightbox" class="closed fixed inset-0 z-[60] flex items-center justify-center bg-brand-obsidian/95 backdrop-blur-md p-6">
+    <button id="lightbox-close" aria-label="Close" class="absolute top-6 right-6 text-brand-muted hover:text-brand-gold text-4xl font-mono">×</button>
+    <img id="lightbox-img" src="" alt="Gallery view" class="max-w-full max-h-[80vh] rounded-2xl border border-brand-gold/40 shadow-2xl object-contain">
+  </div>
+
+  <button id="back-to-top" aria-label="Back to top" class="hidden-btn fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-brand-gold text-brand-obsidian font-mono text-lg font-bold flex items-center justify-center hover:bg-brand-ice transition-colors shadow-lg">↑</button>
+
+  <footer class="bg-brand-obsidian/80 backdrop-blur-md border-t border-white/5 py-16 text-brand-muted text-xs relative z-20">
+    <div class="max-w-7xl mx-auto px-6 grid md:grid-cols-4 gap-12 mb-12">
+      <div class="space-y-4 md:col-span-2">
+        <div class="flex items-center space-x-3">
+          <div class="w-40 md:w-56 h-10 md:h-16 relative overflow-hidden">
+            <img src="images/logo.png" alt="Exclusives PH Logo" class="absolute inset-0 w-full h-full object-contain object-center">
+          </div>
+        </div>
+        <p class="text-brand-muted text-xs leading-relaxed max-w-sm font-light">Curated nightlife on the water at the Manila Yacht Club. Invite-only, strictly vetted guest list.</p>
+      </div>
+      <div class="space-y-4">
+        <h4 class="font-mono text-brand-gold text-[11px] tracking-widest uppercase font-bold">Navigate</h4>
+        <ul class="space-y-2 font-light">
+          <li><a href="#event" class="hover:text-brand-gold transition-colors">The Event</a></li>
+          <li><a href="#itinerary" class="hover:text-brand-gold transition-colors">Itinerary</a></li>
+          <li><a href="#lineup" class="hover:text-brand-gold transition-colors">Lineup</a></li>
+          <li><a href="#packages" class="hover:text-brand-gold transition-colors">Tables</a></li>
+          <li><a href="#gallery" class="hover:text-brand-gold transition-colors">Gallery</a></li>
+          <li><a href="#faq" class="hover:text-brand-gold transition-colors">FAQ</a></li>
+          <li><a href="#rsvp" class="hover:text-brand-gold transition-colors">Request an invite</a></li>
+        </ul>
+      </div>
+      <div class="space-y-4 font-light">
+        <h4 class="font-mono text-brand-gold text-[11px] tracking-widest uppercase font-bold">Contact</h4>
+        <p class="text-brand-ice">exclusives.est2023@gmail.com</p>
+        <p class="text-brand-muted">Manila Yacht Club, CCP Complex, Roxas Boulevard, Malate, Manila, Philippines</p>
+      </div>
+    </div>
+    <div class="max-w-7xl mx-auto px-6 border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 text-brand-muted">
+      <div>&copy; 2026 Exclusives PH. All rights reserved.</div>
+      <div class="flex space-x-6 font-mono">
+        <a href="https://www.instagram.com/exclusivesph" target="_blank" class="hover:text-brand-gold">Instagram</a>
+        <a href="#" class="hover:text-brand-gold">Terms & Privacy</a>
+        <a href="#" class="hover:text-brand-gold">Safety Directives</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="js/three-anim.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+  (function () {
+    'use strict';
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const eventDate = new Date('2026-08-22T16:00:00+08:00').getTime();
+    const cd = {
+      d: document.getElementById('cd-days'),
+      h: document.getElementById('cd-hours'),
+      m: document.getElementById('cd-mins'),
+      s: document.getElementById('cd-secs'),
+    };
+    const pad = (n) => String(n).padStart(2, '0');
+    function tick() {
+      if (!cd.d) return;
+      const diff = eventDate - Date.now();
+      if (diff <= 0) { cd.d.textContent = cd.h.textContent = cd.m.textContent = cd.s.textContent = '00'; return; }
+      cd.d.textContent = pad(Math.floor(diff / 86400000));
+      cd.h.textContent = pad(Math.floor((diff % 86400000) / 3600000));
+      cd.m.textContent = pad(Math.floor((diff % 3600000) / 60000));
+      cd.s.textContent = pad(Math.floor((diff % 60000) / 1000));
+    }
+    tick(); setInterval(tick, 1000);
+
+    const progress = document.getElementById('scroll-progress');
+    const toTop = document.getElementById('back-to-top');
+    function onScroll() {
+      const st = window.scrollY || document.documentElement.scrollTop;
+      const h = document.documentElement.scrollHeight - window.innerHeight;
+      if (progress) progress.style.width = (h > 0 ? (st / h) * 100 : 0) + '%';
+      if (toTop) toTop.classList.toggle('hidden-btn', st < 600);
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    if (toTop) toTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }));
+
+    const menu = document.getElementById('mobile-menu');
+    const openBtn = document.getElementById('menu-toggle');
+    const closeBtn = document.getElementById('menu-close');
+    const openMenu = () => { menu && menu.classList.remove('closed'); document.body.classList.add('modal-active'); };
+    const closeMenu = () => { menu && menu.classList.add('closed'); document.body.classList.remove('modal-active'); };
+    openBtn && openBtn.addEventListener('click', openMenu);
+    closeBtn && closeBtn.addEventListener('click', closeMenu);
+    document.querySelectorAll('.mobile-link').forEach((a) => a.addEventListener('click', closeMenu));
+
+    const revealEls = document.querySelectorAll('[data-reveal]');
+    if (reduceMotion || !('IntersectionObserver' in window)) {
+      revealEls.forEach((el) => el.classList.add('revealed'));
+    } else {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) { entry.target.classList.add('revealed'); io.unobserve(entry.target); }
+        });
+      }, { threshold: 0.12 });
+      revealEls.forEach((el) => io.observe(el));
+    }
+
+    const fill = document.getElementById('scarcity-fill');
+    if (fill) {
+      const total = 300, left = 42;
+      const pct = ((total - left) / total) * 100;
+      if (reduceMotion) { fill.style.width = pct + '%'; }
+      else {
+        const so = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) { requestAnimationFrame(() => { fill.style.width = pct + '%'; }); so.disconnect(); }
+          });
+        }, { threshold: 0.4 });
+        so.observe(fill);
+      }
+    }
+
+    document.querySelectorAll('.faq-trigger').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const item = btn.closest('.faq-item');
+        const isOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item.open').forEach((el) => el.classList.remove('open'));
+        if (!isOpen) item.classList.add('open');
+      });
+    });
+
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxClose = document.getElementById('lightbox-close');
+    const openLightbox = (src) => { if (!lightbox) return; lightboxImg.src = src; lightbox.classList.remove('closed'); document.body.classList.add('modal-active'); };
+    const closeLightbox = () => { if (!lightbox) return; lightbox.classList.add('closed'); document.body.classList.remove('modal-active'); };
+    document.querySelectorAll('.gallery-item').forEach((item) => item.addEventListener('click', () => openLightbox(item.getAttribute('data-img'))));
+    lightboxClose && lightboxClose.addEventListener('click', closeLightbox);
+    lightbox && lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeLightbox(); closeMenu(); } });
+  })();
+  </script>
+</body>
+</html>
