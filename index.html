@@ -64,6 +64,20 @@
     #back-to-top { transition: opacity 0.4s ease, transform 0.4s ease; }
     #back-to-top.hidden-btn { opacity: 0; transform: translateY(20px); pointer-events: none; }
     #scarcity-fill { transition: width 1.4s cubic-bezier(0.16,1,0.3,1); }
+    .deck-tab {
+      border-color: rgba(255,255,255,0.12);
+      color: #8AA0AD;
+      background: rgba(16, 42, 56, 0.4);
+    }
+    .deck-tab:hover { border-color: rgba(245,197,24,0.5); color: #F2EADD; }
+    .deck-tab.active-deck {
+      background: #F5C518;
+      color: #0A1A24;
+      border-color: #F5C518;
+      box-shadow: 0 0 22px rgba(245,197,24,0.35);
+    }
+    .deck-panel img { animation: deckFade 0.5s cubic-bezier(0.16,1,0.3,1); }
+    @keyframes deckFade { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: scale(1); } }
     @media (prefers-reduced-motion: reduce) {
       * { animation: none !important; transition: none !important; }
       [data-reveal] { opacity: 1 !important; transform: none !important; }
@@ -90,6 +104,7 @@
         <a href="#event" class="hover:text-brand-ice transition-colors">THE EVENT</a>
         <a href="#itinerary" class="hover:text-brand-ice transition-colors">ITINERARY</a>
         <a href="#lineup" class="hover:text-brand-ice transition-colors">LINEUP</a>
+        <a href="#decks" class="hover:text-brand-ice transition-colors">DECKS</a>
         <a href="#packages" class="hover:text-brand-ice transition-colors">TABLES</a>
         <a href="#rsvp" class="hover:text-brand-ice transition-colors">RSVP</a>
       </div>
@@ -112,6 +127,7 @@
       <a href="#event" class="mobile-link hover:text-brand-gold transition-colors">The Event</a>
       <a href="#itinerary" class="mobile-link hover:text-brand-gold transition-colors">Itinerary</a>
       <a href="#lineup" class="mobile-link hover:text-brand-gold transition-colors">Lineup</a>
+      <a href="#decks" class="mobile-link hover:text-brand-gold transition-colors">Decks</a>
       <a href="#packages" class="mobile-link hover:text-brand-gold transition-colors">Tables</a>
       <a href="#gallery" class="mobile-link hover:text-brand-gold transition-colors">Gallery</a>
       <a href="#faq" class="mobile-link hover:text-brand-gold transition-colors">FAQ</a>
@@ -122,11 +138,22 @@
   </div>
 
   <header class="relative min-h-[100svh] w-full flex flex-col items-center justify-center overflow-hidden z-20 pt-24 pb-16">
+    <!-- Hero sunset background -->
+    <div class="absolute inset-0 z-0 pointer-events-none">
+      <div class="absolute inset-0 bg-cover bg-center scale-105" style="background-image: url('images/hero-sunset.jpg');"></div>
+      <!-- Bottom obsidian fade for text contrast -->
+      <div class="absolute inset-0 bg-gradient-to-t from-brand-obsidian via-brand-obsidian/50 to-brand-obsidian/25"></div>
+      <!-- Overall darkening tint to keep gold text readable -->
+      <div class="absolute inset-0 bg-brand-obsidian/35"></div>
+      <!-- Gold horizon glow -->
+      <div class="absolute inset-0 horizon-glow"></div>
+    </div>
     <div class="relative z-20 text-center max-w-4xl px-6 flex flex-col items-center">
-      <span class="font-mono text-xs tracking-[0.35em] text-brand-gold mb-4 uppercase mt-4">MANILA BAY · 22 AUG 2026</span>
-      <h1 class="font-serif text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight leading-[0.95] mb-6 text-brand-ice">
-        The bay,<br>
-        <span class="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-brand-gold via-amber-300 to-brand-gold">after dark.</span>
+      <span class="font-mono text-xs md:text-sm tracking-[0.35em] text-brand-gold mb-6 uppercase mt-4">MANILA BAY · AUGUST 2026</span>
+      <img src="images/logo.png" alt="Exclusives PH"
+           class="w-full max-w-md md:max-w-lg lg:max-w-xl h-auto object-contain mb-4 drop-shadow-[0_0_30px_rgba(245,197,24,0.35)]">
+      <h1 class="font-serif text-5xl md:text-7xl lg:text-8xl font-semibold tracking-tight leading-[0.95] mb-8 text-transparent bg-clip-text bg-gradient-to-r from-brand-gold via-amber-300 to-brand-gold">
+        YACHT PARTY
       </h1>
       <p class="text-brand-muted text-sm md:text-base max-w-xl mb-10 leading-relaxed font-light">
         One yacht, a hand-picked crowd, and the Manila skyline at golden hour. We cast off at sunset and don't stop until the deck lights fade.
@@ -188,9 +215,10 @@
   <section id="event" class="py-28 bg-brand-obsidian/60 backdrop-blur-md border-b border-white/5 relative z-20">
     <div class="max-w-7xl mx-auto px-6">
       <div class="grid md:grid-cols-2 gap-16 items-center">
+        <!-- THE EVENT: Establishing Credibility Shot using IMG_0090.jpg -->
         <div data-reveal class="relative bg-brand-slate p-3 rounded-3xl border border-white/5 glow-hover transition-all duration-500">
           <div class="h-96 md:h-[500px] overflow-hidden rounded-2xl relative">
-            <div class="w-full h-full bg-cover bg-center" style="background-image: url('assets/images/yacht_night_party.png');"></div>
+            <div class="w-full h-full bg-cover bg-center" style="background-image: url('images/IMG_0090.jpg');"></div>
             <div class="absolute inset-0 bg-gradient-to-t from-brand-obsidian via-transparent to-transparent"></div>
           </div>
           <div class="absolute bottom-8 left-8 right-8 bg-brand-obsidian/95 border border-white/10 rounded-2xl p-6 backdrop-blur">
@@ -277,9 +305,10 @@
         <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
       </div>
       <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <!-- HEADLINER: Dusk Top Deck w/ City Skyline using IMG_0157.jpg -->
         <div data-reveal class="group relative bg-brand-slate border border-white/5 rounded-2xl overflow-hidden hover:border-brand-gold/40 transition-all duration-500">
           <div class="h-64 relative overflow-hidden">
-            <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('assets/images/yacht_night_party.png');"></div>
+            <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('images/IMG_0157.jpg');"></div>
             <div class="absolute inset-0 bg-gradient-to-t from-brand-slate via-brand-slate/40 to-transparent"></div>
             <span class="absolute top-4 left-4 font-mono text-[9px] tracking-widest bg-brand-gold text-brand-obsidian px-3 py-1 rounded-full font-bold uppercase">Headliner</span>
           </div>
@@ -289,9 +318,10 @@
             <p class="text-brand-muted text-xs font-light leading-relaxed">Closes the night with a slow-burn sunset-to-midnight journey.</p>
           </div>
         </div>
+        <!-- SUNSET SET: Deck Seating w/ Golden Sun using IMG_0099.jpg -->
         <div data-reveal class="group relative bg-brand-slate border border-white/5 rounded-2xl overflow-hidden hover:border-brand-gold/40 transition-all duration-500">
           <div class="h-64 relative overflow-hidden">
-            <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('assets/images/hero_yacht_sunset.png');"></div>
+            <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('images/IMG_0099.jpg');"></div>
             <div class="absolute inset-0 bg-gradient-to-t from-brand-slate via-brand-slate/40 to-transparent"></div>
             <span class="absolute top-4 left-4 font-mono text-[9px] tracking-widest border border-brand-gold text-brand-gold bg-brand-obsidian/80 px-3 py-1 rounded-full font-bold uppercase">Sunset set</span>
           </div>
@@ -301,9 +331,10 @@
             <p class="text-brand-muted text-xs font-light leading-relaxed">Warms the crowd as the yacht clears the harbor mouth.</p>
           </div>
         </div>
+        <!-- CABIN LOUNGE: Formal Polished Wood Salon using IMG_0095.jpg -->
         <div data-reveal class="group relative bg-brand-slate border border-white/5 rounded-2xl overflow-hidden hover:border-brand-gold/40 transition-all duration-500">
           <div class="h-64 relative overflow-hidden">
-            <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('assets/images/vip_lounge_interior.png');"></div>
+            <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('images/IMG_0095.jpg');"></div>
             <div class="absolute inset-0 bg-gradient-to-t from-brand-slate via-brand-slate/40 to-transparent"></div>
             <span class="absolute top-4 left-4 font-mono text-[9px] tracking-widest border border-brand-gold text-brand-gold bg-brand-obsidian/80 px-3 py-1 rounded-full font-bold uppercase">Cabin lounge</span>
           </div>
@@ -317,6 +348,45 @@
     </div>
   </section>
 
+  <section id="decks" class="py-28 bg-brand-slate/40 backdrop-blur-md border-b border-white/5 relative z-20">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="text-center max-w-2xl mx-auto mb-14" data-reveal>
+        <span class="font-mono text-[11px] tracking-[0.3em] text-brand-gold uppercase block mb-3">Know the boat</span>
+        <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">The Floor Plans</h2>
+        <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
+        <p class="text-brand-muted text-sm font-light leading-relaxed mt-6">Three decks, one night on the water. Flip through each level to see where the couches, bar, dance floor, and lounges sit before you pick your spot.</p>
+      </div>
+
+      <!-- Deck tabs -->
+      <div class="flex flex-wrap justify-center gap-3 mb-10" data-reveal>
+        <button class="deck-tab active-deck font-mono text-[11px] tracking-[0.2em] uppercase px-6 py-3 rounded-full border transition-all duration-300" data-deck="lower">Lower Deck</button>
+        <button class="deck-tab font-mono text-[11px] tracking-[0.2em] uppercase px-6 py-3 rounded-full border transition-all duration-300" data-deck="main">Main Deck</button>
+        <button class="deck-tab font-mono text-[11px] tracking-[0.2em] uppercase px-6 py-3 rounded-full border transition-all duration-300" data-deck="sky">Sky Deck</button>
+      </div>
+
+      <!-- Deck panels -->
+      <div data-reveal class="relative bg-black border border-white/10 rounded-3xl overflow-hidden glow-hover transition-all duration-500">
+        <div class="deck-panel" data-deck="lower">
+          <img src="images/deck-lower.png" alt="Lower Deck floor plan — reception, four lounge couches, and executive table" class="w-full h-auto block">
+        </div>
+        <div class="deck-panel hidden" data-deck="main">
+          <img src="images/deck-main.png" alt="Main Deck floor plan — bar, beer pong, lounge couches, deck couches and cocktail tables" class="w-full h-auto block">
+        </div>
+        <div class="deck-panel hidden" data-deck="sky">
+          <img src="images/deck-sky.png" alt="Sky Deck floor plan — DJ booth, dance floor, jacuzzi, and open lounge" class="w-full h-auto block">
+        </div>
+      </div>
+
+      <!-- Deck caption -->
+      <div class="text-center mt-8" data-reveal>
+        <p id="deck-caption" class="text-brand-muted text-sm font-light leading-relaxed max-w-xl mx-auto">
+          <span class="text-brand-gold font-mono text-[11px] tracking-widest uppercase block mb-2">Lower Deck</span>
+          Step aboard at the reception and settle into the four lounge couches around the executive table — the calm, seated heart of the boat.
+        </p>
+      </div>
+    </div>
+  </section>
+
   <section id="packages" class="py-28 bg-brand-obsidian/60 backdrop-blur-md relative z-20">
     <div class="max-w-7xl mx-auto px-6">
       <div class="text-center max-w-2xl mx-auto mb-20" data-reveal>
@@ -325,12 +395,14 @@
         <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
       </div>
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        <!-- SOLO ENTRY: Long Side Promenade Deck using IMG_0102.jpg -->
         <div data-reveal class="bg-brand-slate border border-white/5 rounded-3xl overflow-hidden group hover:border-brand-gold/40 transition-all duration-500 flex flex-col justify-between">
           <div>
             <div class="h-44 bg-neutral-900 relative">
               <div class="absolute inset-0 bg-gradient-to-t from-brand-slate to-transparent z-10"></div>
               <div class="absolute top-4 left-4 z-20 font-mono text-[10px] tracking-widest bg-brand-gold text-brand-obsidian px-3 py-1 rounded-full font-bold uppercase">Solo entry</div>
-              <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('assets/images/hero_yacht_sunset.png');"></div>
+              <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('images/IMG_0102.jpg');"></div>
             </div>
             <div class="p-6">
               <h3 class="font-serif text-xl font-medium tracking-tight mb-1 text-brand-ice">Entrance Fee</h3>
@@ -348,12 +420,13 @@
           </div>
         </div>
 
+        <!-- STANDING TABLE: Curved Deck Lounge & Tables using IMG_0116.jpg -->
         <div data-reveal class="bg-brand-slate border border-white/5 rounded-3xl overflow-hidden group hover:border-brand-gold/40 transition-all duration-500 flex flex-col justify-between">
           <div>
             <div class="h-44 bg-neutral-900 relative">
               <div class="absolute inset-0 bg-gradient-to-t from-brand-slate to-transparent z-10"></div>
               <div class="absolute top-4 left-4 z-20 font-mono text-[10px] tracking-widest bg-brand-gold text-brand-obsidian px-3 py-1 rounded-full font-bold uppercase">Group of 4</div>
-              <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('assets/images/yacht_night_party.png');"></div>
+              <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('images/IMG_0116.jpg');"></div>
             </div>
             <div class="p-6">
               <h3 class="font-serif text-xl font-medium tracking-tight mb-1 text-brand-ice">Standing Table</h3>
@@ -371,13 +444,14 @@
           </div>
         </div>
 
+        <!-- COUCH 6 PAX: Indoor VIP Sectional Couch using IMG_0097.jpg -->
         <div data-reveal class="bg-brand-slate border border-brand-gold/40 glow-hover rounded-3xl overflow-hidden group transition-all duration-500 flex flex-col justify-between relative">
           <div class="absolute top-4 right-4 z-20 font-mono text-[9px] tracking-widest border border-brand-gold text-brand-gold px-2 py-1 rounded-full uppercase bg-brand-obsidian/90">Favourite</div>
           <div>
             <div class="h-44 bg-neutral-900 relative">
               <div class="absolute inset-0 bg-gradient-to-t from-brand-slate to-transparent z-10"></div>
               <div class="absolute top-4 left-4 z-20 font-mono text-[10px] tracking-widest bg-brand-gold text-brand-obsidian px-3 py-1 rounded-full font-bold uppercase">Group of 6</div>
-              <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('assets/images/vip_lounge_interior.png');"></div>
+              <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('images/lounge\ couch\ 2.png');"></div>
             </div>
             <div class="p-6">
               <h3 class="font-serif text-xl font-medium tracking-tight mb-1 text-brand-ice">Couch</h3>
@@ -395,12 +469,13 @@
           </div>
         </div>
 
+        <!-- COUCH 8 PAX: Wide Aft Deck & Large Table using IMG_0076.jpg -->
         <div data-reveal class="bg-brand-slate border border-white/5 rounded-3xl overflow-hidden group hover:border-brand-gold/40 transition-all duration-500 flex flex-col justify-between">
           <div>
             <div class="h-44 bg-neutral-900 relative">
               <div class="absolute inset-0 bg-gradient-to-t from-brand-slate to-transparent z-10"></div>
               <div class="absolute top-4 left-4 z-20 font-mono text-[10px] tracking-widest bg-brand-gold text-brand-obsidian px-3 py-1 rounded-full font-bold uppercase">Group of 8</div>
-              <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('assets/images/yacht_night_party.png');"></div>
+              <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('images/lounge\ couch\ 1.png');"></div>
             </div>
             <div class="p-6">
               <h3 class="font-serif text-xl font-medium tracking-tight mb-1 text-brand-ice">Couch</h3>
@@ -417,6 +492,7 @@
             <a href="#rsvp" class="select-package-btn w-full block text-center py-3 rounded-full bg-brand-goldDim border border-brand-gold/30 hover:border-brand-gold hover:bg-brand-gold hover:text-brand-obsidian font-mono text-xs font-bold tracking-widest text-brand-gold transition-all duration-300 uppercase" data-package="Couch (8 pax)">Select</a>
           </div>
         </div>
+
       </div>
     </div>
   </section>
@@ -429,35 +505,41 @@
         <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
       </div>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4" data-reveal>
-        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="assets/images/yacht_night_party.png">
-          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('assets/images/yacht_night_party.png');"></div>
+        <!-- Item 1: Multi-Deck Architecture using IMG_0115.jpg -->
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="images/IMG_0115.jpg">
+          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/IMG_0115.jpg');"></div>
           <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
-          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Night deck</span>
+          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Multi-Deck Architecture</span>
         </button>
-        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all md:row-span-2 md:h-auto" data-img="assets/images/hero_yacht_sunset.png">
-          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('assets/images/hero_yacht_sunset.png');"></div>
+        <!-- Item 2: Boarding Point & Marina using IMG_0118.jpg -->
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all md:row-span-2 md:h-auto" data-img="images/IMG_0118.jpg">
+          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/IMG_0118.jpg');"></div>
           <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
-          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Sunset cruise</span>
+          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Boarding Point & Marina</span>
         </button>
-        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="assets/images/vip_lounge_interior.png">
-          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('assets/images/vip_lounge_interior.png');"></div>
+        <!-- Item 3: Outdoor Decks using IMG_0076.jpg -->
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="images/IMG_0076.jpg">
+          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/IMG_0076.jpg');"></div>
           <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
-          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Cabin lounge</span>
+          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Main Aft Deck</span>
         </button>
-        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="assets/images/yacht_night_party.png">
-          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('assets/images/yacht_night_party.png');"></div>
+        <!-- Item 4: Sunset Horizons using IMG_0116.jpg -->
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="images/IMG_0116.jpg">
+          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/IMG_0116.jpg');"></div>
           <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
-          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Main deck</span>
+          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Sunset Deck Tables</span>
         </button>
-        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="assets/images/hero_yacht_sunset.png">
-          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('assets/images/hero_yacht_sunset.png');"></div>
+        <!-- Item 5: Interior VIP Lounges using IMG_0097.jpg -->
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="images/IMG_0097.jpg">
+          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/IMG_0097.jpg');"></div>
           <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
-          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Horizon</span>
+          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">VIP Cabin Lounge</span>
         </button>
-        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="assets/images/vip_lounge_interior.png">
-          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('assets/images/vip_lounge_interior.png');"></div>
+        <!-- Item 6: Twilight Views using IMG_0157.jpg -->
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="images/IMG_0157.jpg">
+          <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/IMG_0157.jpg');"></div>
           <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
-          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Golden hour</span>
+          <span class="absolute bottom-3 left-3 font-mono text-[9px] tracking-widest text-brand-ice uppercase opacity-0 group-hover:opacity-100 transition-opacity">Manila Skyline at Dusk</span>
         </button>
       </div>
     </div>
@@ -521,6 +603,10 @@
                 <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none text-brand-gold">▼</div>
               </div>
             </div>
+          </div>
+          <div>
+            <label for="referrer" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Referred by <span class="text-brand-muted/60 normal-case tracking-normal">(optional)</span></label>
+            <input type="text" id="referrer" placeholder="Name or @handle of who invited you" class="w-full bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice font-light text-sm px-4 py-3 outline-none transition-colors duration-300">
           </div>
           <div class="border-t border-white/10 pt-6 flex justify-between items-center font-mono">
             <span class="text-xs text-brand-muted uppercase">Estimated total</span>
@@ -599,6 +685,7 @@
         <div class="flex justify-between"><span class="text-brand-muted">EMAIL</span><span id="confirm-email" class="text-brand-ice truncate ml-4 max-w-[60%] text-right">—</span></div>
         <div class="flex justify-between"><span class="text-brand-muted">PACKAGE</span><span id="confirm-package" class="text-brand-ice">—</span></div>
         <div class="flex justify-between"><span class="text-brand-muted">GUESTS</span><span id="confirm-guests" class="text-brand-ice">—</span></div>
+        <div id="confirm-referrer-row" style="display:none" class="justify-between"><span class="text-brand-muted">REFERRED BY</span><span id="confirm-referrer" class="text-brand-ice truncate ml-4 max-w-[60%] text-right">—</span></div>
         <div class="border-t border-white/5 pt-2 flex justify-between text-sm font-bold"><span class="text-brand-gold">TOTAL</span><span id="confirm-total" class="text-brand-gold">₱0.00</span></div>
       </div>
       <div class="grid grid-cols-2 gap-4">
@@ -759,6 +846,25 @@
         const isOpen = item.classList.contains('open');
         document.querySelectorAll('.faq-item.open').forEach((el) => el.classList.remove('open'));
         if (!isOpen) item.classList.add('open');
+      });
+    });
+
+    const deckCaptions = {
+      lower: { title: 'Lower Deck', text: 'Step aboard at the reception and settle into the four lounge couches around the executive table — the calm, seated heart of the boat.' },
+      main:  { title: 'Main Deck',  text: 'The social floor: full bar, beer pong, lounge and deck couches, and cocktail tables — where the night really gets going.' },
+      sky:   { title: 'Sky Deck',   text: 'Up top under the open sky — DJ booth, dance floor, jacuzzi, and an open lounge with the best views on the bay.' },
+    };
+    const deckTabs = document.querySelectorAll('.deck-tab');
+    const deckPanels = document.querySelectorAll('.deck-panel');
+    const deckCaption = document.getElementById('deck-caption');
+    deckTabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const deck = tab.getAttribute('data-deck');
+        deckTabs.forEach((t) => t.classList.toggle('active-deck', t === tab));
+        deckPanels.forEach((p) => p.classList.toggle('hidden', p.getAttribute('data-deck') !== deck));
+        if (deckCaption && deckCaptions[deck]) {
+          deckCaption.innerHTML = '<span class="text-brand-gold font-mono text-[11px] tracking-widest uppercase block mb-2">' + deckCaptions[deck].title + '</span>' + deckCaptions[deck].text;
+        }
       });
     });
 

@@ -140,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         email: getVal('email'),
         phone: getVal('phone'),
         instagram: getVal('instagram') || null,
+        referrer: getVal('referrer') || null,
         package: pkgSel ? pkgSel.value : '',
         guests: parseInt(guestsSel ? guestsSel.value : '1', 10) || 1,
         accept_terms: !!(terms && terms.checked),
@@ -151,9 +152,25 @@ document.addEventListener('DOMContentLoaded', () => {
       setText('confirm-package', pendingPayload.package);
       setText('confirm-guests', pendingPayload.guests);
       setText('confirm-total', peso(computeTotal(pendingPayload.package, pendingPayload.guests)));
+      // optional: show referrer in the confirmation modal if that row exists
+      setReferrerRow(pendingPayload.referrer);
   
       openModal($('confirm-modal'));
     });
+  
+    // Show/hide an optional "Referred by" row in the confirm modal. No-op unless
+    // index.html has  #confirm-referrer  (and optionally #confirm-referrer-row).
+    function setReferrerRow(referrer) {
+      const valEl = $('confirm-referrer');
+      if (!valEl) return; // row not present in the HTML — nothing to do
+      const rowEl = $('confirm-referrer-row') || valEl.closest('div');
+      if (referrer) {
+        valEl.textContent = referrer;
+        if (rowEl) rowEl.classList.remove('hidden');
+      } else if (rowEl) {
+        rowEl.classList.add('hidden');
+      }
+    }
   
     // Step B: "Back to edit" -> close, form stays filled as-is
     const editBtn = $('edit-booking');

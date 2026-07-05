@@ -68,6 +68,7 @@ create table if not exists public.bookings (
     email               text        not null,
     phone               text        not null,
     instagram           text,
+    referrer            text,
     package             text        not null,
     guests              integer     not null check (guests >= 1),
     unit_price          integer     not null,
@@ -86,10 +87,11 @@ create index if not exists bookings_email_idx  on public.bookings (email);
 create index if not exists bookings_cs_idx     on public.bookings (checkout_session_id);
 """
 
-# For projects that already ran the older schema: add the new column and relax
+# For projects that already ran the older schema: add the new columns and relax
 # the payment_method check so PayMongo values (paymaya, card, ...) are allowed.
 SUPABASE_MIGRATION = """
 alter table public.bookings add column if not exists checkout_session_id text;
+alter table public.bookings add column if not exists referrer text;
 alter table public.bookings drop constraint if exists bookings_payment_method_check;
 create index if not exists bookings_cs_idx on public.bookings (checkout_session_id);
 """
@@ -210,6 +212,7 @@ class BookingCreate(BaseModel):
     email: EmailStr
     phone: str = Field(..., min_length=7, max_length=20)
     instagram: Optional[str] = Field(None, max_length=60)
+    referrer: Optional[str] = Field(None, max_length=120)
     package: PackageName
     guests: int = Field(..., ge=1, le=8)
     accept_terms: bool = Field(..., description="Guest confirms 18+ and safety directives.")
@@ -228,6 +231,7 @@ class Booking(BaseModel):
     email: EmailStr
     phone: str
     instagram: Optional[str] = None
+    referrer: Optional[str] = None
     package: str
     guests: int
     unit_price: int
@@ -339,6 +343,7 @@ def create_booking(payload: BookingCreate) -> Booking:
         "email": payload.email,
         "phone": payload.phone.strip(),
         "instagram": (payload.instagram or "").strip() or None,
+        "referrer": (payload.referrer or "").strip() or None,
         "package": payload.package,
         "guests": payload.guests,
         "unit_price": unit,

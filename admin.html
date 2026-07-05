@@ -84,6 +84,7 @@
           <thead class="bg-brand-obsidian/50 text-brand-muted font-mono text-[10px] tracking-widest uppercase">
             <tr>
               <th class="text-left px-4 py-3">Guest</th>
+              <th class="text-left px-4 py-3">Referred by</th>
               <th class="text-left px-4 py-3">Package</th>
               <th class="text-left px-4 py-3">Pax</th>
               <th class="text-left px-4 py-3">Total</th>
@@ -232,11 +233,13 @@
       tbody.innerHTML = rows.map((r) => {
         const badge = STATUS_STYLE[r.status] || 'text-brand-muted border-white/10';
         const canCancel = r.status !== 'cancelled';
+        const referrer = (r.referrer && String(r.referrer).trim()) ? esc(r.referrer) : '—';
         return `<tr class="hover:bg-brand-obsidian/30">
           <td class="px-4 py-3">
             <div class="text-brand-ice">${esc(r.full_name)}</div>
             <div class="text-brand-muted text-xs font-mono">${esc(r.email)}</div>
           </td>
+          <td class="px-4 py-3 text-brand-ice/90">${referrer}</td>
           <td class="px-4 py-3 text-brand-ice/90">${esc(r.package)}</td>
           <td class="px-4 py-3 text-brand-ice/90">${esc(r.guests)}</td>
           <td class="px-4 py-3 text-brand-gold font-mono">${peso(r.total_amount)}</td>
