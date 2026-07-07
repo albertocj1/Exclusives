@@ -19,12 +19,10 @@
       }}
     }
   </script>
-  <!-- Point this at your FastAPI server (same as index.html) -->
   <script>window.API_BASE = "http://localhost:8000";</script>
 </head>
 <body class="bg-brand-obsidian text-brand-ice font-sans antialiased min-h-screen">
 
-  <!-- Key gate -->
   <div id="gate" class="min-h-screen flex items-center justify-center px-6">
     <div class="w-full max-w-sm bg-brand-slate border border-white/5 rounded-3xl p-8">
       <h1 class="font-serif text-2xl text-brand-gold mb-2">Admin access</h1>
@@ -36,7 +34,6 @@
     </div>
   </div>
 
-  <!-- Dashboard -->
   <div id="dash" class="hidden max-w-7xl mx-auto px-6 py-10">
     <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
       <div>
@@ -49,11 +46,14 @@
       </div>
     </div>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
       <div class="bg-brand-slate border border-white/5 rounded-2xl p-5">
         <div class="font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-2">Confirmed revenue</div>
         <div id="stat-revenue" class="font-serif text-2xl text-brand-gold">₱0</div>
+      </div>
+      <div class="bg-brand-slate border border-cyan-400/30 bg-cyan-400/5 rounded-2xl p-5">
+        <div class="font-mono text-[10px] tracking-widest text-cyan-300 uppercase mb-2">Needs Approval</div>
+        <div id="stat-verifying" class="font-serif text-2xl text-cyan-300">0</div>
       </div>
       <div class="bg-brand-slate border border-white/5 rounded-2xl p-5">
         <div class="font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-2">Confirmed</div>
@@ -69,25 +69,25 @@
       </div>
     </div>
 
-    <!-- Filters -->
     <div class="flex flex-wrap gap-2 mb-4" id="filters">
       <button data-filter="all"       class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-brand-gold bg-brand-goldDim/20 text-brand-gold">All</button>
+      <button data-filter="verifying" class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-cyan-300 hover:border-cyan-300 transition-colors">Needs Approval</button>
       <button data-filter="confirmed" class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Confirmed</button>
       <button data-filter="pending"   class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Pending</button>
       <button data-filter="cancelled" class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Cancelled</button>
     </div>
 
-    <!-- Table -->
     <div class="bg-brand-slate border border-white/5 rounded-2xl overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full text-sm min-w-[900px]">
           <thead class="bg-brand-obsidian/50 text-brand-muted font-mono text-[10px] tracking-widest uppercase">
             <tr>
               <th class="text-left px-4 py-3">Guest</th>
               <th class="text-left px-4 py-3">Referred by</th>
-              <th class="text-left px-4 py-3">Package</th>
+              <th class="text-left px-4 py-3">Table / Package</th>
               <th class="text-left px-4 py-3">Pax</th>
               <th class="text-left px-4 py-3">Total</th>
+              <th class="text-left px-4 py-3">Receipt</th>
               <th class="text-left px-4 py-3">Status</th>
               <th class="text-left px-4 py-3">Ticket</th>
               <th class="text-left px-4 py-3">Created</th>
@@ -113,13 +113,11 @@
     let currentFilter = 'all';
     let allRows = [];
 
-    // ---- gate -------------------------------------------------------------
     const gate = $('gate'), dash = $('dash');
     function showDash() { gate.classList.add('hidden'); dash.classList.remove('hidden'); }
     function showGate() { dash.classList.add('hidden'); gate.classList.remove('hidden'); }
 
     async function tryKey(key) {
-      // A lightweight auth check: hit the admin list; 401 => wrong key.
       const res = await fetch(`${API_BASE}/api/bookings?limit=1`, { headers: { 'X-Admin-Key': key } });
       return res.ok;
     }
@@ -157,23 +155,25 @@
 
     $('refresh').addEventListener('click', load);
 
-    // ---- filters ----------------------------------------------------------
     document.querySelectorAll('.filter-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         currentFilter = btn.getAttribute('data-filter');
         document.querySelectorAll('.filter-btn').forEach((b) => {
           const active = b === btn;
-          b.classList.toggle('border-brand-gold', active);
-          b.classList.toggle('bg-brand-goldDim/20', active);
-          b.classList.toggle('text-brand-gold', active);
-          b.classList.toggle('border-white/10', !active);
-          b.classList.toggle('text-brand-muted', !active);
+          if (currentFilter === 'verifying' && active) {
+             b.classList.add('border-cyan-400', 'bg-cyan-400/10', 'text-cyan-300');
+             b.classList.remove('border-white/10', 'text-brand-muted');
+          } else if (active) {
+             b.classList.add('border-brand-gold', 'bg-brand-goldDim/20', 'text-brand-gold');
+             b.classList.remove('border-white/10', 'text-brand-muted');
+          } else {
+             b.className = 'filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors';
+          }
         });
         render();
       });
     });
 
-    // ---- data -------------------------------------------------------------
     async function load() {
       $('loading').classList.remove('hidden');
       $('empty').classList.add('hidden');
@@ -194,10 +194,13 @@
 
     function stats() {
       const confirmed = allRows.filter((r) => r.status === 'confirmed');
+      const verifying = allRows.filter((r) => r.status === 'verifying');
       const pending = allRows.filter((r) => r.status === 'pending');
       const revenue = confirmed.reduce((s, r) => s + (r.total_amount || 0), 0);
       const guests = confirmed.reduce((s, r) => s + (r.guests || 0), 0);
+      
       $('stat-revenue').textContent = peso(revenue);
+      $('stat-verifying').textContent = verifying.length;
       $('stat-confirmed').textContent = confirmed.length;
       $('stat-pending').textContent = pending.length;
       $('stat-guests').textContent = guests;
@@ -205,6 +208,7 @@
 
     const STATUS_STYLE = {
       confirmed: 'text-emerald-300 border-emerald-400/30 bg-emerald-400/10',
+      verifying: 'text-cyan-300 border-cyan-400/30 bg-cyan-400/10',
       pending:   'text-brand-gold border-brand-gold/30 bg-brand-goldDim/20',
       cancelled: 'text-red-300 border-red-400/30 bg-red-400/10',
     };
@@ -233,23 +237,37 @@
       tbody.innerHTML = rows.map((r) => {
         const badge = STATUS_STYLE[r.status] || 'text-brand-muted border-white/10';
         const canCancel = r.status !== 'cancelled';
+        const canApprove = r.status === 'verifying';
         const referrer = (r.referrer && String(r.referrer).trim()) ? esc(r.referrer) : '—';
+        const receiptLink = r.receipt_url ? `<a href="${esc(r.receipt_url)}" target="_blank" class="text-cyan-300 underline hover:text-cyan-100">View</a>` : '—';
+        const pkgText = r.table_id ? `${esc(r.table_id)} (${esc(r.package)})` : esc(r.package);
+        
+        let actionButtons = '';
+        if (canApprove) {
+           actionButtons += `<button data-approve="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-emerald-300 hover:text-emerald-200 border border-emerald-400/30 hover:border-emerald-300 rounded-full px-3 py-1 transition-colors mr-2">Approve</button>`;
+        }
+        if (canCancel) {
+           actionButtons += `<button data-cancel="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-red-300 hover:text-red-200 border border-red-400/30 hover:border-red-300 rounded-full px-3 py-1 transition-colors">Cancel</button>`;
+        }
+        if (!actionButtons) {
+           actionButtons = `<span class="text-brand-muted text-xs">—</span>`;
+        }
+
         return `<tr class="hover:bg-brand-obsidian/30">
           <td class="px-4 py-3">
             <div class="text-brand-ice">${esc(r.full_name)}</div>
             <div class="text-brand-muted text-xs font-mono">${esc(r.email)}</div>
           </td>
           <td class="px-4 py-3 text-brand-ice/90">${referrer}</td>
-          <td class="px-4 py-3 text-brand-ice/90">${esc(r.package)}</td>
+          <td class="px-4 py-3 text-brand-ice/90">${pkgText}</td>
           <td class="px-4 py-3 text-brand-ice/90">${esc(r.guests)}</td>
           <td class="px-4 py-3 text-brand-gold font-mono">${peso(r.total_amount)}</td>
+          <td class="px-4 py-3 font-mono text-xs">${receiptLink}</td>
           <td class="px-4 py-3"><span class="font-mono text-[10px] tracking-widest uppercase border rounded-full px-2 py-1 ${badge}">${esc(r.status)}</span></td>
           <td class="px-4 py-3 font-mono text-xs text-brand-ice/80">${esc(r.ticket_code || '—')}</td>
           <td class="px-4 py-3 text-brand-muted text-xs font-mono">${fmtDate(r.created_at)}</td>
-          <td class="px-4 py-3 text-right">
-            ${canCancel
-              ? `<button data-cancel="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-red-300 hover:text-red-200 border border-red-400/30 hover:border-red-300 rounded-full px-3 py-1 transition-colors">Cancel</button>`
-              : `<span class="text-brand-muted text-xs">—</span>`}
+          <td class="px-4 py-3 text-right whitespace-nowrap">
+            ${actionButtons}
           </td>
         </tr>`;
       }).join('');
@@ -257,6 +275,28 @@
       tbody.querySelectorAll('[data-cancel]').forEach((btn) => {
         btn.addEventListener('click', () => cancelBooking(btn.getAttribute('data-cancel')));
       });
+      tbody.querySelectorAll('[data-approve]').forEach((btn) => {
+        btn.addEventListener('click', () => approveBooking(btn.getAttribute('data-approve')));
+      });
+    }
+
+    async function approveBooking(id) {
+      if (!confirm('Approve this payment? This will finalize the booking and issue a ticket.')) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/bookings/${id}/approve`, {
+          method: 'POST',
+          headers: { 'X-Admin-Key': adminKey },
+        });
+        if (res.status === 401) { showGate(); return; }
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          alert((d && d.detail) || 'Could not approve booking.');
+          return;
+        }
+        load();
+      } catch (e) {
+        alert('Could not reach the server.');
+      }
     }
 
     async function cancelBooking(id) {
@@ -278,7 +318,6 @@
       }
     }
 
-    // ---- boot -------------------------------------------------------------
     (async function boot() {
       if (adminKey && await tryKey(adminKey).catch(() => false)) {
         showDash();
