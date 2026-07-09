@@ -39,6 +39,79 @@ document.addEventListener('DOMContentLoaded', () => {
     const pkgSel = $('package');
     const tablePrefSel = $('table-pref');
     const guestsSel = $('guests');
+
+    // --- Submit button + sold-out note (note is created dynamically) ---
+    const form = $('rsvp-form');
+    const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+    const SUBMIT_DEFAULT_LABEL = submitBtn ? submitBtn.textContent.trim() : 'Apply & continue to payment';
+    let soldOutNote = null;
+
+    function ensureSoldOutNote() {
+      if (soldOutNote) return soldOutNote;
+      soldOutNote = document.createElement('div');
+      soldOutNote.id = 'sold-out-note';
+      soldOutNote.style.cssText =
+        'display:none; margin-top:4px; padding:14px 16px; border-radius:14px;' +
+        'background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.35);' +
+        "color:#fca5a5; font-family:'Space Mono', monospace; font-size:12px;" +
+        'letter-spacing:0.5px; text-align:center; line-height:1.5;';
+      soldOutNote.textContent = 'All tables in this category are fully reserved. Please pick another package.';
+      if (submitBtn && submitBtn.parentElement) {
+        submitBtn.parentElement.insertBefore(soldOutNote, submitBtn);
+      } else if (form) {
+        form.appendChild(soldOutNote);
+      }
+      return soldOutNote;
+    }
+
+    // True only when the package uses tables AND every table for it is reserved.
+    function isPackageSoldOut(pkgName) {
+      const cfg = PACKAGES[pkgName];
+      if (!cfg || cfg.per !== 'table') return false;      // per-person entry never table-sold-out
+      const relevant = allTables.filter((t) => t.package === pkgName);
+      if (relevant.length === 0) return false;             // tables not loaded yet / backend offline -> not "sold out"
+      return relevant.every((t) => !t.is_available);       // all reserved
+    }
+
+    function setFormSoldOut(isSoldOut) {
+      const note = ensureSoldOutNote();
+      note.style.display = isSoldOut ? 'block' : 'none';
+      if (!submitBtn) return;
+      if (isSoldOut) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+        submitBtn.textContent = 'Sold out';
+      } else {
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        submitBtn.textContent = SUBMIT_DEFAULT_LABEL;
+      }
+    }
+
+    // Reflect sold-out status on the package cards (Select buttons + a badge).
+    function updateCardSoldOut() {
+      document.querySelectorAll('.select-package-btn').forEach((btn) => {
+        const pkg = btn.getAttribute('data-package');
+        const soldOut = isPackageSoldOut(pkg);
+        // find the card container to place/remove a badge
+        const card = btn.closest('[data-reveal]') || btn.closest('div');
+        if (soldOut) {
+          btn.textContent = 'Sold Out';
+          btn.style.opacity = '0.5';
+          btn.style.cursor = 'not-allowed';
+          btn.setAttribute('data-soldout', '1');
+        } else {
+          if (btn.getAttribute('data-soldout') === '1') {
+            btn.textContent = 'Select';
+            btn.style.opacity = '';
+            btn.style.cursor = '';
+            btn.removeAttribute('data-soldout');
+          }
+        }
+      });
+    }
   
     // --- 1. Form Estimation & Limits ---
     function applyGuestLimit() {
@@ -71,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
             opt.textContent = 'None / Solo Entry';
             tablePrefSel.appendChild(opt);
             tablePrefSel.disabled = true;
+            setFormSoldOut(false);   // entry is never table-sold-out
             return;
         }
 
@@ -83,6 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
             opt.value = '';
             opt.textContent = 'Backend offline or Loading tables...';
             tablePrefSel.appendChild(opt);
+            setFormSoldOut(false);   // loading/offline is not the same as sold out
             return;
         }
 
@@ -103,8 +178,19 @@ document.addEventListener('DOMContentLoaded', () => {
             tablePrefSel.appendChild(opt);
         });
 
-        if (!hasAvailable && relevantTables.length > 0) {
-            tablePrefSel.selectedIndex = 0;
+        if (!hasAvailable) {
+            // Every table in this category is reserved -> SOLD OUT
+            tablePrefSel.innerHTML = '';
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'All tables reserved — Sold out';
+            opt.disabled = true;
+            opt.selected = true;
+            tablePrefSel.appendChild(opt);
+            tablePrefSel.disabled = true;
+            setFormSoldOut(true);
+        } else {
+            setFormSoldOut(false);
         }
     }
 
@@ -140,7 +226,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         allTables = data.tables; 
         updateTableDropdown();   
-        updateEstimate(); 
+        updateEstimate();
+        updateCardSoldOut();     // reflect sold-out on the package cards
       } catch (e) {
         console.error("Failed to load map", e);
       }
@@ -152,8 +239,14 @@ document.addEventListener('DOMContentLoaded', () => {
   
     // Package Cards "Select" Buttons (From HTML layout)
     document.querySelectorAll('.select-package-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
         const pkg = btn.getAttribute('data-package');
+        // Block selecting a sold-out package
+        if (isPackageSoldOut(pkg)) {
+          e.preventDefault();
+          alert('Sorry, all tables in this category are sold out. Please choose another package.');
+          return;
+        }
         if (pkg && pkgSel) {
           pkgSel.value = pkg;
           updateTableDropdown(); 
@@ -163,13 +256,32 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   
     // --- 4. RSVP Submit ---
-    const form = $('rsvp-form');
     form && form.addEventListener('submit', (e) => {
       e.preventDefault();
       const terms = $('verify-terms');
       if (terms && !terms.checked) {
         alert('Please confirm all guests are 18+ and agree to the safety directives.');
         return;
+      }
+
+      const selectedPkg = pkgSel ? pkgSel.value : '';
+
+      // HARD BLOCK: if this is a table package and everything is reserved, stop here.
+      if (isPackageSoldOut(selectedPkg)) {
+        alert('Sorry, all tables in this category are sold out. Please choose another package.');
+        setFormSoldOut(true);
+        return;
+      }
+
+      const cfg = PACKAGES[selectedPkg];
+      const chosenTable = tablePrefSel && tablePrefSel.value !== 'None' ? tablePrefSel.value : null;
+
+      // Table packages must have a real, available table selected.
+      if (cfg && cfg.per === 'table') {
+        if (!chosenTable) {
+          alert('Please select an available table for this package.');
+          return;
+        }
       }
   
       pendingPayload = {
@@ -178,8 +290,8 @@ document.addEventListener('DOMContentLoaded', () => {
         phone: getVal('phone'),
         instagram: getVal('instagram') || null,
         referrer: getVal('referrer') || null,
-        package: pkgSel ? pkgSel.value : '',
-        table_id: tablePrefSel && tablePrefSel.value !== 'None' ? tablePrefSel.value : null,
+        package: selectedPkg,
+        table_id: chosenTable,
         guests: parseInt(guestsSel ? guestsSel.value : '1', 10) || 1,
         accept_terms: true,
       };
