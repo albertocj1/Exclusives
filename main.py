@@ -352,6 +352,8 @@ def reception_summary():
 
     # Expected heads = sum of booked guests across all confirmed bookings.
     expected_heads = sum((b.get("guests") or 0) for b in confirmed)
+    expected_entrance = sum((b.get("guests") or 0) for b in confirmed if b.get("package") == "Entrance Fee")
+    expected_couch = expected_heads - expected_entrance
     # Present heads = actual people seated, only for those checked in.
     present_heads = sum((b.get("heads_present") or 0) for b in confirmed if b.get("checked_in"))
 
@@ -363,14 +365,29 @@ def reception_summary():
     )
     present_couch = present_heads - present_entrance
 
+    # Heads still expected to arrive = booked guests minus heads already present,
+    # per booking (floored at 0), split by Entrance Fee vs couch/table.
+    def _remaining(b):
+        present = (b.get("heads_present") or 0) if b.get("checked_in") else 0
+        return max(0, (b.get("guests") or 0) - present)
+
+    coming_entrance = sum(_remaining(b) for b in confirmed if b.get("package") == "Entrance Fee")
+    coming_couch = sum(_remaining(b) for b in confirmed if b.get("package") != "Entrance Fee")
+    coming_heads = coming_entrance + coming_couch
+
     return {
         "total_bookings": total_bookings,
         "checked_in_bookings": checked_in_bookings,
         "pending_bookings": total_bookings - checked_in_bookings,
         "expected_heads": expected_heads,
+        "expected_entrance": expected_entrance,
+        "expected_couch": expected_couch,
         "present_heads": present_heads,
         "present_entrance": present_entrance,
         "present_couch": present_couch,
+        "coming_heads": coming_heads,
+        "coming_entrance": coming_entrance,
+        "coming_couch": coming_couch,
     }
 
 @app.get("/api/reception/tables", dependencies=[Depends(require_reception)])
