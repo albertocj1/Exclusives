@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     'use strict';
   
-    const API_BASE = (window.API_BASE || 'http://localhost:8000').replace(/\/+$/, '');
+    const API_BASE = (window.API_BASE || 'https://exclusivesph.onrender.com').replace(/\/+$/, '');
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   
     const PACKAGES = {
