@@ -8,6 +8,7 @@ from email.message import EmailMessage
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from supabase import Client, create_client
 
@@ -78,6 +79,9 @@ class Booking(BaseModel):
     ticket_code: Optional[str] = None
     created_at: datetime
 
+class CheckinBody(BaseModel):
+    heads_present: int = Field(..., ge=0, le=50)
+
 app = FastAPI()
 
 # Dynamically handle allowed origins from your .env string
@@ -94,9 +98,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---------------------------------------------------------------------------
+#  AUTH DEPENDENCIES
+# ---------------------------------------------------------------------------
+
 def require_admin(x_admin_key: str = Header(default="")):
     if not secrets.compare_digest(x_admin_key, os.environ.get("ADMIN_API_KEY", "")):
         raise HTTPException(status_code=401, detail="Invalid admin key.")
+
+# Reception staff authenticate via Supabase Auth (email/password on the frontend).
+# The frontend sends the resulting access token as "Authorization: Bearer <jwt>".
+# We verify it by asking Supabase to resolve the user for that token — this works
+# regardless of whether the project uses the legacy shared secret or the newer
+# asymmetric signing keys.
+_reception_bearer = HTTPBearer(auto_error=False)
+
+def require_reception(cred: Optional[HTTPAuthorizationCredentials] = Depends(_reception_bearer)):
+    if cred is None or not cred.credentials:
+        raise HTTPException(status_code=401, detail="Reception login required.")
+    token = cred.credentials
+    try:
+        user_resp = db().auth.get_user(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired session.")
+    user = getattr(user_resp, "user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid session.")
+    return user
+
+# ---------------------------------------------------------------------------
+#  HELPERS
+# ---------------------------------------------------------------------------
 
 def _get_booking(booking_id: str):
     res = db().table("bookings").select("*").eq("id", booking_id).execute()
@@ -107,6 +139,14 @@ def _get_booking(booking_id: str):
 def _confirmed_guest_count() -> int:
     res = db().table("bookings").select("guests").eq("status", "confirmed").execute()
     return sum(row["guests"] for row in (res.data or []))
+
+def _table_capacity(package_name: Optional[str]) -> Optional[int]:
+    cfg = PACKAGES.get(package_name or "")
+    return cfg["max_guests"] if cfg else None
+
+# ---------------------------------------------------------------------------
+#  PUBLIC ENDPOINTS
+# ---------------------------------------------------------------------------
 
 @app.get("/api/availability")
 def availability():
@@ -193,6 +233,10 @@ async def submit_payment(booking_id: str, receipt: UploadFile = File(...)):
     }).eq("id", booking_id).execute()
     return Booking(**res.data[0])
 
+# ---------------------------------------------------------------------------
+#  ADMIN ENDPOINTS
+# ---------------------------------------------------------------------------
+
 @app.get("/api/bookings", dependencies=[Depends(require_admin)])
 def list_bookings():
     return db().table("bookings").select("*").order("created_at", desc=True).limit(1000).execute().data
@@ -219,8 +263,6 @@ def approve_booking(booking_id: str, background_tasks: BackgroundTasks):
 
     if res.data:
         booking_data = res.data[0]
-
-        # Dispatch branded confirmation email (with inline QR) in the background
         background_tasks.add_task(
             send_approval_email,
             to_email=booking_data["email"],
@@ -230,7 +272,6 @@ def approve_booking(booking_id: str, background_tasks: BackgroundTasks):
             guests=booking_data["guests"],
             table_id=booking_data.get("table_id"),
         )
-
         return Booking(**booking_data)
     raise HTTPException(status_code=502, detail="Failed to issue ticket.")
 
@@ -238,3 +279,84 @@ def approve_booking(booking_id: str, background_tasks: BackgroundTasks):
 def cancel_booking(booking_id: str):
     res = db().table("bookings").update({"status": "cancelled"}).eq("id", booking_id).execute()
     return Booking(**res.data[0])
+
+# ---------------------------------------------------------------------------
+#  RECEPTION ENDPOINTS  (Supabase-Auth protected)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/reception/lookup/{ticket_code}", dependencies=[Depends(require_reception)])
+def reception_lookup(ticket_code: str):
+    """Scan/lookup a ticket code -> return guest details + current check-in state."""
+    code = (ticket_code or "").strip().upper()
+    res = db().table("bookings").select("*").eq("ticket_code", code).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Ticket not found.")
+    b = res.data[0]
+    return {
+        "id": b["id"],
+        "ticket_code": b.get("ticket_code"),
+        "full_name": b["full_name"],
+        "package": b["package"],
+        "table_id": b.get("table_id"),
+        "guests": b["guests"],
+        "status": b["status"],
+        "checked_in": b.get("checked_in", False),
+        "checked_in_at": b.get("checked_in_at"),
+        "heads_present": b.get("heads_present", 0),
+    }
+
+@app.post("/api/reception/checkin/{booking_id}", dependencies=[Depends(require_reception)])
+def reception_checkin(booking_id: str, body: CheckinBody):
+    """Mark a guest as arrived and record how many people actually showed."""
+    b = _get_booking(booking_id)
+    if b["status"] != "confirmed":
+        raise HTTPException(status_code=400, detail="This booking is not confirmed — cannot check in.")
+
+    already = bool(b.get("checked_in"))
+    update = {"checked_in": True, "heads_present": body.heads_present}
+    if not already:
+        update["checked_in_at"] = datetime.now(timezone.utc).isoformat()
+
+    res = db().table("bookings").update(update).eq("id", booking_id).execute()
+    row = res.data[0]
+    return {
+        "id": row["id"],
+        "full_name": row["full_name"],
+        "table_id": row.get("table_id"),
+        "guests": row["guests"],
+        "heads_present": row.get("heads_present", 0),
+        "checked_in": row.get("checked_in", False),
+        "checked_in_at": row.get("checked_in_at"),
+        "already_checked_in": already,
+    }
+
+@app.get("/api/reception/tables", dependencies=[Depends(require_reception)])
+def reception_tables():
+    """Live per-table board: who's reserved, booked pax, and heads seated so far."""
+    tables = db().table("tables").select("*").execute().data or []
+    confirmed = db().table("bookings").select("*") \
+        .eq("status", "confirmed") \
+        .not_.is_("table_id", "null") \
+        .execute().data or []
+
+    by_table = {}
+    for bk in confirmed:
+        by_table.setdefault(bk["table_id"], []).append(bk)
+
+    out = []
+    for t in tables:
+        bks = by_table.get(t["id"], [])
+        seated = sum((bk.get("heads_present") or 0) for bk in bks if bk.get("checked_in"))
+        booked = sum((bk.get("guests") or 0) for bk in bks)
+        out.append({
+            "id": t["id"],
+            "package": t.get("package"),
+            "capacity": _table_capacity(t.get("package")),
+            "reserved_by": [bk["full_name"] for bk in bks],
+            "booked_pax": booked,
+            "seated": seated,
+            "any_checked_in": any(bk.get("checked_in") for bk in bks),
+        })
+    # Sort by table id for a stable board
+    out.sort(key=lambda x: str(x["id"]))
+    return {"tables": out}
