@@ -86,6 +86,12 @@
 </head>
 <body class="bg-brand-obsidian text-brand-ice font-sans antialiased overflow-x-hidden">
 
+  <!-- IN-APP BROWSER NOTICE — shows when opened inside Instagram/Viber/Messenger/etc. -->
+  <div id="inapp-banner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:9999; background:#F5C518; color:#0A1A24; padding:12px 44px 12px 16px; text-align:center; font-family:'Space Mono', monospace; font-size:12px; line-height:1.5; box-shadow:0 2px 18px rgba(0,0,0,0.35);">
+    <span id="inapp-banner-text">For booking to work properly, open this page in your browser — tap the <strong>&bull;&bull;&bull;</strong> menu above and choose <strong>&ldquo;Open in browser&rdquo;</strong>.</span>
+    <button id="inapp-banner-close" aria-label="Dismiss" style="position:absolute; top:50%; right:12px; transform:translateY(-50%); background:transparent; border:0; color:#0A1A24; font-size:20px; font-weight:bold; cursor:pointer; line-height:1;">&times;</button>
+  </div>
+
   <div id="scroll-progress"></div>
 
   <div class="fixed inset-0 z-0 bg-brand-obsidian pointer-events-none">
@@ -122,7 +128,7 @@
   </nav>
 
   <div id="mobile-menu" class="closed fixed inset-0 z-[55] bg-brand-obsidian/97 backdrop-blur-xl flex flex-col items-center justify-center md:hidden">
-    <button id="menu-close" aria-label="Close menu" class="absolute top-8 right-6 text-brand-muted hover:text-brand-gold text-3xl font-mono">×</button>
+    <button id="menu-close" aria-label="Close menu" class="absolute top-8 right-6 text-brand-muted hover:text-brand-gold text-3xl font-mono">&times;</button>
     <div class="flex flex-col items-center space-y-8 font-serif text-2xl tracking-tight text-brand-ice">
       <a href="#event" class="mobile-link hover:text-brand-gold transition-colors">The Event</a>
       <a href="#itinerary" class="mobile-link hover:text-brand-gold transition-colors">Itinerary</a>
@@ -657,7 +663,7 @@
     <div class="bg-brand-slate border border-brand-gold/30 rounded-3xl p-8 max-w-md w-full shadow-2xl">
       <div class="flex justify-between items-center border-b border-white/5 pb-4 mb-6">
         <h3 class="font-serif text-2xl font-medium text-brand-gold tracking-tight">Confirm your request</h3>
-        <button id="close-confirm" class="text-brand-muted hover:text-brand-ice text-xl font-bold font-mono outline-none">×</button>
+        <button id="close-confirm" class="text-brand-muted hover:text-brand-ice text-xl font-bold font-mono outline-none">&times;</button>
       </div>
       <p class="text-brand-muted text-xs font-light mb-6 leading-relaxed">Double-check your details before we hold your spot — names are locked at booking for guestlist screening.</p>
       <div class="bg-brand-obsidian/40 border border-white/5 rounded-2xl p-4 space-y-2 text-xs font-mono mb-6">
@@ -682,7 +688,7 @@
       <div class="absolute inset-0 bg-gradient-to-t from-brand-goldDim/10 to-transparent pointer-events-none"></div>
       <div class="flex justify-between items-center border-b border-white/5 pb-4 mb-6 relative z-10">
         <h3 class="font-serif text-2xl font-medium text-brand-gold tracking-tight">Complete Payment</h3>
-        <button id="close-payment" class="text-brand-muted hover:text-brand-ice text-xl font-bold font-mono outline-none">×</button>
+        <button id="close-payment" class="text-brand-muted hover:text-brand-ice text-xl font-bold font-mono outline-none">&times;</button>
       </div>
       <p class="text-brand-muted text-xs font-light mb-6 leading-relaxed relative z-10">Scan the QR code below to transfer via GCash or your bank app. Your total is <strong id="payment-total-ui" class="text-brand-gold font-mono">₱0.00</strong>.</p>
       
@@ -741,7 +747,7 @@
   </div>
 
   <div id="lightbox" class="closed fixed inset-0 z-[60] flex items-center justify-center bg-brand-obsidian/95 backdrop-blur-md p-6">
-    <button id="lightbox-close" aria-label="Close" class="absolute top-6 right-6 text-brand-muted hover:text-brand-gold text-4xl font-mono">×</button>
+    <button id="lightbox-close" aria-label="Close" class="absolute top-6 right-6 text-brand-muted hover:text-brand-gold text-4xl font-mono">&times;</button>
     <img id="lightbox-img" src="" alt="Gallery view" class="max-w-full max-h-[80vh] rounded-2xl border border-brand-gold/40 shadow-2xl object-contain">
   </div>
 
@@ -787,6 +793,65 @@
 
   <!-- Backend configuration: deployed FastAPI server on Render -->
   <script>window.API_BASE = "https://exclusivesph.onrender.com";</script>
+
+  <!-- IN-APP BROWSER DETECTION + COLD-START HARDENING -->
+  <script>
+  (function () {
+    'use strict';
+
+    // --- 1. Detect in-app / embedded browsers (Instagram, Facebook, Viber, etc.) ---
+    var ua = (navigator.userAgent || navigator.vendor || window.opera || '').toString();
+    var inAppPatterns = /Instagram|FBAN|FBAV|FB_IAB|FBIOS|Messenger|Viber|Line\/|MicroMessenger|TikTok|Snapchat|Twitter|Pinterest|LinkedIn|GSA/i;
+    var isInApp = inAppPatterns.test(ua);
+
+    var banner = document.getElementById('inapp-banner');
+    var closeBtn = document.getElementById('inapp-banner-close');
+
+    if (isInApp && banner) {
+      banner.style.display = 'block';
+      // Nudge page content down so the fixed banner doesn't cover the nav
+      document.body.style.paddingTop = banner.offsetHeight + 'px';
+
+      // Android can often force-open the real browser via an intent URL.
+      var isAndroid = /Android/i.test(ua);
+      if (isAndroid) {
+        var textEl = document.getElementById('inapp-banner-text');
+        if (textEl) {
+          var current = window.location.href.replace(/^https?:\/\//, '');
+          var intentUrl = 'intent://' + current + '#Intent;scheme=https;package=com.android.chrome;end';
+          textEl.innerHTML =
+            'This page works best in your browser. ' +
+            '<a href="' + intentUrl + '" style="color:#0A1A24; text-decoration:underline; font-weight:bold;">Tap here to open in Chrome</a>, ' +
+            'or use the &bull;&bull;&bull; menu &rarr; &ldquo;Open in browser&rdquo;.';
+        }
+      }
+    }
+
+    if (closeBtn && banner) {
+      closeBtn.addEventListener('click', function () {
+        banner.style.display = 'none';
+        document.body.style.paddingTop = '';
+      });
+    }
+
+    // --- 2. Guard sessionStorage / localStorage (some in-app browsers throw on access) ---
+    try {
+      var t = '__t__';
+      window.sessionStorage.setItem(t, '1');
+      window.sessionStorage.removeItem(t);
+    } catch (e) {
+      console.warn('Storage unavailable in this browser context.');
+    }
+
+    // --- 3. Warm up the backend early (Render free tier sleeps after ~15 min idle) ---
+    try {
+      var API = (window.API_BASE || '').replace(/\/+$/, '');
+      if (API) {
+        fetch(API + '/api/availability', { method: 'GET', cache: 'no-store' }).catch(function () {});
+      }
+    } catch (e) {}
+  })();
+  </script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="js/three-anim.js"></script>
