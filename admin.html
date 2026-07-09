@@ -83,6 +83,7 @@
           <thead class="bg-brand-obsidian/50 text-brand-muted font-mono text-[10px] tracking-widest uppercase">
             <tr>
               <th class="text-left px-4 py-3">Guest</th>
+              <th class="text-left px-4 py-3">Instagram</th>
               <th class="text-left px-4 py-3">Referred by</th>
               <th class="text-left px-4 py-3">Table / Package</th>
               <th class="text-left px-4 py-3">Pax</th>
@@ -239,6 +240,17 @@
         const canCancel = r.status !== 'cancelled';
         const canApprove = r.status === 'verifying';
         const referrer = (r.referrer && String(r.referrer).trim()) ? esc(r.referrer) : '—';
+        let igCell = '—';
+        if (r.instagram && String(r.instagram).trim()) {
+          let handle = String(r.instagram).trim().replace(/^@+/, '');
+          igCell = `<a href="https://instagram.com/${esc(handle)}" target="_blank" class="text-cyan-300 hover:text-cyan-100">@${esc(handle)}</a>`;
+        }
+        let guestsCell = esc(r.guests);
+        const gnames = Array.isArray(r.guest_names) ? r.guest_names.filter(function(n){ return String(n).trim(); }) : [];
+        if (gnames.length) {
+          const list = gnames.map(function(n, i){ return `<div class="text-xs text-brand-ice/80 py-0.5">${i+1}. ${esc(n)}</div>`; }).join('');
+          guestsCell = `<details class="cursor-pointer"><summary class="text-brand-ice/90 select-none">${esc(r.guests)} <span class="text-brand-gold text-[10px] font-mono">names ▾</span></summary><div class="mt-2 bg-brand-obsidian/50 border border-white/5 rounded-lg p-2">${list}</div></details>`;
+        }
         const receiptLink = r.receipt_url ? `<a href="${esc(r.receipt_url)}" target="_blank" class="text-cyan-300 underline hover:text-cyan-100">View</a>` : '—';
         const pkgText = r.table_id ? `${esc(r.table_id)} (${esc(r.package)})` : esc(r.package);
         
@@ -258,9 +270,10 @@
             <div class="text-brand-ice">${esc(r.full_name)}</div>
             <div class="text-brand-muted text-xs font-mono">${esc(r.email)}</div>
           </td>
+          <td class="px-4 py-3 text-brand-ice/90 font-mono text-xs">${igCell}</td>
           <td class="px-4 py-3 text-brand-ice/90">${referrer}</td>
           <td class="px-4 py-3 text-brand-ice/90">${pkgText}</td>
-          <td class="px-4 py-3 text-brand-ice/90">${esc(r.guests)}</td>
+          <td class="px-4 py-3 text-brand-ice/90">${guestsCell}</td>
           <td class="px-4 py-3 text-brand-gold font-mono">${peso(r.total_amount)}</td>
           <td class="px-4 py-3 font-mono text-xs">${receiptLink}</td>
           <td class="px-4 py-3"><span class="font-mono text-[10px] tracking-widest uppercase border rounded-full px-2 py-1 ${badge}">${esc(r.status)}</span></td>

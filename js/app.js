@@ -144,6 +144,56 @@ document.addEventListener('DOMContentLoaded', () => {
       const total = computeTotal(pkgSel.value, parseInt(guestsSel.value, 10) || 1);
       setText('estimated-total', peso(total));
     }
+
+    // ---- Guest name fields: one input per guest, field 1 mirrors the booker ----
+    const guestNamesWrap = $('guest-names');
+
+    function currentGuestNames() {
+      if (!guestNamesWrap) return [];
+      return Array.prototype.map.call(
+        guestNamesWrap.querySelectorAll('input.guest-name-input'),
+        function (el) { return el.value.trim(); }
+      );
+    }
+
+    function renderGuestNameFields() {
+      if (!guestNamesWrap || !guestsSel) return;
+      const n = parseInt(guestsSel.value, 10) || 1;
+      const existing = currentGuestNames();   // preserve what was typed
+      guestNamesWrap.innerHTML = '';
+      for (let i = 0; i < n; i++) {
+        const wrap = document.createElement('div');
+        wrap.className = 'relative';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.required = true;
+        input.className = 'guest-name-input w-full bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice font-light text-sm px-4 py-3 outline-none transition-colors duration-300';
+        input.placeholder = (i === 0) ? 'Guest 1 (lead booker)' : ('Guest ' + (i + 1) + ' full name');
+        // restore prior value; guest 1 defaults to the booker name field
+        if (existing[i]) input.value = existing[i];
+        else if (i === 0) { const fn = $('fullname'); if (fn) input.value = fn.value.trim(); }
+        wrap.appendChild(input);
+        guestNamesWrap.appendChild(wrap);
+      }
+    }
+
+    // Keep guest 1 in sync when the booker types their name (only if guest 1 is empty/matching)
+    (function wireBookerSync() {
+      const fn = $('fullname');
+      if (!fn || !guestNamesWrap) return;
+      fn.addEventListener('input', function () {
+        const first = guestNamesWrap.querySelector('input.guest-name-input');
+        if (first && (first.value.trim() === '' || first.dataset.autofill === '1')) {
+          first.value = fn.value.trim();
+          first.dataset.autofill = '1';
+        }
+      });
+      guestNamesWrap.addEventListener('input', function (e) {
+        if (e.target && e.target.classList.contains('guest-name-input')) {
+          e.target.dataset.autofill = '';
+        }
+      });
+    })();
     
     // --- 2. Dynamic Table Dropdown Logic ---
     function updateTableDropdown() {
@@ -213,8 +263,9 @@ document.addEventListener('DOMContentLoaded', () => {
         applyDefaultGuests();
         updateTableDropdown();
         updateEstimate();
+        renderGuestNameFields();
     });
-    guestsSel && guestsSel.addEventListener('change', updateEstimate);
+    guestsSel && guestsSel.addEventListener('change', function(){ updateEstimate(); renderGuestNameFields(); });
   
     // --- 3. Backend Fetching ---
     async function loadAvailability() {
@@ -251,6 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize 
     loadAvailability();
     loadTables();
+    renderGuestNameFields();
   
     // Package Cards "Select" Buttons (From HTML layout)
     document.querySelectorAll('.select-package-btn').forEach((btn) => {
@@ -267,6 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
           applyDefaultGuests();
           updateTableDropdown(); 
           updateEstimate();
+          renderGuestNameFields();
         }
       });
     });
@@ -277,6 +330,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const terms = $('verify-terms');
       if (terms && !terms.checked) {
         alert('Please confirm all guests are 18+ and agree to the safety directives.');
+        return;
+      }
+
+      // Guest names: one required per guest (Manila Yacht Club manifest)
+      const names = currentGuestNames();
+      const guestCount = parseInt(guestsSel ? guestsSel.value : '1', 10) || 1;
+      if (names.length < guestCount || names.some(function (nm) { return !nm; })) {
+        alert('Please enter a name for all ' + guestCount + ' guest' + (guestCount > 1 ? 's' : '') + '. The Manila Yacht Club requires every guest to be named.');
         return;
       }
 
@@ -309,6 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
         package: selectedPkg,
         table_id: chosenTable,
         guests: parseInt(guestsSel ? guestsSel.value : '1', 10) || 1,
+        guest_names: names,
         accept_terms: true,
       };
   

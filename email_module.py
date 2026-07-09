@@ -102,6 +102,8 @@ def _build_email_html(guest_name, ticket_code, package_name, guests, table_id, q
                 <td align="right" style="color:#F2EADD; padding:8px 0; border-top:1px solid rgba(255,255,255,0.06);">__GUESTS__ __GUEST_WORD__</td></tr>
             <tr><td style="color:#8AA0AD; text-transform:uppercase; letter-spacing:1px; padding:8px 0; border-top:1px solid rgba(255,255,255,0.06);">Table / Spot</td>
                 <td align="right" style="color:#F2EADD; padding:8px 0; border-top:1px solid rgba(255,255,255,0.06);">__TABLE__</td></tr>
+            <tr><td style="color:#8AA0AD; text-transform:uppercase; letter-spacing:1px; padding:8px 0; border-top:1px solid rgba(255,255,255,0.06);">Date</td>
+                <td align="right" style="color:#F2EADD; padding:8px 0; border-top:1px solid rgba(255,255,255,0.06);">Aug 14, 2026 &middot; 9:00 PM</td></tr>
             <tr><td style="color:#8AA0AD; text-transform:uppercase; letter-spacing:1px; padding:8px 0; border-top:1px solid rgba(255,255,255,0.06);">Boarding</td>
                 <td align="right" style="color:#F2EADD; padding:8px 0; border-top:1px solid rgba(255,255,255,0.06);">Manila Yacht Club</td></tr>
           </table>
@@ -110,7 +112,7 @@ def _build_email_html(guest_name, ticket_code, package_name, guests, table_id, q
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr><td style="padding:16px 32px 36px 32px;">
           <div style="background-color:rgba(245,197,24,0.08); border:1px solid rgba(245,197,24,0.2); border-radius:14px; padding:16px; font-size:12px; color:#8AA0AD; line-height:1.6;">
-            <span style="color:#F5C518; font-weight:bold;">Check-in 21:00.</span> We sail 21:30 sharp &mdash; once off the dock we can't return for latecomers. Smart resort-luxe, strictly 18+.
+            <span style="color:#F5C518; font-weight:bold;">Thursday, August 14, 2026.</span> Check-in 21:00, we sail 21:30 sharp &mdash; once off the dock we can't return for latecomers. Smart resort-luxe, strictly 18+.
           </div>
         </td></tr>
       </table>
@@ -155,6 +157,7 @@ def send_approval_email(to_email, guest_name, ticket_code, package_name, guests=
             f"Ticket code: {ticket_code}\n"
             f"Guests: {guests}\n"
             f"Table / Spot: {table_id or 'General Admission'}\n"
+            f"Date: Thursday, August 14, 2026 - 9:00 PM\n"
             f"Boarding: Manila Yacht Club, check-in 21:00, sail 21:30.\n\n"
             f"Present your QR code (in the HTML version of this email) at reception.\n\n"
             f"Exclusives PH"
