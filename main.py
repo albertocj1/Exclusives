@@ -40,7 +40,14 @@ class BookingCreate(BaseModel):
     package: str
     table_id: Optional[str] = None
     guests: int = Field(..., ge=1, le=8)
+    guest_names: list[str] = Field(default_factory=list)
     accept_terms: bool
+
+    @field_validator("guest_names")
+    @classmethod
+    def _clean_names(cls, v):
+        # trim, drop blanks
+        return [str(n).strip() for n in (v or []) if str(n).strip()]
 
     @field_validator("accept_terms")
     @classmethod
@@ -63,6 +70,8 @@ class BookingCreate(BaseModel):
             raise ValueError(f"{self.package} allows at most {max_guests} guests.")
         if PACKAGES[self.package]["per"] == "table" and not self.table_id:
             raise ValueError("This package requires selecting a table.")
+        if len(self.guest_names) != self.guests:
+            raise ValueError(f"Please provide a name for each guest ({self.guests} required, got {len(self.guest_names)}).")
         return self
 
 class Booking(BaseModel):
@@ -77,6 +86,7 @@ class Booking(BaseModel):
     status: str
     receipt_url: Optional[str] = None
     ticket_code: Optional[str] = None
+    guest_names: list[str] = Field(default_factory=list)
     created_at: datetime
 
 class CheckinBody(BaseModel):
@@ -203,6 +213,7 @@ def create_booking(payload: BookingCreate):
             "full_name": payload.full_name, "email": payload.email, "phone": payload.phone,
             "instagram": payload.instagram, "referrer": payload.referrer,
             "package": payload.package, "table_id": payload.table_id, "guests": payload.guests,
+            "guest_names": payload.guest_names,
             "unit_price": unit, "total_amount": total, "status": "pending",
         }).execute()
     except Exception as e:
@@ -303,6 +314,7 @@ def reception_lookup(ticket_code: str):
         "checked_in": b.get("checked_in", False),
         "checked_in_at": b.get("checked_in_at"),
         "heads_present": b.get("heads_present", 0),
+        "guest_names": b.get("guest_names") or [],
     }
 
 @app.post("/api/reception/checkin/{booking_id}", dependencies=[Depends(require_reception)])
@@ -343,12 +355,22 @@ def reception_summary():
     # Present heads = actual people seated, only for those checked in.
     present_heads = sum((b.get("heads_present") or 0) for b in confirmed if b.get("checked_in"))
 
+    # Split present heads by source: standing "Entrance Fee" vs couch/table bookings.
+    present_entrance = sum(
+        (b.get("heads_present") or 0)
+        for b in confirmed
+        if b.get("checked_in") and b.get("package") == "Entrance Fee"
+    )
+    present_couch = present_heads - present_entrance
+
     return {
         "total_bookings": total_bookings,
         "checked_in_bookings": checked_in_bookings,
         "pending_bookings": total_bookings - checked_in_bookings,
         "expected_heads": expected_heads,
         "present_heads": present_heads,
+        "present_entrance": present_entrance,
+        "present_couch": present_couch,
     }
 
 @app.get("/api/reception/tables", dependencies=[Depends(require_reception)])
