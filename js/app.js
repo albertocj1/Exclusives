@@ -4,18 +4,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_BASE = (window.API_BASE || 'https://exclusivesph.onrender.com').replace(/\/+$/, '');
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   
+    const EXTRA_HEAD_FEE = 2500;
     const PACKAGES = {
-      'Entrance Fee':           { price: 2500,  per: 'person', maxGuests: 8, defaultGuests: 1 },
-      'Standing Table (4 pax)': { price: 8000,  per: 'table',  maxGuests: 4, defaultGuests: 4 },
-      'Couch (6 pax)':          { price: 15000, per: 'table',  maxGuests: 6, defaultGuests: 6 },
-      'Couch (8 pax)':          { price: 20000, per: 'table',  maxGuests: 8, defaultGuests: 8 },
+      'Entrance Fee':   { price: 2500,  per: 'person', basePax: 1, maxGuests: 12, defaultGuests: 1, extraHead: false },
+      'Standing Table': { price: 8000,  per: 'table',  basePax: 4, maxGuests: 4,  defaultGuests: 4, extraHead: false },
+      'Indoor Couch':   { price: 15000, per: 'table',  basePax: 6, maxGuests: 12, defaultGuests: 6, extraHead: true },
+      'Outdoor Couch':  { price: 15000, per: 'table',  basePax: 6, maxGuests: 12, defaultGuests: 6, extraHead: true },
+      'SVIP Couch':     { price: 20000, per: 'table',  basePax: 8, maxGuests: 14, defaultGuests: 8, extraHead: true },
     };
-  
+
+    // Which spots belong to which package + friendly display names.
+    const PACKAGE_SPOTS = {
+      'Standing Table': ['DT1','DT2'],
+      'Indoor Couch':   ['LC4','LC7'],
+      'Outdoor Couch':  ['DC1','DC2'],
+      'SVIP Couch':     ['LC1','LC2','LC3','LC5','LC6'],
+    };
+    const SPOT_NAMES = {
+      LC1:'SVIP 1', LC2:'SVIP 2', LC3:'SVIP 3', LC5:'SVIP 4', LC6:'SVIP 5',
+      LC4:'VIP 1',  LC7:'VIP 2',  DC1:'VIP 3',  DC2:'VIP 4',
+      DT1:'Table 1', DT2:'Table 2',
+    };
+    const spotName = (id) => SPOT_NAMES[id] || id;
+
     const peso = (n) => '\u20B1' + Number(n || 0).toLocaleString('en-PH');
     const computeTotal = (pkg, guests) => {
       const cfg = PACKAGES[pkg];
       if (!cfg) return 0;
-      return cfg.per === 'person' ? cfg.price * guests : cfg.price;
+      if (cfg.per === 'person') return cfg.price * guests;
+      let total = cfg.price;
+      if (cfg.extraHead) total += Math.max(0, guests - cfg.basePax) * EXTRA_HEAD_FEE;
+      return total;
     };
   
     const $ = (id) => document.getElementById(id);
@@ -225,22 +244,40 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Outdoor = DC1/DC2; everything else is indoor.
+        const isOutdoor = (id) => /^DC\d+/i.test(String(id));
+
         let hasAvailable = false;
-        relevantTables.forEach(t => {
+        const buildOption = (t) => {
             const opt = document.createElement('option');
             opt.value = t.id;
-            opt.textContent = `${t.id} ${!t.is_available ? '(Reserved)' : ''}`;
-            
+            opt.textContent = `${spotName(t.id)} ${!t.is_available ? '(Reserved)' : ''}`;
             if (!t.is_available) {
                 opt.disabled = true;
-            } else {
-                if (!hasAvailable) {
-                    opt.selected = true; // Auto-select first free table
-                    hasAvailable = true;
-                }
+            } else if (!hasAvailable) {
+                opt.selected = true; // auto-select first free spot
+                hasAvailable = true;
             }
-            tablePrefSel.appendChild(opt);
-        });
+            return opt;
+        };
+
+        const indoorTables  = relevantTables.filter(t => !isOutdoor(t.id));
+        const outdoorTables = relevantTables.filter(t =>  isOutdoor(t.id));
+
+        // Only show group headers when both kinds exist; otherwise a flat list reads cleaner.
+        if (indoorTables.length && outdoorTables.length) {
+            const gIn = document.createElement('optgroup');
+            gIn.label = 'Indoor';
+            indoorTables.forEach(t => gIn.appendChild(buildOption(t)));
+            tablePrefSel.appendChild(gIn);
+
+            const gOut = document.createElement('optgroup');
+            gOut.label = 'Outdoor';
+            outdoorTables.forEach(t => gOut.appendChild(buildOption(t)));
+            tablePrefSel.appendChild(gOut);
+        } else {
+            relevantTables.forEach(t => tablePrefSel.appendChild(buildOption(t)));
+        }
 
         if (!hasAvailable) {
             // Every table in this category is reserved -> SOLD OUT
@@ -268,18 +305,23 @@ document.addEventListener('DOMContentLoaded', () => {
     guestsSel && guestsSel.addEventListener('change', function(){ updateEstimate(); renderGuestNameFields(); });
   
     // --- 3. Backend Fetching ---
+    // Website displays a fixed public capacity of 120 (admin/backend may enforce a
+    // different real cap). We compute the spots-left and bar against 120.
+    const PUBLIC_CAPACITY = 120;
     async function loadAvailability() {
       const spotsEl = $('spots-left');
       const capEl = $('spots-capacity');
       const fill = $('scarcity-fill');
+      if (capEl) capEl.textContent = PUBLIC_CAPACITY;
       try {
         const res = await fetch(`${API_BASE}/api/availability`);
         if (!res.ok) return;
-        const data = await res.json(); 
-        if (spotsEl) spotsEl.textContent = data.spots_left;
-        if (capEl && data.capacity != null) capEl.textContent = data.capacity;
-        if (fill && data.capacity) {
-          const pct = Math.min(100, Math.max(0, (data.taken / data.capacity) * 100));
+        const data = await res.json();
+        const taken = data.taken != null ? data.taken : 0;
+        const left = Math.max(0, PUBLIC_CAPACITY - taken);
+        if (spotsEl) spotsEl.textContent = left;
+        if (fill) {
+          const pct = Math.min(100, Math.max(0, (taken / PUBLIC_CAPACITY) * 100));
           if (reduceMotion) fill.style.width = pct + '%';
           else requestAnimationFrame(() => { fill.style.width = pct + '%'; });
         }

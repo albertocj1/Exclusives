@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Exclusives PH — Admin</title>
+  <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+  <link rel="shortcut icon" href="images/favicon.ico">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -252,7 +254,357 @@
           guestsCell = `<details class="cursor-pointer"><summary class="text-brand-ice/90 select-none">${esc(r.guests)} <span class="text-brand-gold text-[10px] font-mono">names ▾</span></summary><div class="mt-2 bg-brand-obsidian/50 border border-white/5 rounded-lg p-2">${list}</div></details>`;
         }
         const receiptLink = r.receipt_url ? `<a href="${esc(r.receipt_url)}" target="_blank" class="text-cyan-300 underline hover:text-cyan-100">View</a>` : '—';
-        const pkgText = r.table_id ? `${esc(r.table_id)} (${esc(r.package)})` : esc(r.package);
+        const SPOT_NAMES = {LC1:'SVIP 1',LC2:'SVIP 2',LC3:'SVIP 3',LC5:'SVIP 4',LC6:'SVIP 5',LC4:'VIP 1',LC7:'VIP 2',DC1:'VIP 3',DC2:'VIP 4',DT1:'Table 1',DT2:'Table 2'};
+        const spotLabel = r.table_id ? (SPOT_NAMES[r.table_id] ? `${SPOT_NAMES[r.table_id]} (${r.table_id})` : r.table_id) : '';
+        const pkgText = r.table_id ? `${esc(spotLabel)} · ${esc(r.package)}` : esc(r.package);
+        
+        let actionButtons = '';
+        if (canApprove) {
+           actionButtons += `<button data-approve="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-emerald-300 hover:text-emerald-200 border border-emerald-400/30 hover:border-emerald-300 rounded-full px-3 py-1 transition-colors mr-2">Approve</button>`;
+        }
+        if (canCancel) {
+           actionButtons += `<button data-cancel="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-red-300 hover:text-red-200 border border-red-400/30 hover:border-red-300 rounded-full px-3 py-1 transition-colors">Cancel</button>`;
+        }
+        if (!actionButtons) {
+           actionButtons = `<span class="text-brand-muted text-xs">—</span>`;
+        }
+
+        return `<tr class="hover:bg-brand-obsidian/30">
+          <td class="px-4 py-3">
+            <div class="text-brand-ice">${esc(r.full_name)}</div>
+            <div class="text-brand-muted text-xs font-mono">${esc(r.email)}</div>
+          </td>
+          <td class="px-4 py-3 text-brand-ice/90 font-mono text-xs">${igCell}</td>
+          <td class="px-4 py-3 text-brand-ice/90">${referrer}</td>
+          <td class="px-4 py-3 text-brand-ice/90">${pkgText}</td>
+          <td class="px-4 py-3 text-brand-ice/90">${guestsCell}</td>
+          <td class="px-4 py-3 text-brand-gold font-mono">${peso(r.total_amount)}</td>
+          <td class="px-4 py-3 font-mono text-xs">${receiptLink}</td>
+          <td class="px-4 py-3"><span class="font-mono text-[10px] tracking-widest uppercase border rounded-full px-2 py-1 ${badge}">${esc(r.status)}</span></td>
+          <td class="px-4 py-3 font-mono text-xs text-brand-ice/80">${esc(r.ticket_code || '—')}</td>
+          <td class="px-4 py-3 text-brand-muted text-xs font-mono">${fmtDate(r.created_at)}</td>
+          <td class="px-4 py-3 text-right whitespace-nowrap">
+            ${actionButtons}
+          </td>
+        </tr>`;
+      }).join('');
+
+      tbody.querySelectorAll('[data-cancel]').forEach((btn) => {
+        btn.addEventListener('click', () => cancelBooking(btn.getAttribute('data-cancel')));
+      });
+      tbody.querySelectorAll('[data-approve]').forEach((btn) => {
+        btn.addEventListener('click', () => approveBooking(btn.getAttribute('data-approve')));
+      });
+    }
+
+    async function approveBooking(id) {
+      if (!confirm('Approve this payment? This will finalize the booking and issue a ticket.')) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/bookings/${id}/approve`, {
+          method: 'POST',
+          headers: { 'X-Admin-Key': adminKey },
+        });
+        if (res.status === 401) { showGate(); return; }
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          alert((d && d.detail) || 'Could not approve booking.');
+          return;
+        }
+        load();
+      } catch (e) {
+        alert('Could not reach the server.');
+      }
+    }
+
+    async function cancelBooking(id) {
+      if (!confirm('Cancel this booking? This frees their spots and cannot be undone here.')) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/bookings/${id}/cancel`, {
+          method: 'POST',
+          headers: { 'X-Admin-Key': adminKey },
+        });
+        if (res.status === 401) { showGate(); return; }
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          alert((d && d.detail) || 'Could not cancel booking.');
+          return;
+        }
+        load();
+      } catch (e) {
+        alert('Could not reach the server.');
+      }
+    }
+
+    (async function boot() {
+      if (adminKey && await tryKey(adminKey).catch(() => false)) {
+        showDash();
+        load();
+      } else {
+        showGate();
+      }
+    })();
+  })();
+  </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exclusives PH — Admin</title>
+  <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+  <link rel="shortcut icon" href="images/favicon.ico">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        fontFamily: { serif: ['Fraunces','serif'], sans: ['Archivo','sans-serif'], mono: ['Space Mono','monospace'] },
+        colors: { brand: {
+          obsidian:'#0A1A24', slate:'#102A38', gold:'#F5C518',
+          goldDim:'rgba(245,197,24,0.15)', ice:'#F2EADD', muted:'#8AA0AD'
+        }}
+      }}
+    }
+  </script>
+  <script>window.API_BASE = "https://exclusivesph.onrender.com";</script>
+</head>
+<body class="bg-brand-obsidian text-brand-ice font-sans antialiased min-h-screen">
+
+  <div id="gate" class="min-h-screen flex items-center justify-center px-6">
+    <div class="w-full max-w-sm bg-brand-slate border border-white/5 rounded-3xl p-8">
+      <h1 class="font-serif text-2xl text-brand-gold mb-2">Admin access</h1>
+      <p class="text-brand-muted text-xs font-light mb-6">Enter the admin key to view the guestlist.</p>
+      <input id="key-input" type="password" placeholder="Admin key"
+             class="w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-4 py-3 outline-none mb-4">
+      <button id="key-submit" class="w-full py-3 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-widest uppercase hover:bg-brand-ice transition-colors">Enter</button>
+      <p id="gate-error" class="text-red-400 text-xs font-mono mt-3 hidden"></p>
+    </div>
+  </div>
+
+  <div id="dash" class="hidden max-w-7xl mx-auto px-6 py-10">
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+      <div>
+        <h1 class="font-serif text-3xl md:text-4xl text-brand-ice">Guestlist</h1>
+        <p class="text-brand-muted text-xs font-mono tracking-widest uppercase mt-1">Exclusives PH — Manila Bay</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="refresh" class="font-mono text-[11px] tracking-widest uppercase border border-white/10 hover:border-brand-gold hover:text-brand-gold rounded-full px-5 py-2 transition-colors">Refresh</button>
+        <button id="logout" class="font-mono text-[11px] tracking-widest uppercase text-brand-muted hover:text-brand-ice rounded-full px-3 py-2 transition-colors">Log out</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+      <div class="bg-brand-slate border border-white/5 rounded-2xl p-5">
+        <div class="font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-2">Confirmed revenue</div>
+        <div id="stat-revenue" class="font-serif text-2xl text-brand-gold">₱0</div>
+      </div>
+      <div class="bg-brand-slate border border-cyan-400/30 bg-cyan-400/5 rounded-2xl p-5">
+        <div class="font-mono text-[10px] tracking-widest text-cyan-300 uppercase mb-2">Needs Approval</div>
+        <div id="stat-verifying" class="font-serif text-2xl text-cyan-300">0</div>
+      </div>
+      <div class="bg-brand-slate border border-white/5 rounded-2xl p-5">
+        <div class="font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-2">Confirmed</div>
+        <div id="stat-confirmed" class="font-serif text-2xl text-brand-ice">0</div>
+      </div>
+      <div class="bg-brand-slate border border-white/5 rounded-2xl p-5">
+        <div class="font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-2">Pending</div>
+        <div id="stat-pending" class="font-serif text-2xl text-brand-ice">0</div>
+      </div>
+      <div class="bg-brand-slate border border-white/5 rounded-2xl p-5">
+        <div class="font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-2">Guests confirmed</div>
+        <div id="stat-guests" class="font-serif text-2xl text-brand-ice">0</div>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-4" id="filters">
+      <button data-filter="all"       class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-brand-gold bg-brand-goldDim/20 text-brand-gold">All</button>
+      <button data-filter="verifying" class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-cyan-300 hover:border-cyan-300 transition-colors">Needs Approval</button>
+      <button data-filter="confirmed" class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Confirmed</button>
+      <button data-filter="pending"   class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Pending</button>
+      <button data-filter="cancelled" class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Cancelled</button>
+    </div>
+
+    <div class="bg-brand-slate border border-white/5 rounded-2xl overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm min-w-[900px]">
+          <thead class="bg-brand-obsidian/50 text-brand-muted font-mono text-[10px] tracking-widest uppercase">
+            <tr>
+              <th class="text-left px-4 py-3">Guest</th>
+              <th class="text-left px-4 py-3">Instagram</th>
+              <th class="text-left px-4 py-3">Referred by</th>
+              <th class="text-left px-4 py-3">Table / Package</th>
+              <th class="text-left px-4 py-3">Pax</th>
+              <th class="text-left px-4 py-3">Total</th>
+              <th class="text-left px-4 py-3">Receipt</th>
+              <th class="text-left px-4 py-3">Status</th>
+              <th class="text-left px-4 py-3">Ticket</th>
+              <th class="text-left px-4 py-3">Created</th>
+              <th class="text-right px-4 py-3">Action</th>
+            </tr>
+          </thead>
+          <tbody id="rows" class="divide-y divide-white/5"></tbody>
+        </table>
+      </div>
+      <div id="empty" class="hidden text-center text-brand-muted text-sm font-light py-12">No bookings yet.</div>
+      <div id="loading" class="text-center text-brand-muted text-sm font-light py-12">Loading…</div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+    const API_BASE = (window.API_BASE || 'https://exclusivesph.onrender.com').replace(/\/+$/, '');
+    const peso = (n) => '\u20B1' + Number(n || 0).toLocaleString('en-PH');
+    const $ = (id) => document.getElementById(id);
+
+    let adminKey = sessionStorage.getItem('exc_admin_key') || '';
+    let currentFilter = 'all';
+    let allRows = [];
+
+    const gate = $('gate'), dash = $('dash');
+    function showDash() { gate.classList.add('hidden'); dash.classList.remove('hidden'); }
+    function showGate() { dash.classList.add('hidden'); gate.classList.remove('hidden'); }
+
+    async function tryKey(key) {
+      const res = await fetch(`${API_BASE}/api/bookings?limit=1`, { headers: { 'X-Admin-Key': key } });
+      return res.ok;
+    }
+
+    $('key-submit').addEventListener('click', submitKey);
+    $('key-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitKey(); });
+
+    async function submitKey() {
+      const key = $('key-input').value.trim();
+      const err = $('gate-error');
+      err.classList.add('hidden');
+      if (!key) return;
+      try {
+        if (await tryKey(key)) {
+          adminKey = key;
+          sessionStorage.setItem('exc_admin_key', key);
+          showDash();
+          load();
+        } else {
+          err.textContent = 'Invalid admin key.';
+          err.classList.remove('hidden');
+        }
+      } catch (e) {
+        err.textContent = 'Could not reach the server. Is the backend running?';
+        err.classList.remove('hidden');
+      }
+    }
+
+    $('logout').addEventListener('click', () => {
+      sessionStorage.removeItem('exc_admin_key');
+      adminKey = '';
+      $('key-input').value = '';
+      showGate();
+    });
+
+    $('refresh').addEventListener('click', load);
+
+    document.querySelectorAll('.filter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        currentFilter = btn.getAttribute('data-filter');
+        document.querySelectorAll('.filter-btn').forEach((b) => {
+          const active = b === btn;
+          if (currentFilter === 'verifying' && active) {
+             b.classList.add('border-cyan-400', 'bg-cyan-400/10', 'text-cyan-300');
+             b.classList.remove('border-white/10', 'text-brand-muted');
+          } else if (active) {
+             b.classList.add('border-brand-gold', 'bg-brand-goldDim/20', 'text-brand-gold');
+             b.classList.remove('border-white/10', 'text-brand-muted');
+          } else {
+             b.className = 'filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors';
+          }
+        });
+        render();
+      });
+    });
+
+    async function load() {
+      $('loading').classList.remove('hidden');
+      $('empty').classList.add('hidden');
+      try {
+        const res = await fetch(`${API_BASE}/api/bookings?limit=1000`, { headers: { 'X-Admin-Key': adminKey } });
+        if (res.status === 401) { showGate(); return; }
+        allRows = await res.json();
+        stats();
+        render();
+      } catch (e) {
+        $('rows').innerHTML = '';
+        $('empty').textContent = 'Could not load bookings. Is the backend running?';
+        $('empty').classList.remove('hidden');
+      } finally {
+        $('loading').classList.add('hidden');
+      }
+    }
+
+    function stats() {
+      const confirmed = allRows.filter((r) => r.status === 'confirmed');
+      const verifying = allRows.filter((r) => r.status === 'verifying');
+      const pending = allRows.filter((r) => r.status === 'pending');
+      const revenue = confirmed.reduce((s, r) => s + (r.total_amount || 0), 0);
+      const guests = confirmed.reduce((s, r) => s + (r.guests || 0), 0);
+      
+      $('stat-revenue').textContent = peso(revenue);
+      $('stat-verifying').textContent = verifying.length;
+      $('stat-confirmed').textContent = confirmed.length;
+      $('stat-pending').textContent = pending.length;
+      $('stat-guests').textContent = guests;
+    }
+
+    const STATUS_STYLE = {
+      confirmed: 'text-emerald-300 border-emerald-400/30 bg-emerald-400/10',
+      verifying: 'text-cyan-300 border-cyan-400/30 bg-cyan-400/10',
+      pending:   'text-brand-gold border-brand-gold/30 bg-brand-goldDim/20',
+      cancelled: 'text-red-300 border-red-400/30 bg-red-400/10',
+    };
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
+        ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      return isNaN(d) ? '—' : d.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function render() {
+      const rows = currentFilter === 'all' ? allRows : allRows.filter((r) => r.status === currentFilter);
+      const tbody = $('rows');
+      if (!rows.length) {
+        tbody.innerHTML = '';
+        $('empty').textContent = 'No bookings in this view.';
+        $('empty').classList.remove('hidden');
+        return;
+      }
+      $('empty').classList.add('hidden');
+      tbody.innerHTML = rows.map((r) => {
+        const badge = STATUS_STYLE[r.status] || 'text-brand-muted border-white/10';
+        const canCancel = r.status !== 'cancelled';
+        const canApprove = r.status === 'verifying';
+        const referrer = (r.referrer && String(r.referrer).trim()) ? esc(r.referrer) : '—';
+        let igCell = '—';
+        if (r.instagram && String(r.instagram).trim()) {
+          let handle = String(r.instagram).trim().replace(/^@+/, '');
+          igCell = `<a href="https://instagram.com/${esc(handle)}" target="_blank" class="text-cyan-300 hover:text-cyan-100">@${esc(handle)}</a>`;
+        }
+        let guestsCell = esc(r.guests);
+        const gnames = Array.isArray(r.guest_names) ? r.guest_names.filter(function(n){ return String(n).trim(); }) : [];
+        if (gnames.length) {
+          const list = gnames.map(function(n, i){ return `<div class="text-xs text-brand-ice/80 py-0.5">${i+1}. ${esc(n)}</div>`; }).join('');
+          guestsCell = `<details class="cursor-pointer"><summary class="text-brand-ice/90 select-none">${esc(r.guests)} <span class="text-brand-gold text-[10px] font-mono">names ▾</span></summary><div class="mt-2 bg-brand-obsidian/50 border border-white/5 rounded-lg p-2">${list}</div></details>`;
+        }
+        const receiptLink = r.receipt_url ? `<a href="${esc(r.receipt_url)}" target="_blank" class="text-cyan-300 underline hover:text-cyan-100">View</a>` : '—';
+        const SPOT_NAMES = {LC1:'SVIP 1',LC2:'SVIP 2',LC3:'SVIP 3',LC5:'SVIP 4',LC6:'SVIP 5',LC4:'VIP 1',LC7:'VIP 2',DC1:'VIP 3',DC2:'VIP 4',DT1:'Table 1',DT2:'Table 2'};
+        const spotLabel = r.table_id ? (SPOT_NAMES[r.table_id] ? `${SPOT_NAMES[r.table_id]} (${r.table_id})` : r.table_id) : '';
+        const pkgText = r.table_id ? `${esc(spotLabel)} · ${esc(r.package)}` : esc(r.package);
         
         let actionButtons = '';
         if (canApprove) {

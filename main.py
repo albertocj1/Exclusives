@@ -15,13 +15,45 @@ from supabase import Client, create_client
 # Branded confirmation email + inline QR (see email_module.py)
 from email_module import send_approval_email
 
-EVENT_CAPACITY = int(os.getenv("EVENT_CAPACITY", "300"))
+EVENT_CAPACITY = int(os.getenv("EVENT_CAPACITY", "140"))
+EXTRA_HEAD_FEE = 2500
+
+# per: person | table
+# base_pax: guests included in base price
+# extra_head: if True, each guest beyond base_pax costs EXTRA_HEAD_FEE
+# max_guests: hard cap for the package
 PACKAGES = {
-    "Entrance Fee":           {"price": 2500,  "per": "person", "max_guests": 8},
-    "Standing Table (4 pax)": {"price": 8000,  "per": "table",  "max_guests": 4},
-    "Couch (6 pax)":          {"price": 15000, "per": "table",  "max_guests": 6},
-    "Couch (8 pax)":          {"price": 20000, "per": "table",  "max_guests": 8},
+    "Entrance Fee":   {"price": 2500,  "per": "person", "base_pax": 1, "max_guests": 12, "extra_head": False},
+    "Standing Table": {"price": 8000,  "per": "table",  "base_pax": 4, "max_guests": 4,  "extra_head": False},
+    "Indoor Couch":   {"price": 15000, "per": "table",  "base_pax": 6, "max_guests": 12, "extra_head": True},
+    "Outdoor Couch":  {"price": 15000, "per": "table",  "base_pax": 6, "max_guests": 12, "extra_head": True},
+    "SVIP Couch":     {"price": 20000, "per": "table",  "base_pax": 8, "max_guests": 14, "extra_head": True},
 }
+
+# Which physical spots belong to which package (DB keeps these IDs).
+PACKAGE_SPOTS = {
+    "Standing Table": ["DT1", "DT2"],
+    "Indoor Couch":   ["LC4", "LC7"],
+    "Outdoor Couch":  ["DC1", "DC2"],
+    "SVIP Couch":     ["LC1", "LC2", "LC3", "LC5", "LC6"],
+}
+
+# Friendly display names shown in UI (DB stores the technical ID).
+SPOT_DISPLAY_NAMES = {
+    "LC1": "SVIP 1", "LC2": "SVIP 2", "LC3": "SVIP 3", "LC5": "SVIP 4", "LC6": "SVIP 5",
+    "LC4": "VIP 1",  "LC7": "VIP 2",  "DC1": "VIP 3",  "DC2": "VIP 4",
+    "DT1": "Table 1", "DT2": "Table 2",
+}
+
+def compute_total(package: str, guests: int) -> int:
+    cfg = PACKAGES[package]
+    if cfg["per"] == "person":
+        return cfg["price"] * guests
+    total = cfg["price"]
+    if cfg.get("extra_head"):
+        extra = max(0, guests - cfg["base_pax"])
+        total += extra * EXTRA_HEAD_FEE
+    return total
 
 _client: Optional[Client] = None
 def db() -> Client:
@@ -39,7 +71,7 @@ class BookingCreate(BaseModel):
     referrer: Optional[str] = None
     package: str
     table_id: Optional[str] = None
-    guests: int = Field(..., ge=1, le=8)
+    guests: int = Field(..., ge=1, le=14)
     guest_names: list[str] = Field(default_factory=list)
     accept_terms: bool
 
@@ -65,11 +97,16 @@ class BookingCreate(BaseModel):
 
     @model_validator(mode="after")
     def _guests_within_package(self):
-        max_guests = PACKAGES[self.package]["max_guests"]
-        if self.guests > max_guests:
-            raise ValueError(f"{self.package} allows at most {max_guests} guests.")
-        if PACKAGES[self.package]["per"] == "table" and not self.table_id:
+        cfg = PACKAGES[self.package]
+        if self.guests > cfg["max_guests"]:
+            raise ValueError(f"{self.package} allows at most {cfg['max_guests']} guests.")
+        if cfg["per"] == "table" and not self.table_id:
             raise ValueError("This package requires selecting a table.")
+        # table_id must belong to the chosen package
+        if self.table_id:
+            allowed = PACKAGE_SPOTS.get(self.package, [])
+            if allowed and self.table_id not in allowed:
+                raise ValueError(f"{self.table_id} is not a valid spot for {self.package}.")
         if len(self.guest_names) != self.guests:
             raise ValueError(f"Please provide a name for each guest ({self.guests} required, got {len(self.guest_names)}).")
         return self
@@ -206,7 +243,7 @@ def create_booking(payload: BookingCreate):
             raise HTTPException(status_code=409, detail="Table just got reserved by someone else.")
 
     unit = PACKAGES[payload.package]["price"]
-    total = unit * payload.guests if PACKAGES[payload.package]["per"] == "person" else unit
+    total = compute_total(payload.package, payload.guests)
 
     try:
         res = db().table("bookings").insert({
