@@ -5,10 +5,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   
     const PACKAGES = {
-      'Entrance Fee':           { price: 2500,  per: 'person', maxGuests: 8 },
-      'Standing Table (4 pax)': { price: 8000,  per: 'table',  maxGuests: 4 },
-      'Couch (6 pax)':          { price: 15000, per: 'table',  maxGuests: 6 },
-      'Couch (8 pax)':          { price: 20000, per: 'table',  maxGuests: 8 },
+      'Entrance Fee':           { price: 2500,  per: 'person', maxGuests: 8, defaultGuests: 1 },
+      'Standing Table (4 pax)': { price: 8000,  per: 'table',  maxGuests: 4, defaultGuests: 4 },
+      'Couch (6 pax)':          { price: 15000, per: 'table',  maxGuests: 6, defaultGuests: 6 },
+      'Couch (8 pax)':          { price: 20000, per: 'table',  maxGuests: 8, defaultGuests: 8 },
     };
   
     const peso = (n) => '\u20B1' + Number(n || 0).toLocaleString('en-PH');
@@ -113,6 +113,20 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   
+    // Pre-fill the guest count to match the package size (e.g. Couch 6 pax -> 6).
+    // Per-person "Entrance Fee" stays at whatever the guest picks (default 1).
+    function applyDefaultGuests() {
+      if (!pkgSel || !guestsSel) return;
+      const cfg = PACKAGES[pkgSel.value];
+      if (!cfg) return;
+      const desired = cfg.defaultGuests || 1;
+      // Only set if the option exists (it always does for 1..8)
+      const hasOption = Array.prototype.some.call(
+        guestsSel.options, (o) => parseInt(o.value, 10) === desired
+      );
+      if (hasOption) guestsSel.value = String(desired);
+    }
+
     // --- 1. Form Estimation & Limits ---
     function applyGuestLimit() {
       if (!pkgSel || !guestsSel) return;
@@ -196,6 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Trigger updates when the user clicks a dropdown
     pkgSel && pkgSel.addEventListener('change', () => {
+        applyDefaultGuests();
         updateTableDropdown();
         updateEstimate();
     });
@@ -249,6 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (pkg && pkgSel) {
           pkgSel.value = pkg;
+          applyDefaultGuests();
           updateTableDropdown(); 
           updateEstimate();
         }
