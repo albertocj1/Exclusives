@@ -330,6 +330,27 @@ def reception_checkin(booking_id: str, body: CheckinBody):
         "already_checked_in": already,
     }
 
+@app.get("/api/reception/summary", dependencies=[Depends(require_reception)])
+def reception_summary():
+    """Live door totals across ALL confirmed bookings (tables + solo entry)."""
+    confirmed = db().table("bookings").select("*").eq("status", "confirmed").execute().data or []
+
+    total_bookings = len(confirmed)
+    checked_in_bookings = sum(1 for b in confirmed if b.get("checked_in"))
+
+    # Expected heads = sum of booked guests across all confirmed bookings.
+    expected_heads = sum((b.get("guests") or 0) for b in confirmed)
+    # Present heads = actual people seated, only for those checked in.
+    present_heads = sum((b.get("heads_present") or 0) for b in confirmed if b.get("checked_in"))
+
+    return {
+        "total_bookings": total_bookings,
+        "checked_in_bookings": checked_in_bookings,
+        "pending_bookings": total_bookings - checked_in_bookings,
+        "expected_heads": expected_heads,
+        "present_heads": present_heads,
+    }
+
 @app.get("/api/reception/tables", dependencies=[Depends(require_reception)])
 def reception_tables():
     """Live per-table board: who's reserved, booked pax, and heads seated so far."""
