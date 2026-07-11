@@ -730,11 +730,20 @@
 
       <!-- QR code — Maribank for Entrance Fee, GCash for the table packages -->
       <div class="relative z-10 mb-6">
-        <div class="bg-white p-4 rounded-2xl mx-auto w-48 h-48 flex items-center justify-center border-4 border-brand-gold/20">
+        <button id="qr-zoom-trigger" type="button" aria-label="Tap to enlarge QR code"
+                class="bg-white p-3 rounded-2xl mx-auto w-72 h-72 flex items-center justify-center border-4 border-brand-gold/20 hover:border-brand-gold/60 transition-colors duration-300 cursor-zoom-in outline-none">
           <img id="qr-gcash" src="images/gcash-qr.png" alt="GCash QR code" class="max-w-full max-h-full object-contain">
           <img id="qr-maribank" src="images/maribank-qr.png" alt="Maribank QR code" class="hidden max-w-full max-h-full object-contain">
-        </div>
+        </button>
         <p id="payment-qr-label" class="text-center font-mono text-[10px] tracking-[0.25em] text-brand-gold uppercase mt-3">GCash</p>
+
+        <div class="flex items-center justify-center gap-3 mt-4">
+          <button id="qr-enlarge-btn" type="button"
+                  class="px-4 py-2 rounded-full border border-white/10 hover:border-brand-gold hover:text-brand-gold font-mono text-[10px] font-bold tracking-[0.15em] text-brand-muted transition-colors duration-300 uppercase outline-none">Enlarge</button>
+          <button id="qr-save-btn" type="button"
+                  class="px-4 py-2 rounded-full border border-brand-gold/40 bg-brand-gold/10 hover:bg-brand-gold hover:text-brand-obsidian font-mono text-[10px] font-bold tracking-[0.15em] text-brand-gold transition-colors duration-300 uppercase outline-none">Save Image</button>
+        </div>
+        <p id="qr-save-hint" class="text-center font-mono text-[9px] tracking-wider text-brand-muted/60 mt-2">Save it, then upload the QR in your banking app</p>
       </div>
 
       <!-- File Upload Input -->
@@ -744,6 +753,19 @@
       </div>
 
       <button id="submit-reference" class="w-full py-4 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-[0.2em] hover:bg-brand-ice transition-colors duration-300 uppercase relative z-10">Submit Receipt</button>
+    </div>
+  </div>
+
+  <!-- QR LIGHTBOX — fullscreen view of whichever QR is active -->
+  <div id="qr-lightbox" class="fixed inset-0 z-[60] flex items-center justify-center bg-brand-obsidian/95 backdrop-blur-md p-6 hidden transition-all duration-300">
+    <button id="qr-lightbox-close" aria-label="Close" class="absolute top-6 right-6 text-brand-muted hover:text-brand-ice text-3xl font-mono font-bold outline-none">&times;</button>
+    <div class="flex flex-col items-center gap-5">
+      <div class="bg-white p-4 rounded-3xl border-4 border-brand-gold/30 shadow-2xl">
+        <img id="qr-lightbox-img" src="" alt="Payment QR code" class="w-[78vw] max-w-[420px] h-auto object-contain">
+      </div>
+      <p id="qr-lightbox-label" class="font-mono text-[11px] tracking-[0.25em] text-brand-gold uppercase">GCash</p>
+      <button id="qr-lightbox-save"
+              class="px-6 py-3 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-[0.2em] hover:bg-brand-ice transition-colors duration-300 uppercase outline-none">Save Image</button>
     </div>
   </div>
 
@@ -1041,6 +1063,87 @@
     }).observe(modal, { attributes: true, attributeFilter: ['class'] });
 
     syncPaymentQR();
+
+    /* ---------- QR ENLARGE + SAVE ---------- */
+
+    var zoomTrigger    = document.getElementById('qr-zoom-trigger');
+    var enlargeBtn     = document.getElementById('qr-enlarge-btn');
+    var saveBtn        = document.getElementById('qr-save-btn');
+    var lightbox       = document.getElementById('qr-lightbox');
+    var lightboxImg    = document.getElementById('qr-lightbox-img');
+    var lightboxLabel  = document.getElementById('qr-lightbox-label');
+    var lightboxClose  = document.getElementById('qr-lightbox-close');
+    var lightboxSave   = document.getElementById('qr-lightbox-save');
+
+    // Whichever QR is currently visible.
+    function activeQR() {
+      return qrMaribank.classList.contains('hidden') ? qrGcash : qrMaribank;
+    }
+
+    function openLightbox() {
+      if (!lightbox) return;
+      var img = activeQR();
+      lightboxImg.src = img.src;
+      lightboxImg.alt = img.alt;
+      if (lightboxLabel && qrLabel) lightboxLabel.textContent = qrLabel.textContent;
+      lightbox.classList.remove('hidden');
+    }
+
+    function closeLightbox() {
+      if (lightbox) lightbox.classList.add('hidden');
+    }
+
+    // Download the active QR as a PNG so the guest can upload it in their banking app.
+    function saveQR() {
+      var img      = activeQR();
+      var channel  = window.PAYMENT_CHANNEL || 'payment';
+      var filename = channel + '-qr.png';
+
+      function triggerDownload(href, revoke) {
+        var a = document.createElement('a');
+        a.href = href;
+        a.download = filename;
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        if (revoke) setTimeout(function () { URL.revokeObjectURL(href); }, 1000);
+      }
+
+      // Blob download keeps the filename and works even if the img is cached.
+      fetch(img.src)
+        .then(function (res) {
+          if (!res.ok) throw new Error('QR fetch failed: ' + res.status);
+          return res.blob();
+        })
+        .then(function (blob) {
+          triggerDownload(URL.createObjectURL(blob), true);
+        })
+        .catch(function () {
+          // Fallback: straight anchor download. On iOS Safari this may open the
+          // image in a new tab instead — the guest can then long-press to save.
+          triggerDownload(img.src, false);
+        });
+    }
+
+    if (zoomTrigger)   zoomTrigger.addEventListener('click', openLightbox);
+    if (enlargeBtn)    enlargeBtn.addEventListener('click', openLightbox);
+    if (saveBtn)       saveBtn.addEventListener('click', saveQR);
+    if (lightboxSave)  lightboxSave.addEventListener('click', saveQR);
+    if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
+
+    // Click the backdrop (not the QR card) to close.
+    if (lightbox) {
+      lightbox.addEventListener('click', function (e) {
+        if (e.target === lightbox) closeLightbox();
+      });
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && lightbox && !lightbox.classList.contains('hidden')) {
+        closeLightbox();
+      }
+    });
   })();
   </script>
 </body>
