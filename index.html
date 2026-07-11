@@ -482,7 +482,7 @@
             </div>
           </div>
           <div class="px-6 pb-6">
-            <a href="#rsvp" class="select-package-btn w-full block text-center py-3 rounded-full bg-brand-goldDim border border-brand-gold/30 hover:border-brand-gold hover:bg-brand-gold hover:text-brand-obsidian font-mono text-xs font-bold tracking-widest text-brand-gold transition-all duration-300 uppercase" data-package="VIP Outdoor Couch">Select</a>
+            <a href="#rsvp" class="select-package-btn w-full block text-center py-3 rounded-full bg-brand-goldDim border border-brand-gold/30 hover:border-brand-gold hover:bg-brand-gold hover:text-brand-obsidian font-mono text-xs font-bold tracking-widest text-brand-gold transition-all duration-300 uppercase" data-package="Outdoor Couch">Select</a>
           </div>
         </div>
 
@@ -722,12 +722,19 @@
         <h3 class="font-serif text-2xl font-medium text-brand-gold tracking-tight">Complete Payment</h3>
         <button id="close-payment" class="text-brand-muted hover:text-brand-ice text-xl font-bold font-mono outline-none">&times;</button>
       </div>
-      <p class="text-brand-muted text-xs font-light mb-6 leading-relaxed relative z-10">Scan the QR code below to transfer via GCash or your bank app. Your total is <strong id="payment-total-ui" class="text-brand-gold font-mono">₱0.00</strong>.</p>
-      
-      <!-- QR Code Image Container -->
-      <div class="bg-white p-4 rounded-2xl mb-6 relative z-10 mx-auto w-48 h-48 flex items-center justify-center border-4 border-brand-gold/20">
-        <!-- REPLACE src with your actual QR code image path! -->
-        <img src="images/gcash-qr.png" alt="GCash QR Code" class="max-w-full max-h-full object-contain">
+
+      <p class="text-brand-muted text-xs font-light mb-6 leading-relaxed relative z-10">
+        <span id="payment-instructions">Scan the QR code below to pay via GCash or your bank app.</span>
+        Your total is <strong id="payment-total-ui" class="text-brand-gold font-mono">₱0.00</strong>.
+      </p>
+
+      <!-- QR code — Maribank for Entrance Fee, GCash for the table packages -->
+      <div class="relative z-10 mb-6">
+        <div class="bg-white p-4 rounded-2xl mx-auto w-48 h-48 flex items-center justify-center border-4 border-brand-gold/20">
+          <img id="qr-gcash" src="images/gcash-qr.png" alt="GCash QR code" class="max-w-full max-h-full object-contain">
+          <img id="qr-maribank" src="images/maribank-qr.png" alt="Maribank QR code" class="hidden max-w-full max-h-full object-contain">
+        </div>
+        <p id="payment-qr-label" class="text-center font-mono text-[10px] tracking-[0.25em] text-brand-gold uppercase mt-3">GCash</p>
       </div>
 
       <!-- File Upload Input -->
@@ -985,6 +992,55 @@
     lightbox && lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
 
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeLightbox(); closeMenu(); } });
+  })();
+  </script>
+
+  <!-- PAYMENT QR ROUTING — Entrance Fee pays via Maribank, table packages via GCash -->
+  <script>
+  (function () {
+    'use strict';
+
+    // Package values that should show the Maribank QR.
+    // These must match the <option value="..."> strings in the #package dropdown.
+    var MARIBANK_PACKAGES = ['Entrance Fee'];
+
+    var modal        = document.getElementById('payment-modal');
+    var packageSel   = document.getElementById('package');
+    var qrGcash      = document.getElementById('qr-gcash');
+    var qrMaribank   = document.getElementById('qr-maribank');
+    var qrLabel      = document.getElementById('payment-qr-label');
+    var instructions = document.getElementById('payment-instructions');
+
+    if (!modal || !packageSel || !qrGcash || !qrMaribank) return;
+
+    function syncPaymentQR() {
+      var pkg = (packageSel.value || '').trim();
+      var useMaribank = MARIBANK_PACKAGES.indexOf(pkg) !== -1;
+
+      qrMaribank.classList.toggle('hidden', !useMaribank);
+      qrGcash.classList.toggle('hidden', useMaribank);
+
+      if (qrLabel) qrLabel.textContent = useMaribank ? 'Maribank' : 'GCash';
+
+      if (instructions) {
+        instructions.textContent = useMaribank
+          ? 'Scan the Maribank QR below with your Maribank app, or any bank or e-wallet app that reads QR Ph.'
+          : 'Scan the QR code below to pay via GCash or your bank app.';
+      }
+
+      // Exposed so app.js can send the channel to the backend with the receipt, if you want it recorded.
+      window.PAYMENT_CHANNEL = useMaribank ? 'maribank' : 'gcash';
+    }
+
+    // Keep in sync while the guest is still filling in the form.
+    packageSel.addEventListener('change', syncPaymentQR);
+
+    // Re-check the moment the payment modal opens, so this doesn't depend on how app.js opens it.
+    new MutationObserver(function () {
+      if (!modal.classList.contains('hidden')) syncPaymentQR();
+    }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+
+    syncPaymentQR();
   })();
   </script>
 </body>
