@@ -294,7 +294,7 @@ def _build_email_html(guest_name, ticket_code, package_name, guests, table_id, q
                 <tr><td style="padding:16px;">
                   <div class="gmail-blend-screen"><div class="gmail-blend-difference">
                     <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6;">
-                      <span class="text-gold" style="color:#F5C518; font-weight:bold;">__DATE_LONG__.</span> Check-in 21:00, we sail 21:30 sharp &mdash; once off the dock we can't return for latecomers. Smart resort-luxe, strictly 18+.
+                      <span class="text-gold" style="color:#F5C518; font-weight:bold;">__DATE_LONG__.</span> Check-in 8:00pm, Smart resort-luxe, strictly 18+.
                     </div>
                   </div></div>
                 </td></tr>
