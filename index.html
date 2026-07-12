@@ -58,7 +58,7 @@
     #mobile-menu { transition: opacity 0.4s ease, visibility 0.4s ease; }
     #mobile-menu.closed { opacity: 0; visibility: hidden; pointer-events: none; }
     .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.45s cubic-bezier(0.16,1,0.3,1); }
-    .faq-item.open .faq-answer { max-height: 240px; }
+    .faq-item.open .faq-answer { max-height: 480px; }
     .faq-item.open .faq-icon { transform: rotate(45deg); }
     .faq-icon { transition: transform 0.35s ease; }
     #lightbox { transition: opacity 0.35s ease, visibility 0.35s ease; }
@@ -781,7 +781,7 @@
           <div class="flex items-start space-x-3 pt-2">
             <input type="checkbox" id="verify-terms" required class="mt-1 w-4 h-4 accent-brand-gold border-white/10 bg-brand-slate rounded cursor-pointer">
             <label for="verify-terms" class="text-xs text-brand-muted font-light leading-relaxed cursor-pointer select-none">
-              I confirm every guest is 18 or older and that I'll follow the crew's maritime safety directives during boarding.
+              I confirm every guest is 18 or older, that I'll follow the crew's maritime safety directives, and that I've read the <a href="#faq" onclick="event.stopPropagation()" class="text-brand-gold underline underline-offset-2 hover:text-brand-ice transition-colors">house rules</a> — bookings are final and non-refundable, and the organizers aren't liable for lost or damaged belongings.
             </label>
           </div>
           <button type="submit" class="w-full py-4 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-[0.2em] hover:bg-brand-ice transition-colors duration-300 uppercase">
@@ -799,27 +799,132 @@
         <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">Frequently Asked Questions</h2>
         <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
       </div>
+      <!-- Dress code, called out above the accordion so nobody misses it -->
+      <div data-reveal class="bg-brand-slate border border-brand-gold/40 rounded-2xl px-6 py-6 md:px-8 md:py-7 mb-8 flex flex-col sm:flex-row sm:items-center gap-5">
+        <div class="shrink-0 w-14 h-14 rounded-full border border-brand-gold/50 bg-brand-obsidian flex items-center justify-center">
+          <span class="w-6 h-6 rounded-full bg-brand-obsidian border border-brand-gold/60"></span>
+        </div>
+        <div>
+          <span class="font-mono text-[10px] tracking-[0.3em] text-brand-gold uppercase block mb-2">Dress code</span>
+          <p class="font-serif text-xl md:text-2xl text-brand-ice tracking-tight mb-1">Wear black.</p>
+          <p class="text-brand-muted text-sm font-light leading-relaxed">One rule, and it's an easy one. How you wear it is up to you.</p>
+        </div>
+      </div>
+
       <div class="space-y-4" data-reveal>
         <div class="faq-item bg-brand-slate border border-white/5 rounded-2xl hover:border-brand-gold/30 transition-colors">
           <button class="faq-trigger w-full flex justify-between items-center text-left px-6 py-5">
             <span class="font-serif text-lg md:text-xl text-brand-ice tracking-tight">What should I wear?</span>
             <span class="faq-icon text-brand-gold text-xl font-mono shrink-0 ml-4">+</span>
           </button>
-          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">Smart resort-luxe. Skip the flip-flops, gym wear, and beach shorts — and go for footwear you can comfortably board and dance in.</p></div>
+          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">Black. Beyond that it's yours — silk, satin, leather, linen, tailored or relaxed. Two hard rules from the club, though: no shorts of any kind, and no slippers or slides.</p></div>
+        </div>
+        <div class="faq-item bg-brand-slate border border-white/5 rounded-2xl hover:border-brand-gold/30 transition-colors">
+          <button class="faq-trigger w-full flex justify-between items-center text-left px-6 py-5">
+            <span class="font-serif text-lg md:text-xl text-brand-ice tracking-tight">What about footwear? Can I wear heels?</span>
+            <span class="faq-icon text-brand-gold text-xl font-mono shrink-0 ml-4">+</span>
+          </button>
+          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">Arrive in proper footwear — no slippers or slides at the gate. Once you're aboard, slippers are provided, so you can slip out of your heels for the night and still keep the decks clean. Wear something you can comfortably board and climb to the sky deck in.</p></div>
         </div>
         <div class="faq-item bg-brand-slate border border-white/5 rounded-2xl hover:border-brand-gold/30 transition-colors">
           <button class="faq-trigger w-full flex justify-between items-center text-left px-6 py-5">
             <span class="font-serif text-lg md:text-xl text-brand-ice tracking-tight">How early do I need to arrive?</span>
             <span class="faq-icon text-brand-gold text-xl font-mono shrink-0 ml-4">+</span>
           </button>
-          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">Check-in opens at 21:00 at the Manila Yacht Club. Come early — the guestlist is checked at the gate, and the first set starts at 21:00.</p></div>
+          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">Check-in opens at 21:00 at the Manila Yacht Club gate, and the first set starts right on the hour. Come 20–30 minutes early — the guestlist is checked name by name, and the yacht is docked, so there's no rush of missing a departure.</p></div>
+        </div>
+        <div class="faq-item bg-brand-slate border border-white/5 rounded-2xl hover:border-brand-gold/30 transition-colors">
+          <button class="faq-trigger w-full flex justify-between items-center text-left px-6 py-5">
+            <span class="font-serif text-lg md:text-xl text-brand-ice tracking-tight">What do I bring to board?</span>
+            <span class="faq-icon text-brand-gold text-xl font-mono shrink-0 ml-4">+</span>
+          </button>
+          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">A valid government ID (18+, no exceptions) and your emailed boarding pass — printed or on your phone. Every guest under your booking must be named on the list, since the club requires the full manifest at the gate.</p></div>
         </div>
         <div class="faq-item bg-brand-slate border border-white/5 rounded-2xl hover:border-brand-gold/30 transition-colors">
           <button class="faq-trigger w-full flex justify-between items-center text-left px-6 py-5">
             <span class="font-serif text-lg md:text-xl text-brand-ice tracking-tight">Can I pass my spot to someone else?</span>
             <span class="faq-icon text-brand-gold text-xl font-mono shrink-0 ml-4">+</span>
           </button>
-          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">Names are locked at booking for screening. To hand your spot to someone, email us with their details at least 72 hours before the event.</p></div>
+          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">No — spots aren't transferable. Names are locked at booking and checked against the manifest at the gate, so only the guests you listed can board. Make sure every name is right before you confirm.</p></div>
+        </div>
+        <div class="faq-item bg-brand-slate border border-white/5 rounded-2xl hover:border-brand-gold/30 transition-colors">
+          <button class="faq-trigger w-full flex justify-between items-center text-left px-6 py-5">
+            <span class="font-serif text-lg md:text-xl text-brand-ice tracking-tight">Can I add guests to my table?</span>
+            <span class="faq-icon text-brand-gold text-xl font-mono shrink-0 ml-4">+</span>
+          </button>
+          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">Yes — the VIP and SVIP couches take extra guests at ₱2,500 each, on top of the base pax. Add them at booking so their names make the manifest; walk-up additions can't be guaranteed once we hit 120.</p></div>
+        </div>
+        <div class="faq-item bg-brand-slate border border-white/5 rounded-2xl hover:border-brand-gold/30 transition-colors">
+          <button class="faq-trigger w-full flex justify-between items-center text-left px-6 py-5">
+            <span class="font-serif text-lg md:text-xl text-brand-ice tracking-tight">Can I smoke on board?</span>
+            <span class="faq-icon text-brand-gold text-xl font-mono shrink-0 ml-4">+</span>
+          </button>
+          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">Not inside the yacht — no cigarettes anywhere on the boat itself. There's a designated smoking area outside on the dock, so step off, light up there, and come back aboard.</p></div>
+        </div>
+        <div class="faq-item bg-brand-slate border border-white/5 rounded-2xl hover:border-brand-gold/30 transition-colors">
+          <button class="faq-trigger w-full flex justify-between items-center text-left px-6 py-5">
+            <span class="font-serif text-lg md:text-xl text-brand-ice tracking-tight">Can I get a refund?</span>
+            <span class="faq-icon text-brand-gold text-xl font-mono shrink-0 ml-4">+</span>
+          </button>
+          <div class="faq-answer px-6"><p class="text-brand-muted text-sm font-light leading-relaxed pb-5">All bookings are final — no refunds, no cancellations, no transfers. Spots are capped at 120 and yours is held the moment your payment clears, so double-check your package, your guest count, and every name before you confirm.</p></div>
+        </div>
+      </div>
+
+      <!-- ================= HOUSE RULES ================= -->
+      <div data-reveal class="mt-20">
+        <div class="text-center mb-10">
+          <span class="font-mono text-[11px] tracking-[0.3em] text-brand-gold uppercase block mb-3">Aboard the yacht</span>
+          <h3 class="font-serif text-3xl md:text-4xl font-medium tracking-tight text-brand-ice">House Rules</h3>
+          <div class="w-12 h-[2px] bg-brand-gold mx-auto mt-5 rounded-full"></div>
+        </div>
+
+        <div class="bg-brand-slate border border-brand-gold/30 rounded-3xl p-7 md:p-10">
+          <ul class="space-y-5">
+            <li class="flex items-start gap-4">
+              <span class="font-mono text-[10px] text-brand-gold pt-[3px] shrink-0">01</span>
+              <p class="text-brand-ice text-sm font-light leading-relaxed">A valid government-issued ID is required upon entry.</p>
+            </li>
+            <li class="flex items-start gap-4">
+              <span class="font-mono text-[10px] text-brand-gold pt-[3px] shrink-0">02</span>
+              <p class="text-brand-ice text-sm font-light leading-relaxed">Entry is exclusive to registered guests only.</p>
+            </li>
+            <li class="flex items-start gap-4">
+              <span class="font-mono text-[10px] text-brand-gold pt-[3px] shrink-0">03</span>
+              <p class="text-brand-ice text-sm font-light leading-relaxed">Shorts of any kind are not permitted.</p>
+            </li>
+            <li class="flex items-start gap-4">
+              <span class="font-mono text-[10px] text-brand-gold pt-[3px] shrink-0">04</span>
+              <p class="text-brand-ice text-sm font-light leading-relaxed">Slippers and slides are not permitted as arrival footwear. Slippers are provided on board once you're aboard.</p>
+            </li>
+            <li class="flex items-start gap-4">
+              <span class="font-mono text-[10px] text-brand-gold pt-[3px] shrink-0">05</span>
+              <p class="text-brand-ice text-sm font-light leading-relaxed">No smoking inside the yacht. There's a designated smoking area on the dock, outside the boat.</p>
+            </li>
+            <li class="flex items-start gap-4">
+              <span class="font-mono text-[10px] text-brand-gold pt-[3px] shrink-0">06</span>
+              <p class="text-brand-ice text-sm font-light leading-relaxed">Outside food and beverages are not allowed.</p>
+            </li>
+            <li class="flex items-start gap-4">
+              <span class="font-mono text-[10px] text-brand-gold pt-[3px] shrink-0">07</span>
+              <p class="text-brand-ice text-sm font-light leading-relaxed">Illegal substances of any kind are strictly prohibited. Zero tolerance.</p>
+            </li>
+            <li class="flex items-start gap-4">
+              <span class="font-mono text-[10px] text-brand-gold pt-[3px] shrink-0">08</span>
+              <p class="text-brand-ice text-sm font-light leading-relaxed">Please drink responsibly and be respectful of fellow guests, event staff, and the yacht crew.</p>
+            </li>
+            <li class="flex items-start gap-4">
+              <span class="font-mono text-[10px] text-brand-gold pt-[3px] shrink-0">09</span>
+              <p class="text-brand-ice text-sm font-light leading-relaxed">Follow all instructions from the event organizers and yacht crew at all times.</p>
+            </li>
+            <li class="flex items-start gap-4">
+              <span class="font-mono text-[10px] text-brand-gold pt-[3px] shrink-0">10</span>
+              <p class="text-brand-ice text-sm font-light leading-relaxed">Guests are responsible for their own belongings. The organizers, the venue, and the yacht crew are not liable for any lost, damaged, or stolen personal items.</p>
+            </li>
+            <li class="flex items-start gap-4">
+              <span class="font-mono text-[10px] text-brand-gold pt-[3px] shrink-0">11</span>
+              <p class="text-brand-ice text-sm font-light leading-relaxed">The organizers reserve the right to refuse entry or remove any guest whose behavior is disruptive, unsafe, or violates these house rules — without refund.</p>
+            </li>
+          </ul>
         </div>
       </div>
     </div>
@@ -832,7 +937,7 @@
         <h3 class="font-serif text-2xl font-medium text-brand-gold tracking-tight">Confirm your request</h3>
         <button id="close-confirm" class="text-brand-muted hover:text-brand-ice text-xl font-bold font-mono outline-none">&times;</button>
       </div>
-      <p class="text-brand-muted text-xs font-light mb-6 leading-relaxed">Double-check your details before we hold your spot — names are locked at booking for guestlist screening.</p>
+      <p class="text-brand-muted text-xs font-light mb-6 leading-relaxed">Double-check your details before we hold your spot — bookings are final and names can't be changed or transferred after payment.</p>
       <div class="bg-brand-obsidian/40 border border-white/5 rounded-2xl p-4 space-y-2 text-xs font-mono mb-6">
         <div class="flex justify-between"><span class="text-brand-muted">GUEST NAME</span><span id="confirm-name" class="text-brand-ice">—</span></div>
         <div class="flex justify-between"><span class="text-brand-muted">EMAIL</span><span id="confirm-email" class="text-brand-ice truncate ml-4 max-w-[60%] text-right">—</span></div>
@@ -910,7 +1015,11 @@
       <div class="absolute inset-0 bg-gradient-to-t from-brand-goldDim/10 to-transparent pointer-events-none"></div>
       <div class="w-16 h-16 rounded-full border border-brand-gold flex items-center justify-center text-2xl text-brand-gold mx-auto mb-6">✓</div>
       <h3 class="font-serif text-3xl font-medium text-brand-ice tracking-tight mb-2">Receipt Uploaded</h3>
-      <p class="text-brand-muted text-xs font-light mb-8 max-w-xs mx-auto">We are reviewing your payment. Once verified, your official boarding pass will be issued via email.</p>
+      <p class="text-brand-muted text-xs font-light mb-4 max-w-xs mx-auto">We're reviewing your payment. Once verified, your official boarding pass will be issued via email — expect it within the day.</p>
+      <p class="text-brand-gold/90 text-xs font-light mb-8 max-w-xs mx-auto">
+        <span class="font-mono text-[10px] tracking-[0.2em] uppercase block mb-1">Heads up</span>
+        If it's not in your inbox, check your <strong class="font-semibold">spam or promotions</strong> folder and mark it as &ldquo;not spam&rdquo; so we can reach you on the day.
+      </p>
       <div class="bg-brand-obsidian/40 border border-white/5 rounded-2xl p-4 space-y-2 text-xs font-mono mb-8 text-left">
         <div class="flex justify-between"><span class="text-brand-muted">GUEST NAME</span><span id="submitted-name" class="text-brand-ice">—</span></div>
         <div class="flex justify-between"><span class="text-brand-muted">PACKAGE</span><span id="submitted-package" class="text-brand-ice">—</span></div>
