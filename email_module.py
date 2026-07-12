@@ -23,17 +23,19 @@
 #      client the selector never matches, the divs are inert, nothing changes.
 #      => Every TEXT block is wrapped in .gmail-blend-screen > .gmail-blend-difference.
 #
-#   3. THE QR STAYS OUTSIDE THE BLEND WRAPPERS. This is deliberate — do not
-#      "tidy" it inside. Gmail does not invert images, so the blend maths (which
-#      assumes everything was inverted) would come along and invert the QR
-#      instead, leaving light modules on a dark card. Some scanners cope with an
-#      inverted QR; plenty don't. Its white card is gradient-locked instead, and
-#      the image is left completely alone.
+#   3. IMAGES (QR + LOGO) STAY OUTSIDE THE BLEND WRAPPERS. This is deliberate —
+#      do not "tidy" them inside. Gmail does not invert images, so the blend
+#      maths (which assumes everything was inverted) would come along and
+#      invert the image instead. For the QR this breaks scannability; for the
+#      logo it would flip the brand colours. Both images use gradient-locked
+#      backgrounds on their containers instead, and the images themselves are
+#      left completely alone.
 #
 #  Consequences for anyone editing the template:
 #   - Any element that has its OWN background must be gradient-locked and must
 #     sit OUTSIDE the blend wrappers.
 #   - Any element that is only TEXT goes INSIDE the blend wrappers.
+#   - Any element that is an IMAGE (logo, QR) goes OUTSIDE the blend wrappers.
 #   - No rgba() anywhere. Semi-transparent colours composite unpredictably under
 #     blend modes, so every rgba() has been pre-flattened to solid hex.
 #   - Borders can't be gradient-locked, so the card and notice borders are faked
@@ -66,6 +68,10 @@ SPOT_DISPLAY_NAMES = {
 
 EVENT_DATE_LONG = "Friday, August 14, 2026"
 EVENT_DATE_SHORT = "Aug 14, 2026 &middot; 9:00 PM"
+
+# Path to the logo file used in the email header. Override with LOGO_PATH if
+# your deploy layout differs from the frontend's images/ folder.
+LOGO_PATH = os.environ.get("LOGO_PATH", "images/logo.png")
 
 
 def get_gmail_service():
@@ -110,9 +116,38 @@ def _make_qr_png(data: str) -> bytes:
     return buf.getvalue()
 
 
-def _build_email_html(guest_name, ticket_code, package_name, guests, table_id, qr_cid):
+def _load_logo_bytes() -> bytes | None:
+    """
+    Reads the logo PNG off disk for inline embedding. Returns None (rather than
+    raising) if the file isn't found, so a missing logo degrades gracefully to
+    the text wordmark instead of breaking email sending entirely.
+    """
+    try:
+        with open(LOGO_PATH, "rb") as f:
+            return f.read()
+    except FileNotFoundError:
+        print(f"WARNING: logo not found at {LOGO_PATH}; falling back to text wordmark.")
+        return None
+
+
+def _build_email_html(guest_name, ticket_code, package_name, guests, table_id, qr_cid, logo_cid=None):
     table_display = _spot_label(table_id)
     guest_word = "guest" if str(guests) == "1" else "guests"
+
+    # Logo image if we have one embedded, otherwise fall back to the old
+    # text wordmark (wrapped in the Gmail blend fix like all other text).
+    if logo_cid:
+        wordmark_html = f"""
+      <img src="cid:{logo_cid}" alt="Exclusives PH" width="200" style="display:block; width:200px; max-width:60%; height:auto; border:0; margin:0 auto;">
+      <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+        <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:10px;">Manila Bay &middot; Yacht Sessions</div>
+      </div></div>"""
+    else:
+        wordmark_html = """
+      <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+        <span class="text-gold" style="font-family:'Courier New', monospace; font-size:12px; letter-spacing:4px; color:#F5C518; text-transform:uppercase; font-weight:bold;">EXCLUSIVES&nbsp;PH</span>
+        <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:6px;">Manila Bay &middot; Yacht Sessions</div>
+      </div></div>"""
 
     html = """\
 <!DOCTYPE html>
@@ -182,12 +217,10 @@ def _build_email_html(guest_name, ticket_code, package_name, guests, table_id, q
 <tr><td align="center">
   <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%;">
 
-    <!-- Wordmark (text -> blended) -->
+    <!-- Wordmark: logo image if available (outside blend wrappers, Gmail doesn't
+         invert images), else the old blended text as a fallback. -->
     <tr><td align="center" style="padding-bottom:28px;">
-      <div class="gmail-blend-screen"><div class="gmail-blend-difference">
-        <span class="text-gold" style="font-family:'Courier New', monospace; font-size:12px; letter-spacing:4px; color:#F5C518; text-transform:uppercase; font-weight:bold;">EXCLUSIVES&nbsp;PH</span>
-        <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:6px;">Manila Bay &middot; Yacht Sessions</div>
-      </div></div>
+      __WORDMARK__
     </td></tr>
 
     <!-- Card. The 1px gold edge is a gradient-locked background, not a border,
@@ -289,7 +322,8 @@ def _build_email_html(guest_name, ticket_code, package_name, guests, table_id, q
 </body>
 </html>"""
 
-    return (html.replace("__GUEST_NAME__", str(guest_name))
+    return (html.replace("__WORDMARK__", wordmark_html)
+                .replace("__GUEST_NAME__", str(guest_name))
                 .replace("__TICKET_CODE__", str(ticket_code))
                 .replace("__PACKAGE__", str(package_name))
                 .replace("__GUESTS__", str(guests))
@@ -301,8 +335,9 @@ def _build_email_html(guest_name, ticket_code, package_name, guests, table_id, q
 
 
 def send_approval_email(to_email, guest_name, ticket_code, package_name, guests=1, table_id=None):
-    """Build + send the branded confirmation email with an inline QR code.
-    The QR encodes the ticket_code, which your reception scanner looks up."""
+    """Build + send the branded confirmation email with an inline QR code and
+    inline logo image. The QR encodes the ticket_code, which your reception
+    scanner looks up."""
     try:
         service = get_gmail_service()
 
@@ -310,8 +345,18 @@ def send_approval_email(to_email, guest_name, ticket_code, package_name, guests=
         qr_msgid = make_msgid(domain="exclusivesph")   # e.g. <abc123@exclusivesph>
         qr_cid = qr_msgid[1:-1]                        # strip <> for the HTML src
 
+        # Content-ID for the inline logo image, if the file is available.
+        logo_bytes = _load_logo_bytes()
+        logo_msgid = None
+        logo_cid = None
+        if logo_bytes:
+            logo_msgid = make_msgid(domain="exclusivesph")
+            logo_cid = logo_msgid[1:-1]
+
         qr_png = _make_qr_png(ticket_code)
-        html_body = _build_email_html(guest_name, ticket_code, package_name, guests, table_id, qr_cid)
+        html_body = _build_email_html(
+            guest_name, ticket_code, package_name, guests, table_id, qr_cid, logo_cid
+        )
 
         # Plain-text fallback for clients that don't render HTML
         text_body = (
@@ -321,7 +366,7 @@ def send_approval_email(to_email, guest_name, ticket_code, package_name, guests=
             f"Guests: {guests}\n"
             f"Table / Spot: {_spot_label(table_id)}\n"
             f"Date: {EVENT_DATE_LONG} - 9:00 PM\n"
-            f"Boarding: Manila Yacht Club, check-in 21:00, sail 21:30.\n\n"
+            f"Boarding: Manila Yacht Club, check-in 8:00pm.\n\n"
             f"Present your QR code (in the HTML version of this email) at reception.\n\n"
             f"Exclusives PH"
         )
@@ -333,9 +378,12 @@ def send_approval_email(to_email, guest_name, ticket_code, package_name, guests=
         msg.set_content(text_body)
         msg.add_alternative(html_body, subtype='html')
 
-        # Attach the QR as an inline (related) image on the HTML part
+        # Attach the QR (and logo, if we have one) as inline (related) images
+        # on the HTML part.
         html_part = msg.get_payload()[1]
         html_part.add_related(qr_png, maintype='image', subtype='png', cid=qr_msgid)
+        if logo_bytes:
+            html_part.add_related(logo_bytes, maintype='image', subtype='png', cid=logo_msgid)
 
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         service.users().messages().send(userId="me", body={'raw': raw}).execute()
