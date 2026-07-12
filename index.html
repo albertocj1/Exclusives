@@ -326,12 +326,14 @@
   <section id="event" class="py-28 bg-brand-obsidian/60 backdrop-blur-md border-b border-white/5 relative z-20">
     <div class="max-w-7xl mx-auto px-6">
       <div class="grid md:grid-cols-2 gap-16 items-center">
-        <div data-reveal class="relative bg-brand-slate p-3 rounded-3xl border border-white/5 glow-hover transition-all duration-500">
-          <div class="h-96 md:h-[500px] overflow-hidden rounded-2xl relative">
-            <div class="w-full h-full bg-cover bg-center" style="background-image: url('images/night-yacht.png');"></div>
-            <div class="absolute inset-0 bg-gradient-to-t from-brand-obsidian via-transparent to-transparent"></div>
+        <div data-reveal class="bg-brand-slate p-3 rounded-3xl border border-white/5 glow-hover transition-all duration-500">
+          <!-- full frame, no crop: the photo is landscape, so it sets its own height -->
+          <div class="overflow-hidden rounded-2xl">
+            <img src="images/night-yacht.png" alt="Happy Life Yacht docked on Manila Bay at night, with the city skyline behind"
+                 class="w-full h-auto block">
           </div>
-          <div class="absolute bottom-8 left-8 right-8 bg-brand-obsidian/95 border border-white/10 rounded-2xl p-6 backdrop-blur">
+          <!-- caption sits below the photo, so it never covers the boat -->
+          <div class="px-5 pt-5 pb-2 md:px-6 md:pt-6 md:pb-3">
             <h4 class="font-mono text-brand-gold text-[11px] tracking-widest uppercase mb-1">Happy Life Yacht</h4>
             <p class="text-sm text-brand-ice font-light leading-relaxed">
               Docked at the Manila Yacht Club, CCP Complex. Doors open at 21:00 and the deck runs until 03:00.
@@ -350,7 +352,7 @@
             <strong class="text-brand-ice font-semibold">Exclusives</strong> is a lifestyle and events platform built around the people in the room — entrepreneurs, professionals, creatives, and anyone who'd rather spend a night somewhere that was actually planned.
           </p>
           <p class="text-brand-muted text-base leading-relaxed mb-8 font-light">
-            On <strong class="text-brand-ice font-semibold">August 14</strong> we take over Happy Life Yacht where it's docked on the bay: 120 invited guests, three decks, a full bar, and the Manila skyline across the water until the early hours.
+            On <strong class="text-brand-ice font-semibold">August 14</strong> we take over Happy Life Yacht where she's docked on the bay: 120 invited guests, three decks, a full bar, and the Manila skyline across the water until the early hours.
           </p>
           <div class="grid grid-cols-2 gap-6 text-sm">
             <div class="flex items-center space-x-3"><span class="text-brand-gold font-serif text-lg">→</span><span class="text-brand-ice font-light">120 invited guests</span></div>
