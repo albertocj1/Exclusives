@@ -80,6 +80,63 @@
     }
     .deck-panel img { animation: deckFade 0.5s cubic-bezier(0.16,1,0.3,1); }
     @keyframes deckFade { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: scale(1); } }
+
+    /* ---------- ITINERARY / TIMELINE BACKGROUND (night yacht photo) ---------- */
+    #itinerary { isolation: isolate; }
+
+    .itin-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+
+    /* The photo is already night + gold, so it gets a light touch:
+       a small dim so the card type has somewhere to sit, nothing more.
+       brightness() = how present the yacht is. background-position Y = hull vs. wake. */
+    .itin-photo {
+      position: absolute; inset: 0;
+      background: url('images/itin-yacht.jpg') center 45% / cover no-repeat;
+      filter: brightness(0.72) saturate(1.05) contrast(1.05);
+      transform: scale(1.04);
+    }
+
+    /* Feather the photo into the sections above and below, and hold a
+       readability floor behind the four cards. */
+    .itin-scrim {
+      position: absolute; inset: 0;
+      background:
+        linear-gradient(180deg,
+          #0A1A24 0%,
+          rgba(10,26,36,0.55) 22%,
+          rgba(10,26,36,0.35) 50%,
+          rgba(10,26,36,0.60) 80%,
+          #0A1A24 100%),
+        radial-gradient(70% 45% at 50% 55%, rgba(10,26,36,0.45), transparent 75%);
+    }
+
+    /* The route line — the only element encoding the sequence. */
+    .itin-route {
+      position: absolute; left: 6%; right: 6%; top: 50%; height: 1px;
+      background: linear-gradient(90deg,
+        rgba(245,197,24,0) 0%,
+        rgba(245,197,24,0.40) 18%,
+        rgba(245,197,24,0.40) 82%,
+        rgba(245,197,24,0) 100%);
+    }
+    .itin-route::after {
+      content: ""; position: absolute; top: -2px; left: 0;
+      width: 90px; height: 5px; border-radius: 999px;
+      background: linear-gradient(90deg, transparent, #F5C518, transparent);
+      filter: blur(2px); opacity: 0.85;
+      animation: itinSail 9s cubic-bezier(0.45,0,0.55,1) infinite;
+    }
+    @keyframes itinSail {
+      0%   { transform: translateX(0%);   opacity: 0; }
+      10%  { opacity: 0.9; }
+      90%  { opacity: 0.9; }
+      100% { transform: translateX(1100%); opacity: 0; }
+    }
+    @media (max-width: 767px) {
+      .itin-route { display: none; }
+      .itin-photo { background-position: center 50%; }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       * { animation: none !important; transition: none !important; }
       [data-reveal] { opacity: 1 !important; transform: none !important; }
@@ -221,7 +278,7 @@
       <div class="grid md:grid-cols-2 gap-16 items-center">
         <div data-reveal class="relative bg-brand-slate p-3 rounded-3xl border border-white/5 glow-hover transition-all duration-500">
           <div class="h-96 md:h-[500px] overflow-hidden rounded-2xl relative">
-            <div class="w-full h-full bg-cover bg-center" style="background-image: url('images/IMG_0090.jpg');"></div>
+            <div class="w-full h-full bg-cover bg-center" style="background-image: url('images/yacht-night.png');"></div>
             <div class="absolute inset-0 bg-gradient-to-t from-brand-obsidian via-transparent to-transparent"></div>
           </div>
           <div class="absolute bottom-8 left-8 right-8 bg-brand-obsidian/95 border border-white/10 rounded-2xl p-6 backdrop-blur">
@@ -256,15 +313,24 @@
     </div>
   </section>
 
-  <section id="itinerary" class="py-28 bg-brand-slate/40 backdrop-blur-md border-b border-white/5 relative z-20">
-    <div class="max-w-7xl mx-auto px-6">
+  <!-- ================= ITINERARY (night yacht photo background) ================= -->
+  <section id="itinerary" class="py-28 border-b border-white/5 relative z-20 overflow-hidden">
+
+    <!-- background layers: night photo -> scrim -> route line -->
+    <div class="itin-bg" aria-hidden="true">
+      <div class="itin-photo"></div>
+      <div class="itin-scrim"></div>
+      <div class="itin-route"></div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-6 relative z-10">
       <div class="text-center max-w-2xl mx-auto mb-20" data-reveal>
         <span class="font-mono text-[11px] tracking-[0.3em] text-brand-gold uppercase block mb-3">How the evening sails</span>
         <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">The Timeline</h2>
         <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
       </div>
       <div class="grid md:grid-cols-4 gap-8">
-        <div data-reveal class="bg-brand-slate border border-white/5 rounded-2xl p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
+        <div data-reveal class="bg-brand-obsidian/80 backdrop-blur-md border border-white/10 rounded-2xl p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
           <div>
             <span class="font-mono text-brand-gold text-sm tracking-widest block mb-4">21:00 — 21:30</span>
             <h3 class="font-serif text-xl font-medium text-brand-ice mb-3">Boarding</h3>
@@ -272,7 +338,7 @@
           </div>
           <span class="font-mono text-[10px] tracking-widest text-brand-gold/60 uppercase block">Port-side dock</span>
         </div>
-        <div data-reveal class="bg-brand-slate border border-white/5 rounded-2xl p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
+        <div data-reveal class="bg-brand-obsidian/80 backdrop-blur-md border border-white/10 rounded-2xl p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
           <div>
             <span class="font-mono text-brand-gold text-sm tracking-widest block mb-4">21:30 — 23:30</span>
             <h3 class="font-serif text-xl font-medium text-brand-ice mb-3">The Social Hour</h3>
@@ -280,7 +346,7 @@
           </div>
           <span class="font-mono text-[10px] tracking-widest text-brand-gold/60 uppercase block">Outbound bay</span>
         </div>
-        <div data-reveal class="bg-brand-slate border border-brand-gold/30 rounded-2xl p-8 animate-glow flex flex-col justify-between h-72">
+        <div data-reveal class="bg-brand-obsidian/80 backdrop-blur-md border border-brand-gold/30 rounded-2xl p-8 animate-glow flex flex-col justify-between h-72">
           <div>
             <span class="font-mono text-brand-gold text-sm tracking-widest block mb-4">23:30 — 02:30</span>
             <h3 class="font-serif text-xl font-medium text-brand-gold mb-3">Midnight State</h3>
@@ -288,7 +354,7 @@
           </div>
           <span class="font-mono text-[10px] tracking-widest text-brand-gold/60 uppercase block">Mid-bay</span>
         </div>
-        <div data-reveal class="bg-brand-slate border border-white/5 rounded-2xl p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
+        <div data-reveal class="bg-brand-obsidian/80 backdrop-blur-md border border-white/10 rounded-2xl p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
           <div>
             <span class="font-mono text-brand-gold text-sm tracking-widest block mb-4">02:30 — 03:00</span>
             <h3 class="font-serif text-xl font-medium text-brand-ice mb-3">Final Call</h3>
@@ -392,7 +458,7 @@
         <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
       </div>
       <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-        
+
         <div data-reveal class="bg-brand-slate border border-white/5 rounded-3xl overflow-hidden group hover:border-brand-gold/40 transition-all duration-500 flex flex-col justify-between">
           <div>
             <div class="h-44 bg-neutral-900 relative">
@@ -407,7 +473,6 @@
               <ul class="text-xs text-brand-ice/80 space-y-3 font-light mb-8">
                 <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>Full yacht access</span></li>
                 <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>2 Complimentary Drinks of your choice</span></li>
-                
               </ul>
             </div>
           </div>
@@ -513,6 +578,7 @@
     </div>
   </section>
 
+  <!-- ================= GALLERY / LOOKBOOK (lightbox fixed) ================= -->
   <section id="gallery" class="py-28 bg-brand-slate/40 backdrop-blur-md border-y border-white/5 relative z-20">
     <div class="max-w-7xl mx-auto px-6">
       <div class="text-center max-w-2xl mx-auto mb-20" data-reveal>
@@ -521,21 +587,20 @@
         <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
       </div>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4" data-reveal>
-        <!-- KEPT: original shots (rename these to .png in /images if you want the folder 100% PNG) -->
-        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="images/IMG_0115.png">
+        <!-- data-img now matches the actual file that each tile displays -->
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="images/IMG_0115.jpg">
           <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/IMG_0115.jpg');"></div>
           <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
         </button>
-        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all md:row-span-2 md:h-auto" data-img="images/IMG_0118.png">
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all md:row-span-2 md:h-auto" data-img="images/IMG_0118.jpg">
           <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/IMG_0118.jpg');"></div>
           <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
         </button>
-        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="images/IMG_0076.png">
+        <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="images/IMG_0076.jpg">
           <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/IMG_0076.jpg');"></div>
           <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
         </button>
 
-        <!-- NEW: uploaded photos (replaces the three crossed-out shots + adds four more) -->
         <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="images/lookbook-01.png">
           <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/lookbook-01.png');"></div>
           <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
@@ -597,7 +662,7 @@
               <input type="text" id="instagram" required placeholder="@yourhandle" class="w-full bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice font-light text-sm px-4 py-3 outline-none transition-colors duration-300">
             </div>
           </div>
-          
+
           <!-- Package Selection Dropdown -->
           <div class="grid md:grid-cols-2 gap-6 mb-6">
             <div class="md:col-span-2">
@@ -626,7 +691,7 @@
                 <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none text-brand-gold">▼</div>
               </div>
             </div>
-            
+
             <div>
               <label for="guests" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Number of Guests</label>
               <div class="relative">
@@ -657,7 +722,7 @@
               <input type="text" id="referrer" placeholder="Name or @handle of who invited you" class="w-full bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice font-light text-sm px-4 py-3 outline-none transition-colors duration-300">
             </div>
           </div>
-          
+
           <div class="border-t border-white/10 pt-6 flex justify-between items-center font-mono">
             <span class="text-xs text-brand-muted uppercase">Estimated total</span>
             <span id="estimated-total" class="text-xl md:text-2xl font-bold text-brand-gold">₱2,500</span>
@@ -826,9 +891,11 @@
     </div>
   </div>
 
+  <!-- GALLERY LIGHTBOX -->
   <div id="lightbox" class="closed fixed inset-0 z-[60] flex items-center justify-center bg-brand-obsidian/95 backdrop-blur-md p-6">
     <button id="lightbox-close" aria-label="Close" class="absolute top-6 right-6 text-brand-muted hover:text-brand-gold text-4xl font-mono">&times;</button>
     <img id="lightbox-img" src="" alt="Gallery view" class="max-w-full max-h-[80vh] rounded-2xl border border-brand-gold/40 shadow-2xl object-contain">
+    <p id="lightbox-error" class="hidden absolute font-mono text-xs tracking-widest text-brand-muted uppercase">Photo unavailable</p>
   </div>
 
   <button id="back-to-top" aria-label="Back to top" class="hidden-btn fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-brand-gold text-brand-obsidian font-mono text-lg font-bold flex items-center justify-center hover:bg-brand-ice transition-colors shadow-lg">↑</button>
@@ -889,10 +956,8 @@
 
     if (isInApp && banner) {
       banner.style.display = 'block';
-      // Nudge page content down so the fixed banner doesn't cover the nav
       document.body.style.paddingTop = banner.offsetHeight + 'px';
 
-      // Android can often force-open the real browser via an intent URL.
       var isAndroid = /Android/i.test(ua);
       if (isAndroid) {
         var textEl = document.getElementById('inapp-banner-text');
@@ -942,7 +1007,7 @@
     'use strict';
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // Updated date to August 14, 2026, 9:00 PM start time
+    // Countdown — August 14, 2026, 9:00 PM (PHT)
     const eventDate = new Date('2026-08-14T21:00:00+08:00').getTime();
     const cd = {
       d: document.getElementById('cd-days'),
@@ -1023,12 +1088,50 @@
       });
     });
 
+    /* ---------- GALLERY LIGHTBOX (fixed) ----------
+       The source is read from the tile's own background-image, so the enlarged
+       photo can never point at a file the thumbnail isn't actually using.
+       data-img is kept only as a fallback. */
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxErr = document.getElementById('lightbox-error');
     const lightboxClose = document.getElementById('lightbox-close');
-    const openLightbox = (src) => { if (!lightbox) return; lightboxImg.src = src; lightbox.classList.remove('closed'); document.body.classList.add('modal-active'); };
-    const closeLightbox = () => { if (!lightbox) return; lightbox.classList.add('closed'); document.body.classList.remove('modal-active'); };
-    document.querySelectorAll('.gallery-item').forEach((item) => item.addEventListener('click', () => openLightbox(item.getAttribute('data-img'))));
+
+    function srcFromTile(tile) {
+      const inner = tile.querySelector('[style*="background-image"]');
+      if (inner) {
+        const bg = window.getComputedStyle(inner).backgroundImage; // url("...")
+        const match = /url\((['"]?)(.*?)\1\)/.exec(bg);
+        if (match && match[2] && match[2] !== 'none') return match[2];
+      }
+      return tile.getAttribute('data-img');
+    }
+
+    const openLightbox = (src) => {
+      if (!lightbox || !src) return;
+      lightboxErr.classList.add('hidden');
+      lightboxImg.classList.remove('hidden');
+      lightboxImg.src = src;
+      lightbox.classList.remove('closed');
+      document.body.classList.add('modal-active');
+    };
+    const closeLightbox = () => {
+      if (!lightbox) return;
+      lightbox.classList.add('closed');
+      document.body.classList.remove('modal-active');
+      lightboxImg.src = '';
+    };
+
+    // If a photo is genuinely missing, show a readable message instead of a broken icon.
+    lightboxImg.addEventListener('error', () => {
+      if (!lightboxImg.src) return;
+      lightboxImg.classList.add('hidden');
+      lightboxErr.classList.remove('hidden');
+    });
+
+    document.querySelectorAll('.gallery-item').forEach((item) => {
+      item.addEventListener('click', () => openLightbox(srcFromTile(item)));
+    });
     lightboxClose && lightboxClose.addEventListener('click', closeLightbox);
     lightbox && lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
 
@@ -1041,8 +1144,6 @@
   (function () {
     'use strict';
 
-    // Package values that should show the Maribank QR.
-    // These must match the <option value="..."> strings in the #package dropdown.
     var MARIBANK_PACKAGES = ['Entrance Fee'];
 
     var modal        = document.getElementById('payment-modal');
@@ -1069,14 +1170,11 @@
           : 'Scan the QR code below to pay via GCash or your bank app.';
       }
 
-      // Exposed so app.js can send the channel to the backend with the receipt, if you want it recorded.
       window.PAYMENT_CHANNEL = useMaribank ? 'maribank' : 'gcash';
     }
 
-    // Keep in sync while the guest is still filling in the form.
     packageSel.addEventListener('change', syncPaymentQR);
 
-    // Re-check the moment the payment modal opens, so this doesn't depend on how app.js opens it.
     new MutationObserver(function () {
       if (!modal.classList.contains('hidden')) syncPaymentQR();
     }).observe(modal, { attributes: true, attributeFilter: ['class'] });
@@ -1094,7 +1192,6 @@
     var lightboxClose  = document.getElementById('qr-lightbox-close');
     var lightboxSave   = document.getElementById('qr-lightbox-save');
 
-    // Whichever QR is currently visible.
     function activeQR() {
       return qrMaribank.classList.contains('hidden') ? qrGcash : qrMaribank;
     }
@@ -1112,7 +1209,6 @@
       if (lightbox) lightbox.classList.add('hidden');
     }
 
-    // Download the active QR as a PNG so the guest can upload it in their banking app.
     function saveQR() {
       var img      = activeQR();
       var channel  = window.PAYMENT_CHANNEL || 'payment';
@@ -1129,7 +1225,6 @@
         if (revoke) setTimeout(function () { URL.revokeObjectURL(href); }, 1000);
       }
 
-      // Blob download keeps the filename and works even if the img is cached.
       fetch(img.src)
         .then(function (res) {
           if (!res.ok) throw new Error('QR fetch failed: ' + res.status);
@@ -1139,8 +1234,6 @@
           triggerDownload(URL.createObjectURL(blob), true);
         })
         .catch(function () {
-          // Fallback: straight anchor download. On iOS Safari this may open the
-          // image in a new tab instead — the guest can then long-press to save.
           triggerDownload(img.src, false);
         });
     }
@@ -1151,7 +1244,6 @@
     if (lightboxSave)  lightboxSave.addEventListener('click', saveQR);
     if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
 
-    // Click the backdrop (not the QR card) to close.
     if (lightbox) {
       lightbox.addEventListener('click', function (e) {
         if (e.target === lightbox) closeLightbox();
