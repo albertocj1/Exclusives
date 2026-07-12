@@ -15,7 +15,8 @@ from supabase import Client, create_client
 # Branded confirmation email + inline QR (see email_module.py)
 from email_module import send_approval_email
 
-EVENT_CAPACITY = int(os.getenv("EVENT_CAPACITY", "140"))
+EVENT_CAPACITY = int(os.getenv("EVENT_CAPACITY", "150"))  # hard cap: no bookings accepted past this
+HOLD_MINUTES = int(os.getenv("HOLD_MINUTES", "15"))       # how long an unpaid booking holds its seat/table
 EXTRA_HEAD_FEE = 2500
 
 # per: person | table
@@ -187,6 +188,24 @@ def _confirmed_guest_count() -> int:
     res = db().table("bookings").select("guests").eq("status", "confirmed").execute()
     return sum(row["guests"] for row in (res.data or []))
 
+def _committed_guest_count() -> int:
+    """Seats that are really spoken for.
+
+    confirmed  -> paid and approved
+    verifying  -> receipt uploaded, awaiting admin review; their seat must be held
+    pending    -> mid-checkout, held only for HOLD_MINUTES (same window as tables),
+                  so an abandoned form doesn't block a seat forever
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
+
+    settled = db().table("bookings").select("guests") \
+        .in_("status", ["confirmed", "verifying"]).execute().data or []
+
+    holds = db().table("bookings").select("guests") \
+        .eq("status", "pending").gte("created_at", cutoff).execute().data or []
+
+    return sum(r["guests"] for r in settled) + sum(r["guests"] for r in holds)
+
 def _table_capacity(package_name: Optional[str]) -> Optional[int]:
     cfg = PACKAGES.get(package_name or "")
     return cfg["max_guests"] if cfg else None
@@ -197,13 +216,20 @@ def _table_capacity(package_name: Optional[str]) -> Optional[int]:
 
 @app.get("/api/availability")
 def availability():
-    taken = _confirmed_guest_count()
-    return {"capacity": EVENT_CAPACITY, "taken": taken, "spots_left": max(0, EVENT_CAPACITY - taken)}
+    taken = _committed_guest_count()
+    left = max(0, EVENT_CAPACITY - taken)
+    return {
+        "capacity": EVENT_CAPACITY,
+        "taken": taken,
+        "spots_left": left,
+        "sold_out": left <= 0,
+        "confirmed": _confirmed_guest_count(),  # paid + approved only, for the admin view
+    }
 
 @app.get("/api/tables/availability")
 def get_tables():
     all_tables = db().table("tables").select("*").execute().data
-    lock_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+    lock_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
 
     confirmed = db().table("bookings").select("table_id") \
         .eq("status", "confirmed") \
@@ -225,8 +251,22 @@ def get_tables():
 
 @app.post("/api/bookings", response_model=Booking)
 def create_booking(payload: BookingCreate):
+    # --- CAPACITY GATE ---
+    # Checked here, at write time, not just in the UI. A disabled button stops
+    # honest guests; this stops everyone. Re-read the count on every request so
+    # two people submitting at the same second can't both slip through.
+    taken = _committed_guest_count()
+    left = max(0, EVENT_CAPACITY - taken)
+    if left <= 0:
+        raise HTTPException(status_code=409, detail="The guestlist is full. No spots remain.")
+    if payload.guests > left:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Only {left} spot{'s' if left != 1 else ''} left — you requested {payload.guests}.",
+        )
+
     if payload.table_id:
-        lock_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+        lock_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
 
         confirmed = db().table("bookings").select("id") \
             .eq("table_id", payload.table_id) \

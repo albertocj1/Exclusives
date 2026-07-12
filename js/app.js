@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         "color:#fca5a5; font-family:'Space Mono', monospace; font-size:12px;" +
         'letter-spacing:0.5px; text-align:center; line-height:1.5;';
       soldOutNote.textContent = 'All tables in this category are fully reserved. Please pick another package.';
+      soldOutNote.setAttribute('role', 'status');
       if (submitBtn && submitBtn.parentElement) {
         submitBtn.parentElement.insertBefore(soldOutNote, submitBtn);
       } else if (form) {
@@ -83,8 +84,15 @@ document.addEventListener('DOMContentLoaded', () => {
       return soldOutNote;
     }
 
+    // --- EVENT-LEVEL SOLD OUT (the whole guestlist is full) ---
+    // Distinct from per-package sold-out below: this one closes everything,
+    // including per-person Entrance Fee, which can otherwise never sell out.
+    let eventSoldOut = false;
+    let spotsLeft = null;   // null = unknown (backend not reached yet)
+
     // True only when the package uses tables AND every table for it is reserved.
     function isPackageSoldOut(pkgName) {
+      if (eventSoldOut) return true;   // full boat = every package is closed
       const cfg = PACKAGES[pkgName];
       if (!cfg || cfg.per !== 'table') return false;      // per-person entry never table-sold-out
       const relevant = allTables.filter((t) => t.package === pkgName);
@@ -95,12 +103,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function setFormSoldOut(isSoldOut) {
       const note = ensureSoldOutNote();
       note.style.display = isSoldOut ? 'block' : 'none';
+      // Say which kind of sold-out this is — "pick another package" is wrong
+      // advice when there is no other package left to pick.
+      note.textContent = eventSoldOut
+        ? 'The guestlist is full. No further bookings can be accepted.'
+        : 'All tables in this category are fully reserved. Please pick another package.';
       if (!submitBtn) return;
       if (isSoldOut) {
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.5';
         submitBtn.style.cursor = 'not-allowed';
-        submitBtn.textContent = 'Sold out';
+        submitBtn.textContent = eventSoldOut ? 'Guestlist full' : 'Sold out';
       } else {
         submitBtn.disabled = false;
         submitBtn.style.opacity = '1';
@@ -117,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // find the card container to place/remove a badge
         const card = btn.closest('[data-reveal]') || btn.closest('div');
         if (soldOut) {
-          btn.textContent = 'Sold Out';
+          btn.textContent = eventSoldOut ? 'Guestlist Full' : 'Sold Out';
           btn.style.opacity = '0.5';
           btn.style.cursor = 'not-allowed';
           btn.setAttribute('data-soldout', '1');
@@ -307,8 +320,49 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 3. Backend Fetching ---
     // Website displays a fixed public capacity of 120 (admin/backend may enforce a
     // different real cap). We compute the spots-left and bar against 120.
-    const PUBLIC_CAPACITY = 120;
+    // Fallback only — the backend is the source of truth and reports its own capacity.
+    const PUBLIC_CAPACITY = 150;
+
+    // The guestlist strip has three states, driven by how many seats are taken:
+    //   taken <  LOW_STOCK_AT   -> "Guestlist filling"     (calm, pulsing)
+    //   taken >= LOW_STOCK_AT   -> "Only a few spots left" (urgent, still open)
+    //   spots_left === 0        -> "Guestlist full"        (closed, no pulse)
+    const LOW_STOCK_AT = 100;   // seats taken, out of the 150 cap
+
+    function scarcityStrip() {
+      const fill = $('scarcity-fill');
+      return fill ? fill.closest('section') : null;
+    }
+
+    function paintScarcity(state) {
+      const strip = scarcityStrip();
+      if (!strip) return;
+      const heading = strip.querySelector('.font-mono.uppercase');
+      const dot = strip.querySelector('span.rounded-full.bg-brand-gold, span.w-2.h-2');
+      const fill = $('scarcity-fill');
+
+      if (state === 'full') {
+        if (heading) heading.textContent = 'Guestlist full';
+        if (dot) { dot.classList.remove('animate-pulse'); dot.style.background = '#8AA0AD'; }
+        if (fill) fill.style.background = 'linear-gradient(90deg, #8AA0AD, #F2EADD)';
+      } else if (state === 'low') {
+        if (heading) heading.textContent = 'Only a few spots left';
+        if (dot) { dot.classList.add('animate-pulse'); dot.style.background = ''; }
+        if (fill) fill.style.background = '';
+      } else {
+        if (heading) heading.textContent = 'Guestlist filling';
+        if (dot) { dot.classList.add('animate-pulse'); dot.style.background = ''; }
+        if (fill) fill.style.background = '';
+      }
+    }
+
+    // Kept as a named helper because the 409 handler calls it directly.
+    function paintScarcitySoldOut() { paintScarcity('full'); }
+
     async function loadAvailability() {
+      // The "N of M spots left" counter was removed from the page on purpose —
+      // the bar communicates pressure without publishing exact numbers.
+      // These lookups stay (and no-op) so the code survives if it's ever re-added.
       const spotsEl = $('spots-left');
       const capEl = $('spots-capacity');
       const fill = $('scarcity-fill');
@@ -317,15 +371,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch(`${API_BASE}/api/availability`);
         if (!res.ok) return;
         const data = await res.json();
+
+        // Trust the backend's own numbers — it is the thing that enforces the cap.
+        const capacity = data.capacity != null ? data.capacity : PUBLIC_CAPACITY;
         const taken = data.taken != null ? data.taken : 0;
-        const left = Math.max(0, PUBLIC_CAPACITY - taken);
-        if (spotsEl) spotsEl.textContent = left;
+        spotsLeft = data.spots_left != null ? data.spots_left : Math.max(0, capacity - taken);
+        eventSoldOut = data.sold_out === true || spotsLeft <= 0;
+
+        if (capEl) capEl.textContent = capacity;
+        if (spotsEl) spotsEl.textContent = spotsLeft;
         if (fill) {
-          const pct = Math.min(100, Math.max(0, (taken / PUBLIC_CAPACITY) * 100));
+          const pct = Math.min(100, Math.max(0, (taken / capacity) * 100));
           if (reduceMotion) fill.style.width = pct + '%';
           else requestAnimationFrame(() => { fill.style.width = pct + '%'; });
         }
-      } catch (_) {}
+
+        if (eventSoldOut) {
+          paintScarcity('full');
+          setFormSoldOut(true);
+          lockGuestSelectorsAtZero();
+        } else if (taken >= LOW_STOCK_AT) {
+          paintScarcity('low');
+          lockGuestSelectorsAtZero();   // hide party sizes bigger than what's left
+        } else {
+          paintScarcity('filling');
+        }
+        updateCardSoldOut();
+      } catch (_) {
+        // Backend unreachable is NOT sold out — leave the form open rather than
+        // turning away real guests because a free-tier server was asleep.
+      }
+    }
+
+    // If fewer spots remain than the guest dropdown offers, hide the impossible options.
+    function lockGuestSelectorsAtZero() {
+      if (!guestsSel || spotsLeft == null) return;
+      Array.prototype.forEach.call(guestsSel.options, (o) => {
+        o.disabled = parseInt(o.value, 10) > spotsLeft;
+      });
     }
     
     async function loadTables() {
@@ -384,6 +467,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const selectedPkg = pkgSel ? pkgSel.value : '';
+
+      // HARD BLOCK: the whole guestlist is full.
+      if (eventSoldOut) {
+        alert('The guestlist is full — no spots remain. Follow @exclusivesph for the next event.');
+        setFormSoldOut(true);
+        return;
+      }
+      // HARD BLOCK: not enough room left for this party size.
+      if (spotsLeft != null && guestCount > spotsLeft) {
+        alert('Only ' + spotsLeft + ' spot' + (spotsLeft === 1 ? '' : 's') + ' left. Please reduce your guest count.');
+        return;
+      }
 
       // HARD BLOCK: if this is a table package and everything is reserved, stop here.
       if (isPackageSoldOut(selectedPkg)) {
@@ -454,7 +549,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const data = await res.json().catch(() => ({}));
         
-        if (res.status === 409) throw new Error('Sorry, that table was just reserved by someone else! Please pick another.');
+        if (res.status === 409) {
+          const msg = extractError(data) || '';
+          // The backend uses 409 for both "table taken" and "boat full" — tell them apart,
+          // because the guest's next move is completely different.
+          if (/full|spot/i.test(msg)) {
+            eventSoldOut = true;
+            setFormSoldOut(true);
+            updateCardSoldOut();
+            paintScarcitySoldOut();
+            loadAvailability();
+            throw new Error(msg || 'The guestlist just filled up. No spots remain.');
+          }
+          throw new Error('Sorry, that table was just reserved by someone else! Please pick another.');
+        }
         if (!res.ok) throw new Error(extractError(data) || 'Could not submit your request.');
   
         currentBooking = data;
