@@ -81,42 +81,66 @@
     .deck-panel img { animation: deckFade 0.5s cubic-bezier(0.16,1,0.3,1); }
     @keyframes deckFade { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: scale(1); } }
 
-    /* ---------- ITINERARY / TIMELINE BACKGROUND (night yacht photo) ---------- */
+    /* ---------- ITINERARY / TIMELINE (CSS-only background) ---------- */
     #itinerary { isolation: isolate; }
 
     .itin-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 
-    /* The photo is already night + gold, so it gets a light touch:
-       a small dim so the card type has somewhere to sit, nothing more.
-       brightness() = how present the yacht is. background-position Y = hull vs. wake. */
-    .itin-photo {
-      position: absolute; inset: 0;
-      background: url('images/itin-yacht.jpg') center 45% / cover no-repeat;
-      filter: brightness(0.72) saturate(1.05) contrast(1.05);
-      transform: scale(1.04);
-    }
-
-    /* Feather the photo into the sections above and below, and hold a
-       readability floor behind the four cards. */
-    .itin-scrim {
+    /* night water: dark at the edges so the section feathers into its neighbours,
+       with a gold bloom low down where the bay would catch the city light */
+    .itin-water {
       position: absolute; inset: 0;
       background:
-        linear-gradient(180deg,
-          #0A1A24 0%,
-          rgba(10,26,36,0.55) 22%,
-          rgba(10,26,36,0.35) 50%,
-          rgba(10,26,36,0.60) 80%,
-          #0A1A24 100%),
-        radial-gradient(70% 45% at 50% 55%, rgba(10,26,36,0.45), transparent 75%);
+        radial-gradient(75% 55% at 50% 92%, rgba(245,197,24,0.16) 0%, rgba(245,197,24,0.04) 40%, rgba(10,26,36,0) 72%),
+        linear-gradient(180deg, #0A1A24 0%, #0E2431 38%, #102A38 62%, #071219 100%);
     }
 
-    /* The route line — the only element encoding the sequence. */
+    /* starfield — thinned out on small screens */
+    .itin-stars {
+      position: absolute; inset: 0; opacity: 0.55;
+      background-image:
+        radial-gradient(1.5px 1.5px at 14% 16%, rgba(242,234,221,0.55), transparent),
+        radial-gradient(1px   1px   at 33% 26%, rgba(242,234,221,0.35), transparent),
+        radial-gradient(1.5px 1.5px at 62% 12%, rgba(245,197,24,0.40),  transparent),
+        radial-gradient(1px   1px   at 79% 22%, rgba(242,234,221,0.40), transparent),
+        radial-gradient(1.5px 1.5px at 91% 9%,  rgba(242,234,221,0.30), transparent);
+    }
+
+    /* horizon: a single hairline with a soft glow sitting on it */
+    .itin-horizon {
+      position: absolute; left: 0; right: 0; top: 46%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(245,197,24,0.30) 25%, rgba(245,197,24,0.30) 75%, transparent);
+    }
+    .itin-horizon::after {
+      content: ""; position: absolute; left: 15%; right: 15%; top: -22px; height: 44px;
+      background: radial-gradient(50% 50% at 50% 50%, rgba(245,197,24,0.14), transparent 70%);
+    }
+
+    /* water surface: fine ripple lines drifting toward the viewer */
+    .itin-ripples {
+      position: absolute; left: -10%; right: -10%; top: 46%; bottom: 0;
+      background: repeating-linear-gradient(
+        180deg,
+        rgba(245,197,24,0.06) 0px,
+        rgba(245,197,24,0.06) 1px,
+        transparent 1px,
+        transparent 13px
+      );
+      -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.35) 65%, transparent 100%);
+              mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,0.35) 65%, transparent 100%);
+      animation: itinDrift 16s linear infinite;
+    }
+    @keyframes itinDrift { from { transform: translateY(0); } to { transform: translateY(13px); } }
+
+    /* ---- the route: the one element that encodes the sequence ---- */
+
+    /* DESKTOP: horizontal line through the row of cards, with a wake that sails across */
     .itin-route {
       position: absolute; left: 6%; right: 6%; top: 50%; height: 1px;
       background: linear-gradient(90deg,
         rgba(245,197,24,0) 0%,
-        rgba(245,197,24,0.40) 18%,
-        rgba(245,197,24,0.40) 82%,
+        rgba(245,197,24,0.45) 18%,
+        rgba(245,197,24,0.45) 82%,
         rgba(245,197,24,0) 100%);
     }
     .itin-route::after {
@@ -132,9 +156,35 @@
       90%  { opacity: 0.9; }
       100% { transform: translateX(1100%); opacity: 0; }
     }
+
+    /* MOBILE: cards stack, so the route turns vertical and runs down the left
+       with a lit marker beside each stop. */
+    .itin-track { position: relative; }
+    .itin-card  { position: relative; }
+
     @media (max-width: 767px) {
-      .itin-route { display: none; }
-      .itin-photo { background-position: center 50%; }
+      .itin-route  { display: none; }   /* horizontal line is meaningless once stacked */
+      .itin-stars  { opacity: 0.35; }
+      .itin-ripples{ top: 55%; }
+
+      .itin-track { padding-left: 30px; }
+      .itin-track::before {
+        content: ""; position: absolute; left: 10px; top: 18px; bottom: 18px; width: 1px;
+        background: linear-gradient(180deg,
+          rgba(245,197,24,0) 0%,
+          rgba(245,197,24,0.5) 6%,
+          rgba(245,197,24,0.5) 94%,
+          rgba(245,197,24,0) 100%);
+      }
+      .itin-card::before {
+        content: ""; position: absolute; left: -25px; top: 36px;
+        width: 9px; height: 9px; border-radius: 999px;
+        background: #F5C518; box-shadow: 0 0 12px rgba(245,197,24,0.85);
+      }
+      /* stacked cards shouldn't be locked to a desktop height.
+         !important because Tailwind's .h-72 has equal specificity and the CDN
+         injects its stylesheet after this one. */
+      .itin-card { height: auto !important; min-height: 0; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -278,7 +328,7 @@
       <div class="grid md:grid-cols-2 gap-16 items-center">
         <div data-reveal class="relative bg-brand-slate p-3 rounded-3xl border border-white/5 glow-hover transition-all duration-500">
           <div class="h-96 md:h-[500px] overflow-hidden rounded-2xl relative">
-            <div class="w-full h-full bg-cover bg-center" style="background-image: url('images/yacht-night.png');"></div>
+            <div class="w-full h-full bg-cover bg-center" style="background-image: url('images/IMG_0090.jpg');"></div>
             <div class="absolute inset-0 bg-gradient-to-t from-brand-obsidian via-transparent to-transparent"></div>
           </div>
           <div class="absolute bottom-8 left-8 right-8 bg-brand-obsidian/95 border border-white/10 rounded-2xl p-6 backdrop-blur">
@@ -313,13 +363,15 @@
     </div>
   </section>
 
-  <!-- ================= ITINERARY (night yacht photo background) ================= -->
+  <!-- ================= ITINERARY (CSS-only background) ================= -->
   <section id="itinerary" class="py-28 border-b border-white/5 relative z-20 overflow-hidden">
 
-    <!-- background layers: night photo -> scrim -> route line -->
+    <!-- background layers -->
     <div class="itin-bg" aria-hidden="true">
-      <div class="itin-photo"></div>
-      <div class="itin-scrim"></div>
+      <div class="itin-water"></div>
+      <div class="itin-stars"></div>
+      <div class="itin-horizon"></div>
+      <div class="itin-ripples"></div>
       <div class="itin-route"></div>
     </div>
 
@@ -329,8 +381,8 @@
         <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">The Timeline</h2>
         <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
       </div>
-      <div class="grid md:grid-cols-4 gap-8">
-        <div data-reveal class="bg-brand-obsidian/80 backdrop-blur-md border border-white/10 rounded-2xl p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
+      <div class="itin-track grid md:grid-cols-4 gap-6 md:gap-8">
+        <div data-reveal class="itin-card bg-brand-slate/70 backdrop-blur-md border border-white/10 rounded-2xl p-7 md:p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
           <div>
             <span class="font-mono text-brand-gold text-sm tracking-widest block mb-4">21:00 — 21:30</span>
             <h3 class="font-serif text-xl font-medium text-brand-ice mb-3">Boarding</h3>
@@ -338,7 +390,7 @@
           </div>
           <span class="font-mono text-[10px] tracking-widest text-brand-gold/60 uppercase block">Port-side dock</span>
         </div>
-        <div data-reveal class="bg-brand-obsidian/80 backdrop-blur-md border border-white/10 rounded-2xl p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
+        <div data-reveal class="itin-card bg-brand-slate/70 backdrop-blur-md border border-white/10 rounded-2xl p-7 md:p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
           <div>
             <span class="font-mono text-brand-gold text-sm tracking-widest block mb-4">21:30 — 23:30</span>
             <h3 class="font-serif text-xl font-medium text-brand-ice mb-3">The Social Hour</h3>
@@ -346,7 +398,7 @@
           </div>
           <span class="font-mono text-[10px] tracking-widest text-brand-gold/60 uppercase block">Outbound bay</span>
         </div>
-        <div data-reveal class="bg-brand-obsidian/80 backdrop-blur-md border border-brand-gold/30 rounded-2xl p-8 animate-glow flex flex-col justify-between h-72">
+        <div data-reveal class="itin-card bg-brand-slate/70 backdrop-blur-md border border-brand-gold/30 rounded-2xl p-7 md:p-8 animate-glow flex flex-col justify-between h-72">
           <div>
             <span class="font-mono text-brand-gold text-sm tracking-widest block mb-4">23:30 — 02:30</span>
             <h3 class="font-serif text-xl font-medium text-brand-gold mb-3">Midnight State</h3>
@@ -354,7 +406,7 @@
           </div>
           <span class="font-mono text-[10px] tracking-widest text-brand-gold/60 uppercase block">Mid-bay</span>
         </div>
-        <div data-reveal class="bg-brand-obsidian/80 backdrop-blur-md border border-white/10 rounded-2xl p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
+        <div data-reveal class="itin-card bg-brand-slate/70 backdrop-blur-md border border-white/10 rounded-2xl p-7 md:p-8 glow-hover transition-all duration-300 flex flex-col justify-between h-72">
           <div>
             <span class="font-mono text-brand-gold text-sm tracking-widest block mb-4">02:30 — 03:00</span>
             <h3 class="font-serif text-xl font-medium text-brand-ice mb-3">Final Call</h3>
