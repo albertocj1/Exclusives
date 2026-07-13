@@ -47,13 +47,44 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.style.opacity = busy ? '0.6' : '1';
       btn.style.cursor = busy ? 'not-allowed' : 'pointer';
     }
+
+    // --- Fetch with timeout + retry (exponential-ish backoff). ---
+    // Render's free/starter tiers can have a slow first response after any
+    // idle period, and mobile networks drop requests. A single unguarded
+    // fetch on page load was the root cause of the stuck "Loading tables..."
+    // state — this wrapper retries a few times before giving up for real.
+    function fetchWithTimeout(url, opts, timeoutMs) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, Object.assign({}, opts, { signal: controller.signal }))
+        .finally(() => clearTimeout(id));
+    }
+
+    async function fetchJsonWithRetry(url, { attempts = 4, timeoutMs = 8000, baseDelayMs = 900 } = {}) {
+      let lastErr;
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const res = await fetchWithTimeout(url, {}, timeoutMs);
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return await res.json();
+        } catch (err) {
+          lastErr = err;
+          if (i < attempts - 1) {
+            const delay = baseDelayMs * Math.pow(1.6, i); // 900ms, 1.4s, 2.3s...
+            await new Promise((r) => setTimeout(r, delay));
+          }
+        }
+      }
+      throw lastErr;
+    }
   
     const openModal = (el) => { if (!el) return; el.classList.remove('hidden'); document.body.classList.add('modal-active'); };
     const closeModal = (el) => { if (!el) return; el.classList.add('hidden'); document.body.classList.remove('modal-active'); };
   
     let pendingPayload = null;   
     let currentBooking = null;   
-    let allTables = []; 
+    let allTables = [];
+    let tablesLoadFailed = false;   // true only after every retry attempt is exhausted
   
     const pkgSel = $('package');
     const tablePrefSel = $('table-pref');
@@ -251,7 +282,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (relevantTables.length === 0) {
             const opt = document.createElement('option');
             opt.value = '';
-            opt.textContent = 'Backend offline or Loading tables...';
+            // Distinguish "still trying" from "gave up after retries" — these need
+            // different guest reactions (wait vs. hit the retry button).
+            opt.textContent = tablesLoadFailed
+                ? 'Could not load tables — tap to retry'
+                : 'Loading tables\u2026';
             tablePrefSel.appendChild(opt);
             setFormSoldOut(false);   // loading/offline is not the same as sold out
             return;
@@ -308,12 +343,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Clicking/opening the dropdown while it's in the "failed" state retries the load.
+    // (Selects fire 'mousedown' before they open, which is the earliest reliable hook.)
+    tablePrefSel && tablePrefSel.addEventListener('mousedown', () => {
+      if (tablesLoadFailed && pkgSel && pkgSel.value !== 'Entrance Fee') {
+        loadTables();
+      }
+    });
+
     // Trigger updates when the user clicks a dropdown
     pkgSel && pkgSel.addEventListener('change', () => {
         applyDefaultGuests();
         updateTableDropdown();
         updateEstimate();
         renderGuestNameFields();
+        // Selecting a table package while we never managed to load tables -> retry now.
+        if (tablesLoadFailed && pkgSel.value !== 'Entrance Fee') {
+          loadTables();
+        }
     });
     guestsSel && guestsSel.addEventListener('change', function(){ updateEstimate(); renderGuestNameFields(); });
   
@@ -368,9 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const fill = $('scarcity-fill');
       if (capEl) capEl.textContent = PUBLIC_CAPACITY;
       try {
-        const res = await fetch(`${API_BASE}/api/availability`);
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await fetchJsonWithRetry(`${API_BASE}/api/availability`);
 
         // Trust the backend's own numbers — it is the thing that enforces the cap.
         const capacity = data.capacity != null ? data.capacity : PUBLIC_CAPACITY;
@@ -399,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCardSoldOut();
       } catch (_) {
         // Backend unreachable is NOT sold out — leave the form open rather than
-        // turning away real guests because a free-tier server was asleep.
+        // turning away real guests because a slow/cold server didn't answer in time.
       }
     }
 
@@ -410,17 +455,28 @@ document.addEventListener('DOMContentLoaded', () => {
         o.disabled = parseInt(o.value, 10) > spotsLeft;
       });
     }
-    
+
+    let tablesLoadToken = 0;   // guards against a slow retry clobbering a fresher one
+
     async function loadTables() {
+      const myToken = ++tablesLoadToken;
+      tablesLoadFailed = false;
+      // Reflect "actively retrying" in the dropdown right away if it's currently
+      // showing the failed state, rather than waiting for the fetch to finish.
+      if (pkgSel && pkgSel.value !== 'Entrance Fee') updateTableDropdown();
       try {
-        const res = await fetch(`${API_BASE}/api/tables/availability`);
-        const data = await res.json();
-        allTables = data.tables; 
-        updateTableDropdown();   
+        const data = await fetchJsonWithRetry(`${API_BASE}/api/tables/availability`);
+        if (myToken !== tablesLoadToken) return; // a newer call already superseded this one
+        allTables = data.tables || [];
+        tablesLoadFailed = false;
+        updateTableDropdown();
         updateEstimate();
         updateCardSoldOut();     // reflect sold-out on the package cards
       } catch (e) {
-        console.error("Failed to load map", e);
+        if (myToken !== tablesLoadToken) return;
+        console.error('Failed to load table map after retries', e);
+        tablesLoadFailed = true;
+        updateTableDropdown();   // show the "tap to retry" state instead of a silent dead end
       }
     }
 
@@ -445,6 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
           updateTableDropdown(); 
           updateEstimate();
           renderGuestNameFields();
+          if (tablesLoadFailed && pkg !== 'Entrance Fee') loadTables();
         }
       });
     });
@@ -493,7 +550,12 @@ document.addEventListener('DOMContentLoaded', () => {
       // Table packages must have a real, available table selected.
       if (cfg && cfg.per === 'table') {
         if (!chosenTable) {
-          alert('Please select an available table for this package.');
+          if (tablesLoadFailed) {
+            alert('We could not load the table map. Please check your connection and try again.');
+            loadTables();
+          } else {
+            alert('Please select an available table for this package.');
+          }
           return;
         }
       }
