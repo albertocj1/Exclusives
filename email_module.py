@@ -67,7 +67,7 @@ SPOT_DISPLAY_NAMES = {
 }
 
 EVENT_DATE_LONG = "Friday, August 14, 2026"
-EVENT_DATE_SHORT = "Aug 14, 2026 &middot; 9:00 PM"
+EVENT_DATE_SHORT = "Aug 14, 2026 &middot; 8:00 PM"
 
 # Path to the logo file used in the email header. Override with LOGO_PATH if
 # your deploy layout differs from the frontend's images/ folder.
@@ -365,7 +365,7 @@ def send_approval_email(to_email, guest_name, ticket_code, package_name, guests=
             f"Ticket code: {ticket_code}\n"
             f"Guests: {guests}\n"
             f"Table / Spot: {_spot_label(table_id)}\n"
-            f"Date: {EVENT_DATE_LONG} - 9:00 PM\n"
+            f"Date: {EVENT_DATE_LONG} - 8:00 PM\n"
             f"Boarding: Manila Yacht Club, check-in 8:00pm.\n\n"
             f"Present your QR code (in the HTML version of this email) at reception.\n\n"
             f"Exclusives PH"
