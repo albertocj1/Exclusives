@@ -374,14 +374,19 @@ def send_pending_reminder_email(to_email, guest_name, package_name, guests, tota
   u + .body .text-gold  {{ color:#F4BA00 !important; border-color:#F4BA00 !important; }}
   u + .body .text-cream {{ color:#F1E6D3 !important; }}
   u + .body .text-muted {{ color:#828D96 !important; }}
+  u + .body .text-amount {{ color:#FFE000 !important; }}
   @media (prefers-color-scheme: dark) {{
     .body-bg {{ background-color:#0A1A24 !important; }}
     .card-edge {{ background-color:#60602D !important; }}
     .card-bg {{ background-color:#102A38 !important; }}
+    .amount-box-bg {{ background-color:#0A1A24 !important; }}
     .text-cream {{ color:#F2EADD !important; }}
     .text-muted {{ color:#8AA0AD !important; }}
     .text-gold  {{ color:#F5C518 !important; }}
+    .text-amount {{ color:#FFE000 !important; }}
   }}
+  [data-ogsc] .amount-box-bg, [data-ogsb] .amount-box-bg {{ background-color:#0A1A24 !important; }}
+  [data-ogsc] .text-amount, [data-ogsb] .text-amount {{ color:#FFE000 !important; }}
 </style>
 </head>
 <body class="body body-bg" style="margin:0; padding:0; background-color:#0A1A24; font-family:Arial, Helvetica, sans-serif;">
@@ -401,12 +406,14 @@ def send_pending_reminder_email(to_email, guest_name, package_name, guests, tota
           </div></div>
         </td></tr>
         <tr><td style="padding:0 32px 28px 32px;">
-          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
-            <div style="background:#0A1A24; border:1px solid #1E3744; border-radius:16px; padding:20px; text-align:center;">
-              <div class="text-muted" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; color:#8AA0AD; text-transform:uppercase;">Amount Due</div>
-              <div class="text-gold" style="font-serif; font-size:28px; color:#F5C518; font-weight:bold; margin-top:4px;">₱{total_amount:,}</div>
-            </div>
-          </div></div>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="amount-box-bg" style="background-color:#0A1A24; background-image:linear-gradient(#0A1A24,#0A1A24); border:1px solid #1E3744; border-radius:16px;">
+            <tr><td align="center" style="padding:20px;">
+              <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+                <div class="text-muted" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; color:#8AA0AD; text-transform:uppercase;">Amount Due</div>
+                <div class="text-amount" style="font-family:Georgia, 'Times New Roman', serif; font-size:28px; color:#FFE000; font-weight:bold; margin-top:4px;">₱{total_amount:,}</div>
+              </div></div>
+            </td></tr>
+          </table>
         </td></tr>
         <tr><td align="center" style="padding:0 32px 36px 32px;">
           <div class="gmail-blend-screen"><div class="gmail-blend-difference">
