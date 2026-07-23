@@ -249,7 +249,7 @@ def _build_email_html(guest_name, ticket_code, package_name, guests, table_id, q
                 <tr><td style="padding:16px;">
                   <div class="gmail-blend-screen"><div class="gmail-blend-difference">
                     <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6;">
-                      <span class="text-gold" style="color:#F5C518; font-weight:bold;">__DATE_LONG__.</span> Check-in 8:00pm, Smart resort-luxe, strictly 18+.
+                      <span class="text-gold" style="color:#F5C518; font-weight:bold;">__DATE_LONG__.</span> Check-in 8:00pm, Smart resort-luxe, strictly 18+. Guestlist only &mdash; no walk-ins.
                     </div>
                   </div></div>
                 </td></tr>
@@ -311,6 +311,7 @@ def send_approval_email(to_email, guest_name, ticket_code, package_name, guests=
             f"Date: {EVENT_DATE_LONG} - 8:00 PM\n"
             f"Boarding: Manila Yacht Club, check-in 8:00pm.\n\n"
             f"Present your QR code (in the HTML version of this email) at reception.\n\n"
+            f"Guestlist only - no walk-ins.\n\n"
             f"Exclusives PH"
         )
 
@@ -418,7 +419,7 @@ def send_pending_reminder_email(to_email, guest_name, package_name, guests, tota
         <tr><td align="center" style="padding:0 32px 36px 32px;">
           <div class="gmail-blend-screen"><div class="gmail-blend-difference">
             <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6;">
-              To finalize your boarding pass, please complete your transfer via GCash or Bank Transfer and upload your screenshot on our website.
+              To finalize your boarding pass, please complete your transfer via GCash or Bank Transfer and upload your screenshot on our website. Guestlist only &mdash; no walk-ins.
             </div>
           </div></div>
         </td></tr>
@@ -442,7 +443,7 @@ def send_pending_reminder_email(to_email, guest_name, package_name, guests, tota
             f"Hi {guest_name},\n\n"
             f"We noticed you requested a booking for '{package_name}' ({guests} {guest_word}) but haven't uploaded your payment receipt yet.\n\n"
             f"Amount Due: ₱{total_amount:,}\n\n"
-            f"Since spots are strictly capped, unpaid reservations are released automatically. To secure your spot, please transfer your payment and upload your receipt on our website.\n\n"
+            f"Since spots are strictly capped, unpaid reservations are released automatically. To secure your spot, please transfer your payment and upload your receipt on our website. Guestlist only - no walk-ins.\n\n"
             f"Exclusives PH"
         )
 
