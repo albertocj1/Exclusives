@@ -49,6 +49,8 @@
         <p class="text-brand-muted text-xs font-mono tracking-widest uppercase mt-1">Exclusives PH — Manila Bay</p>
       </div>
       <div class="flex items-center gap-3">
+        <!-- Remind Pending Button -->
+        <button id="remind-pending" title="Send payment reminders to checked pending bookings (or all if none checked)" class="font-mono text-[11px] tracking-widest uppercase border border-amber-400/40 text-amber-300 hover:bg-amber-400/10 hover:border-amber-300 rounded-full px-5 py-2 transition-colors">Remind Pending</button>
         <button id="export-xlsx" title="Full manifest + a Bookings sheet for reconciliation" class="font-mono text-[11px] tracking-widest uppercase border border-emerald-400/40 text-emerald-300 hover:bg-emerald-400/10 hover:border-emerald-300 rounded-full px-5 py-2 transition-colors">Excel (Full)</button>
         <button id="export-names" title="Guest name, who booked them, ticket code — nothing else" class="font-mono text-[11px] tracking-widest uppercase border border-cyan-400/40 text-cyan-300 hover:bg-cyan-400/10 hover:border-cyan-300 rounded-full px-5 py-2 transition-colors">Excel (Names)</button>
         <button id="export-pdf" title="Printable A4 passenger manifest for the yacht club" class="font-mono text-[11px] tracking-widest uppercase border border-brand-gold/40 text-brand-gold hover:bg-brand-goldDim/30 hover:border-brand-gold rounded-full px-5 py-2 transition-colors">Export PDF</button>
@@ -88,14 +90,14 @@
       <button data-filter="cancelled" class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Cancelled</button>
     </div>
 
-    <!-- Tells the admin exactly what the export buttons will produce right now -->
     <div id="export-hint" class="font-mono text-[11px] text-brand-muted mb-4">&nbsp;</div>
 
     <div class="bg-brand-slate border border-white/5 rounded-2xl overflow-hidden">
       <div class="overflow-x-auto">
-        <table class="w-full text-sm min-w-[900px]">
+        <table class="w-full text-sm min-w-[950px]">
           <thead class="bg-brand-obsidian/50 text-brand-muted font-mono text-[10px] tracking-widest uppercase">
             <tr>
+              <th class="px-4 py-3 w-10 text-center"><input type="checkbox" id="select-all-cb" title="Select / deselect all visible pending bookings" class="rounded bg-brand-obsidian border-white/20 accent-brand-gold cursor-pointer w-4 h-4"></th>
               <th class="text-left px-4 py-3">Guest</th>
               <th class="text-left px-4 py-3">Instagram</th>
               <th class="text-left px-4 py-3">Referred by</th>
@@ -128,8 +130,6 @@
     let currentFilter = 'all';
     let allRows = [];
 
-    // ---- Shared config -----------------------------------------------------
-    // Technical spot IDs -> friendly names (mirrors SPOT_DISPLAY_NAMES in main.py)
     const SPOT_NAMES = {
       LC1: 'SVIP 1', LC2: 'SVIP 2', LC3: 'SVIP 3', LC5: 'SVIP 4', LC6: 'SVIP 5',
       LC4: 'VIP 1',  LC7: 'VIP 2',  DC1: 'VIP 3',  DC2: 'VIP 4',
@@ -144,9 +144,6 @@
     };
 
     const NO_NAME = '(name not provided)';
-
-    // Name columns per row on the PDF manifest. 2 keeps a 120-guest list to one or two
-    // pages. Set to 1 for a single straight list, 3 for a very large guestlist.
     const PDF_COLUMNS = 2;
 
     const SCOPE_LABEL = {
@@ -273,18 +270,10 @@
       return isNaN(d) ? '—' : d.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
 
-    // =======================================================================
-    //  MANIFEST EXPORT  (Manila Yacht Club passenger list)
-    // =======================================================================
-
-    // The bookings currently shown in the table — this is exactly what gets exported.
     function exportRows() {
       return currentFilter === 'all' ? allRows : allRows.filter((r) => r.status === currentFilter);
     }
 
-    // Flatten bookings into one row per PERSON boarding.
-    // Head count always matches `guests`, even if some names were never captured —
-    // the yacht club needs the headcount to be right, so gaps are marked, not dropped.
     function buildManifest(rows) {
       const out = [];
       rows.forEach((r) => {
@@ -293,13 +282,10 @@
           ? r.guest_names.map((n) => String(n).trim()).filter(Boolean)
           : [];
 
-        // One slot per booked pax — never more, never fewer.
         const count = Math.max(Number(r.guests) || 0, names.length);
         const slots = [];
         for (let i = 0; i < count; i++) slots.push(names[i] || '');
 
-        // The lead booker boards too. If they didn't list themselves among the guest
-        // names, drop them into the first empty slot rather than inflating the headcount.
         const hasLead = lead && names.some((n) => n.toLowerCase() === lead.toLowerCase());
         if (lead && !hasLead) {
           const gap = slots.indexOf('');
@@ -319,8 +305,6 @@
           });
         });
       });
-      // Alphabetical — this is a manifest, staff need to find a name fast at the dock.
-      // Unnamed slots sort to the very end so the list doesn't open with your gaps.
       out.sort((a, b) => {
         const aGap = a.guest_name === NO_NAME;
         const bGap = b.guest_name === NO_NAME;
@@ -337,7 +321,6 @@
       return `ExclusivesPH_${kind || 'Manifest'}_${currentFilter}_${d}.${ext}`;
     }
 
-    // Nudge if they're about to hand the yacht club a list with cancelled/unpaid people in it.
     function scopeOk() {
       if (currentFilter === 'confirmed') return true;
       return confirm(
@@ -362,7 +345,6 @@
       }
     }
 
-    // ---- Excel -------------------------------------------------------------
     function exportExcel() {
       if (!window.XLSX) { alert('Excel library is still loading — give it a second and try again.'); return; }
       const rows = exportRows();
@@ -372,7 +354,6 @@
       const manifest = buildManifest(rows);
       const missing = manifest.filter((m) => m.guest_name === NO_NAME).length;
 
-      // Sheet 1 — the passenger manifest itself
       const s1 = [
         ['PASSENGER MANIFEST'],
         ['Event', EVENT.name],
@@ -391,7 +372,6 @@
       const ws1 = XLSX.utils.aoa_to_sheet(s1);
       ws1['!cols'] = [{wch:5},{wch:30},{wch:26},{wch:16},{wch:18},{wch:14},{wch:12},{wch:16}];
 
-      // Sheet 2 — one row per booking, for reconciliation / finance
       const s2 = [
         ['Booking ID','Lead Booker','Email','Phone','Instagram','Referred by','Package','Spot / Table','Pax','Total (PHP)','Status','Ticket Code','Guest Names','Created'],
       ].concat(rows.map((r) => [
@@ -412,9 +392,6 @@
       XLSX.writeFile(wb, fileName('xlsx'));
     }
 
-    // ---- Excel: names only ------------------------------------------------
-    // Guest name, who booked them, ticket code. Nothing else.
-    // Header sits on row 1 (no preamble) so the sheet stays sortable and filterable.
     function exportNamesExcel() {
       if (!window.XLSX) { alert('Excel library is still loading — give it a second and try again.'); return; }
       const rows = exportRows();
@@ -436,7 +413,6 @@
       XLSX.writeFile(wb, fileName('xlsx', 'NameList'));
     }
 
-    // ---- PDF ---------------------------------------------------------------
     function exportPDF() {
       const JsPDF = window.jspdf && window.jspdf.jsPDF;
       if (!JsPDF) { alert('PDF library is still loading — give it a second and try again.'); return; }
@@ -451,7 +427,6 @@
       const W = doc.internal.pageSize.getWidth();
       const H = doc.internal.pageSize.getHeight();
 
-      // --- Header ---
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(15);
       doc.setTextColor(15, 15, 15);
@@ -472,7 +447,6 @@
         W - 40, 92, { align: 'right' }
       );
 
-      // --- Table: names only, alphabetical, laid out across PDF_COLUMNS name columns ---
       const names = manifest.map((m) => m.guest_name);
 
       const head = [[]];
@@ -484,13 +458,12 @@
         for (let c = 0; c < PDF_COLUMNS; c++) {
           const idx = i + c;
           if (idx < names.length) row.push(idx + 1, names[idx]);
-          else row.push('', '');   // pad the last row so the grid stays square
+          else row.push('', '');
         }
         body.push(row);
       }
 
-      // Split the usable width evenly between the name columns.
-      const usable = W - 80;               // 40pt margin each side
+      const usable = W - 80;
       const numW = 26;
       const nameW = (usable / PDF_COLUMNS) - numW;
       const columnStyles = {};
@@ -518,7 +491,6 @@
         },
       });
 
-      // --- Signature block ---
       let y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 112) + 40;
       if (y > H - 100) { doc.addPage(); y = 70; }
 
@@ -538,10 +510,88 @@
     $('export-names').addEventListener('click', exportNamesExcel);
     $('export-pdf').addEventListener('click', exportPDF);
 
-    // =======================================================================
+    // Master Select All Header Checkbox logic
+    const selectAllCb = $('select-all-cb');
+    if (selectAllCb) {
+      selectAllCb.addEventListener('change', () => {
+        document.querySelectorAll('.pending-cb').forEach((cb) => {
+          cb.checked = selectAllCb.checked;
+        });
+      });
+    }
+
+    // Remind Pending Button Event Listener (with selective checked logic)
+    $('remind-pending').addEventListener('click', async () => {
+      const checkedEls = Array.from(document.querySelectorAll('.pending-cb:checked'));
+      let targetRows = [];
+
+      if (checkedEls.length > 0) {
+        const checkedIds = new Set(checkedEls.map((el) => el.value));
+        targetRows = allRows.filter((r) => checkedIds.has(r.id) && r.status === 'pending');
+      } else {
+        const allPending = allRows.filter((r) => r.status === 'pending');
+        if (!allPending.length) {
+          alert('There are currently no pending bookings to remind.');
+          return;
+        }
+        if (!confirm(`No specific checkboxes selected.\n\nWould you like to send reminder emails to ALL ${allPending.length} pending booking(s)?`)) {
+          return;
+        }
+        targetRows = allPending;
+      }
+
+      if (!targetRows.length) {
+        alert('No valid pending bookings selected.');
+        return;
+      }
+
+      const uniqueEmails = new Set(targetRows.map((r) => String(r.email).toLowerCase().trim()));
+      const dups = targetRows.length - uniqueEmails.size;
+      const selectedIds = targetRows.map((r) => r.id);
+
+      let confirmMsg = `Send payment reminder emails to ${uniqueEmails.size} unique guest(s)?`;
+      if (dups > 0) {
+        confirmMsg += `\n\n(${dups} duplicate email address attempt${dups === 1 ? '' : 'es'} will automatically be skipped.)`;
+      }
+
+      if (!confirm(confirmMsg)) return;
+
+      const btn = $('remind-pending');
+      const originalText = btn.textContent;
+      btn.textContent = 'Sending...';
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/bookings/remind-pending`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey
+          },
+          body: JSON.stringify({ booking_ids: selectedIds }),
+        });
+        if (res.status === 401) { showGate(); return; }
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          alert((d && d.detail) || 'Could not send reminder emails.');
+          return;
+        }
+        alert(`Success! Queued payment reminders for ${d.reminded_count} guest(s). ${d.duplicates_skipped} duplicate(s) skipped.`);
+        document.querySelectorAll('.pending-cb:checked').forEach((cb) => cb.checked = false);
+        if ($('select-all-cb')) $('select-all-cb').checked = false;
+      } catch (e) {
+        alert('Could not reach the backend server.');
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        btn.style.opacity = '1';
+      }
+    });
 
     function render() {
       updateExportHint();
+      if ($('select-all-cb')) $('select-all-cb').checked = false;
 
       const rows = currentFilter === 'all' ? allRows : allRows.filter((r) => r.status === currentFilter);
       const tbody = $('rows');
@@ -556,7 +606,14 @@
         const badge = STATUS_STYLE[r.status] || 'text-brand-muted border-white/10';
         const canCancel = r.status !== 'cancelled';
         const canApprove = r.status === 'verifying';
+        const isPending = r.status === 'pending';
         const referrer = (r.referrer && String(r.referrer).trim()) ? esc(r.referrer) : '—';
+
+        // Checkbox cell: active for pending, grayed out dash for confirmed/cancelled
+        const cbCell = isPending
+          ? `<input type="checkbox" class="pending-cb rounded bg-brand-obsidian border-white/20 accent-brand-gold cursor-pointer w-4 h-4" value="${esc(r.id)}">`
+          : `<span class="text-brand-muted/30 text-xs">—</span>`;
+
         let igCell = '—';
         if (r.instagram && String(r.instagram).trim()) {
           let handle = String(r.instagram).trim().replace(/^@+/, '');
@@ -585,6 +642,7 @@
         }
 
         return `<tr class="hover:bg-brand-obsidian/30">
+          <td class="px-4 py-3 text-center">${cbCell}</td>
           <td class="px-4 py-3">
             <div class="text-brand-ice">${esc(r.full_name)}</div>
             <div class="text-brand-muted text-xs font-mono">${esc(r.email)}</div>

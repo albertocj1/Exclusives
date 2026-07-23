@@ -86,8 +86,6 @@
 
     .itin-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 
-    /* night water: dark at the edges so the section feathers into its neighbours,
-       with a gold bloom low down where the bay would catch the city light */
     .itin-water {
       position: absolute; inset: 0;
       background:
@@ -95,7 +93,6 @@
         linear-gradient(180deg, #0A1A24 0%, #0E2431 38%, #102A38 62%, #071219 100%);
     }
 
-    /* starfield — thinned out on small screens */
     .itin-stars {
       position: absolute; inset: 0; opacity: 0.55;
       background-image:
@@ -106,7 +103,6 @@
         radial-gradient(1.5px 1.5px at 91% 9%,  rgba(242,234,221,0.30), transparent);
     }
 
-    /* horizon: a single hairline with a soft glow sitting on it */
     .itin-horizon {
       position: absolute; left: 0; right: 0; top: 46%; height: 1px;
       background: linear-gradient(90deg, transparent, rgba(245,197,24,0.30) 25%, rgba(245,197,24,0.30) 75%, transparent);
@@ -116,7 +112,6 @@
       background: radial-gradient(50% 50% at 50% 50%, rgba(245,197,24,0.14), transparent 70%);
     }
 
-    /* water surface: fine ripple lines drifting toward the viewer */
     .itin-ripples {
       position: absolute; left: -10%; right: -10%; top: 46%; bottom: 0;
       background: repeating-linear-gradient(
@@ -132,9 +127,6 @@
     }
     @keyframes itinDrift { from { transform: translateY(0); } to { transform: translateY(13px); } }
 
-    /* ---- the route: the one element that encodes the sequence ---- */
-
-    /* DESKTOP: horizontal line through the row of cards, with a wake that sails across */
     .itin-route {
       position: absolute; left: 6%; right: 6%; top: 50%; height: 1px;
       background: linear-gradient(90deg,
@@ -157,13 +149,11 @@
       100% { transform: translateX(1100%); opacity: 0; }
     }
 
-    /* MOBILE: cards stack, so the route turns vertical and runs down the left
-       with a lit marker beside each stop. */
     .itin-track { position: relative; }
     .itin-card  { position: relative; }
 
     @media (max-width: 767px) {
-      .itin-route  { display: none; }   /* horizontal line is meaningless once stacked */
+      .itin-route  { display: none; }
       .itin-stars  { opacity: 0.35; }
       .itin-ripples{ top: 55%; }
 
@@ -181,9 +171,6 @@
         width: 9px; height: 9px; border-radius: 999px;
         background: #F5C518; box-shadow: 0 0 12px rgba(245,197,24,0.85);
       }
-      /* stacked cards shouldn't be locked to a desktop height.
-         !important because Tailwind's .h-72 has equal specificity and the CDN
-         injects its stylesheet after this one. */
       .itin-card { height: auto !important; min-height: 0; }
     }
 
@@ -195,7 +182,7 @@
 </head>
 <body class="bg-brand-obsidian text-brand-ice font-sans antialiased overflow-x-hidden">
 
-  <!-- IN-APP BROWSER NOTICE — shows when opened inside Instagram/Viber/Messenger/etc. -->
+  <!-- IN-APP BROWSER NOTICE -->
   <div id="inapp-banner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:9999; background:#F5C518; color:#0A1A24; padding:12px 44px 12px 16px; text-align:center; font-family:'Space Mono', monospace; font-size:12px; line-height:1.5; box-shadow:0 2px 18px rgba(0,0,0,0.35);">
     <span id="inapp-banner-text">For booking to work properly, open this page in your browser — tap the <strong>&bull;&bull;&bull;</strong> menu above and choose <strong>&ldquo;Open in browser&rdquo;</strong>.</span>
     <button id="inapp-banner-close" aria-label="Dismiss" style="position:absolute; top:50%; right:12px; transform:translateY(-50%); background:transparent; border:0; color:#0A1A24; font-size:20px; font-weight:bold; cursor:pointer; line-height:1;">&times;</button>
@@ -324,12 +311,10 @@
     <div class="max-w-7xl mx-auto px-6">
       <div class="grid md:grid-cols-2 gap-16 items-center">
         <div data-reveal class="bg-brand-slate p-3 rounded-3xl border border-white/5 glow-hover transition-all duration-500">
-          <!-- full frame, no crop: the photo is landscape, so it sets its own height -->
           <div class="overflow-hidden rounded-2xl">
             <img src="images/night-yacht.png" alt="Happy Life Yacht docked on Manila Bay at night, with the city skyline behind"
                  class="w-full h-auto block">
           </div>
-          <!-- caption sits below the photo, so it never covers the boat -->
           <div class="px-5 pt-5 pb-2 md:px-6 md:pt-6 md:pb-3">
             <h4 class="font-mono text-brand-gold text-[11px] tracking-widest uppercase mb-1">Happy Life Yacht</h4>
             <p class="text-sm text-brand-ice font-light leading-relaxed">
@@ -362,10 +347,8 @@
     </div>
   </section>
 
-  <!-- ================= ITINERARY (CSS-only background) ================= -->
+  <!-- ================= ITINERARY ================= -->
   <section id="itinerary" class="py-28 border-b border-white/5 relative z-20 overflow-hidden">
-
-    <!-- background layers -->
     <div class="itin-bg" aria-hidden="true">
       <div class="itin-water"></div>
       <div class="itin-stars"></div>
@@ -501,6 +484,7 @@
     </div>
   </section>
 
+  <!-- ================= PACKAGES GRID (UPDATED WITH 6-PAX BUNDLE) ================= -->
   <section id="packages" class="py-28 bg-brand-obsidian/60 backdrop-blur-md relative z-20">
     <div class="max-w-7xl mx-auto px-6">
       <div class="text-center max-w-2xl mx-auto mb-20" data-reveal>
@@ -508,7 +492,8 @@
         <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">Entry & Tables</h2>
         <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
       </div>
-      <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+      <!-- 3-Column layout perfectly balances all 6 cards across two rows -->
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
 
         <div data-reveal class="bg-brand-slate border border-white/5 rounded-3xl overflow-hidden group hover:border-brand-gold/40 transition-all duration-500 flex flex-col justify-between">
           <div>
@@ -529,6 +514,31 @@
           </div>
           <div class="px-6 pb-6">
             <a href="#rsvp" class="select-package-btn w-full block text-center py-3 rounded-full bg-brand-goldDim border border-brand-gold/30 hover:border-brand-gold hover:bg-brand-gold hover:text-brand-obsidian font-mono text-xs font-bold tracking-widest text-brand-gold transition-all duration-300 uppercase" data-package="Entrance Fee">Select</a>
+          </div>
+        </div>
+
+        <!-- NEW: 6-Pax Bottle Bundle Card -->
+        <div data-reveal class="bg-brand-slate border border-brand-gold/40 glow-hover rounded-3xl overflow-hidden group transition-all duration-500 flex flex-col justify-between relative">
+          <div class="absolute top-4 right-4 z-20 font-mono text-[9px] tracking-widest border border-brand-gold text-brand-gold px-2 py-1 rounded-full uppercase bg-brand-obsidian/90">Value Deal</div>
+          <div>
+            <div class="h-44 bg-neutral-900 relative">
+              <div class="absolute inset-0 bg-gradient-to-t from-brand-slate to-transparent z-10"></div>
+              <div class="absolute top-4 left-4 z-20 font-mono text-[10px] tracking-widest bg-brand-gold text-brand-obsidian px-3 py-1 rounded-full font-bold uppercase">Group of 6</div>
+              <div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" style="background-image: url('images/lookbook-01.png');"></div>
+            </div>
+            <div class="p-6">
+              <h3 class="font-serif text-xl font-medium tracking-tight mb-1 text-brand-ice">6-Pax Bottle Bundle</h3>
+              <p class="font-mono text-xs text-brand-gold mb-4">₱15,000 · 6 pax (₱2,500 / head)</p>
+              <p class="text-brand-muted text-sm font-light leading-relaxed mb-6">The ultimate group entry deal. Gather your squad of 6 for general admission and claim a complimentary premium hard bottle at the bar.</p>
+              <ul class="text-xs text-brand-ice/80 space-y-3 font-light mb-8">
+                <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>Full yacht access for 6 people</span></li>
+                <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>1 Complimentary Premium Hard Bottle</span></li>
+                <li class="flex items-center space-x-2"><span class="text-brand-gold">◦</span><span>No table required (standing / bar access)</span></li>
+              </ul>
+            </div>
+          </div>
+          <div class="px-6 pb-6">
+            <a href="#rsvp" class="select-package-btn w-full block text-center py-3 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-widest hover:bg-brand-ice transition-colors duration-300 uppercase" data-package="6-Pax Bottle Bundle">Select</a>
           </div>
         </div>
 
@@ -629,7 +639,7 @@
     </div>
   </section>
 
-  <!-- ================= GALLERY / LOOKBOOK (lightbox fixed) ================= -->
+  <!-- ================= GALLERY / LOOKBOOK ================= -->
   <section id="gallery" class="py-28 bg-brand-slate/40 backdrop-blur-md border-y border-white/5 relative z-20">
     <div class="max-w-7xl mx-auto px-6">
       <div class="text-center max-w-2xl mx-auto mb-20" data-reveal>
@@ -638,7 +648,6 @@
         <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
       </div>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4" data-reveal>
-        <!-- data-img now matches the actual file that each tile displays -->
         <button class="gallery-item group relative h-48 md:h-64 overflow-hidden rounded-2xl border border-white/5 hover:border-brand-gold/50 transition-all" data-img="images/IMG_0115.jpg">
           <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/IMG_0115.jpg');"></div>
           <div class="absolute inset-0 bg-brand-obsidian/40 group-hover:bg-brand-obsidian/10 transition-colors"></div>
@@ -714,13 +723,14 @@
             </div>
           </div>
 
-          <!-- Package Selection Dropdown -->
+          <!-- Package Selection Dropdown (UPDATED WITH 6-PAX BUNDLE) -->
           <div class="grid md:grid-cols-2 gap-6 mb-6">
             <div class="md:col-span-2">
               <label for="package" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Ticket / Package</label>
               <div class="relative">
                 <select id="package" class="w-full bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice font-light text-sm px-4 py-3 outline-none appearance-none cursor-pointer transition-colors duration-300">
                   <option value="Entrance Fee">Entrance Fee — ₱2,500 / person</option>
+                  <option value="6-Pax Bottle Bundle">6-Pax Bottle Bundle — ₱15,000 (6 pax + 1 Bottle)</option>
                   <option value="Standing Table">Standing Table — ₱8,000 (4 pax)</option>
                   <option value="Indoor Couch">VIP Indoor Couch — ₱15,000 (6 pax)</option>
                   <option value="Outdoor Couch">VIP Outdoor Couch — ₱15,000 (6 pax)</option>
@@ -731,7 +741,6 @@
             </div>
           </div>
 
-          <!-- Dynamic Table Selection & Guests -->
           <div class="grid md:grid-cols-2 gap-6 mb-6">
             <div>
               <label for="table-pref" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Select Specific Table</label>
@@ -761,7 +770,6 @@
             </div>
           </div>
 
-          <!-- Guest names (one field per guest; required by Manila Yacht Club) -->
           <div class="mb-6">
             <label class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Guest Names <span class="text-brand-muted/60 normal-case tracking-normal">(required for every guest boarding)</span></label>
             <div id="guest-names" class="space-y-3"></div>
@@ -799,7 +807,6 @@
         <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">Frequently Asked Questions</h2>
         <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
       </div>
-      <!-- Dress code, called out above the accordion so nobody misses it -->
       <div data-reveal class="bg-brand-slate border border-brand-gold/40 rounded-2xl px-6 py-6 md:px-8 md:py-7 mb-8 flex flex-col sm:flex-row sm:items-center gap-5">
         <div class="shrink-0 w-14 h-14 rounded-full border border-brand-gold/50 bg-brand-obsidian flex items-center justify-center">
           <span class="w-6 h-6 rounded-full bg-brand-obsidian border border-brand-gold/60"></span>
@@ -968,7 +975,6 @@
         Your total is <strong id="payment-total-ui" class="text-brand-gold font-mono">₱0.00</strong>.
       </p>
 
-      <!-- QR code — Maribank for Entrance Fee, GCash for the table packages -->
       <div class="relative z-10 mb-6">
         <button id="qr-zoom-trigger" type="button" aria-label="Tap to enlarge QR code"
                 class="bg-white p-3 rounded-2xl mx-auto w-72 h-72 flex items-center justify-center border-4 border-brand-gold/20 hover:border-brand-gold/60 transition-colors duration-300 cursor-zoom-in outline-none">
@@ -986,7 +992,6 @@
         <p id="qr-save-hint" class="text-center font-mono text-[9px] tracking-wider text-brand-muted/60 mt-2">Save it, then upload the QR in your banking app</p>
       </div>
 
-      <!-- File Upload Input -->
       <div class="mb-6 relative z-10">
         <label for="receipt-upload" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Upload Screenshot</label>
         <input type="file" id="receipt-upload" accept="image/*" class="w-full bg-brand-obsidian border border-white/10 rounded-xl text-brand-ice font-light text-sm px-4 py-3 outline-none focus:border-brand-gold file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-mono file:bg-brand-gold file:text-brand-obsidian hover:file:bg-brand-ice transition-colors cursor-pointer">
@@ -996,7 +1001,7 @@
     </div>
   </div>
 
-  <!-- QR LIGHTBOX — fullscreen view of whichever QR is active -->
+  <!-- QR LIGHTBOX -->
   <div id="qr-lightbox" class="fixed inset-0 z-[60] flex items-center justify-center bg-brand-obsidian/95 backdrop-blur-md p-6 hidden transition-all duration-300">
     <button id="qr-lightbox-close" aria-label="Close" class="absolute top-6 right-6 text-brand-muted hover:text-brand-ice text-3xl font-mono font-bold outline-none">&times;</button>
     <div class="flex flex-col items-center gap-5">
@@ -1098,15 +1103,12 @@
     </div>
   </footer>
 
-  <!-- Backend configuration: deployed FastAPI server on Render -->
   <script>window.API_BASE = "https://exclusivesph.onrender.com";</script>
 
-  <!-- IN-APP BROWSER DETECTION + COLD-START HARDENING -->
   <script>
   (function () {
     'use strict';
 
-    // --- 1. Detect in-app / embedded browsers (Instagram, Facebook, Viber, etc.) ---
     var ua = (navigator.userAgent || navigator.vendor || window.opera || '').toString();
     var inAppPatterns = /Instagram|FBAN|FBAV|FB_IAB|FBIOS|Messenger|Viber|Line\/|MicroMessenger|TikTok|Snapchat|Twitter|Pinterest|LinkedIn|GSA/i;
     var isInApp = inAppPatterns.test(ua);
@@ -1139,7 +1141,6 @@
       });
     }
 
-    // --- 2. Guard sessionStorage / localStorage (some in-app browsers throw on access) ---
     try {
       var t = '__t__';
       window.sessionStorage.setItem(t, '1');
@@ -1148,7 +1149,6 @@
       console.warn('Storage unavailable in this browser context.');
     }
 
-    // --- 3. Warm up the backend early (Render free tier sleeps after ~15 min idle) ---
     try {
       var API = (window.API_BASE || '').replace(/\/+$/, '');
       if (API) {
@@ -1167,7 +1167,6 @@
     'use strict';
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // Countdown — August 14, 2026, 9:00 PM (PHT)
     const eventDate = new Date('2026-08-14T21:00:00+08:00').getTime();
     const cd = {
       d: document.getElementById('cd-days'),
@@ -1248,10 +1247,6 @@
       });
     });
 
-    /* ---------- GALLERY LIGHTBOX (fixed) ----------
-       The source is read from the tile's own background-image, so the enlarged
-       photo can never point at a file the thumbnail isn't actually using.
-       data-img is kept only as a fallback. */
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = document.getElementById('lightbox-img');
     const lightboxErr = document.getElementById('lightbox-error');
@@ -1260,7 +1255,7 @@
     function srcFromTile(tile) {
       const inner = tile.querySelector('[style*="background-image"]');
       if (inner) {
-        const bg = window.getComputedStyle(inner).backgroundImage; // url("...")
+        const bg = window.getComputedStyle(inner).backgroundImage;
         const match = /url\((['"]?)(.*?)\1\)/.exec(bg);
         if (match && match[2] && match[2] !== 'none') return match[2];
       }
@@ -1282,7 +1277,6 @@
       lightboxImg.src = '';
     };
 
-    // If a photo is genuinely missing, show a readable message instead of a broken icon.
     lightboxImg.addEventListener('error', () => {
       if (!lightboxImg.src) return;
       lightboxImg.classList.add('hidden');
@@ -1299,7 +1293,6 @@
   })();
   </script>
 
-  <!-- PAYMENT QR ROUTING — Entrance Fee pays via Maribank, table packages via GCash -->
   <script>
   (function () {
     'use strict';
@@ -1340,8 +1333,6 @@
     }).observe(modal, { attributes: true, attributeFilter: ['class'] });
 
     syncPaymentQR();
-
-    /* ---------- QR ENLARGE + SAVE ---------- */
 
     var zoomTrigger    = document.getElementById('qr-zoom-trigger');
     var enlargeBtn     = document.getElementById('qr-enlarge-btn');

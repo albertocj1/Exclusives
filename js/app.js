@@ -6,11 +6,12 @@ document.addEventListener('DOMContentLoaded', () => {
   
     const EXTRA_HEAD_FEE = 2500;
     const PACKAGES = {
-      'Entrance Fee':   { price: 2500,  per: 'person', basePax: 1, maxGuests: 12, defaultGuests: 1, extraHead: false },
-      'Standing Table': { price: 8000,  per: 'table',  basePax: 4, maxGuests: 4,  defaultGuests: 4, extraHead: false },
-      'Indoor Couch':   { price: 15000, per: 'table',  basePax: 6, maxGuests: 12, defaultGuests: 6, extraHead: true },
-      'Outdoor Couch':  { price: 15000, per: 'table',  basePax: 6, maxGuests: 12, defaultGuests: 6, extraHead: true },
-      'SVIP Couch':     { price: 20000, per: 'table',  basePax: 8, maxGuests: 14, defaultGuests: 8, extraHead: true },
+      'Entrance Fee':        { price: 2500,  per: 'person', basePax: 1, maxGuests: 12, defaultGuests: 1, extraHead: false },
+      '6-Pax Bottle Bundle': { price: 15000, per: 'bundle', basePax: 6, maxGuests: 6,  defaultGuests: 6, extraHead: false },
+      'Standing Table':      { price: 8000,  per: 'table',  basePax: 4, maxGuests: 4,  defaultGuests: 4, extraHead: false },
+      'Indoor Couch':        { price: 15000, per: 'table',  basePax: 6, maxGuests: 12, defaultGuests: 6, extraHead: true },
+      'Outdoor Couch':       { price: 15000, per: 'table',  basePax: 6, maxGuests: 12, defaultGuests: 6, extraHead: true },
+      'SVIP Couch':          { price: 20000, per: 'table',  basePax: 8, maxGuests: 14, defaultGuests: 8, extraHead: true },
     };
 
     // Which spots belong to which package + friendly display names.
@@ -49,10 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Fetch with timeout + retry (exponential-ish backoff). ---
-    // Render's free/starter tiers can have a slow first response after any
-    // idle period, and mobile networks drop requests. A single unguarded
-    // fetch on page load was the root cause of the stuck "Loading tables..."
-    // state — this wrapper retries a few times before giving up for real.
     function fetchWithTimeout(url, opts, timeoutMs) {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -70,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
           lastErr = err;
           if (i < attempts - 1) {
-            const delay = baseDelayMs * Math.pow(1.6, i); // 900ms, 1.4s, 2.3s...
+            const delay = baseDelayMs * Math.pow(1.6, i);
             await new Promise((r) => setTimeout(r, delay));
           }
         }
@@ -84,13 +81,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingPayload = null;   
     let currentBooking = null;   
     let allTables = [];
-    let tablesLoadFailed = false;   // true only after every retry attempt is exhausted
+    let tablesLoadFailed = false;
   
     const pkgSel = $('package');
     const tablePrefSel = $('table-pref');
     const guestsSel = $('guests');
 
-    // --- Submit button + sold-out note (note is created dynamically) ---
+    // --- Submit button + sold-out note ---
     const form = $('rsvp-form');
     const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
     const SUBMIT_DEFAULT_LABEL = submitBtn ? submitBtn.textContent.trim() : 'Apply & continue to payment';
@@ -115,27 +112,21 @@ document.addEventListener('DOMContentLoaded', () => {
       return soldOutNote;
     }
 
-    // --- EVENT-LEVEL SOLD OUT (the whole guestlist is full) ---
-    // Distinct from per-package sold-out below: this one closes everything,
-    // including per-person Entrance Fee, which can otherwise never sell out.
     let eventSoldOut = false;
-    let spotsLeft = null;   // null = unknown (backend not reached yet)
+    let spotsLeft = null;
 
-    // True only when the package uses tables AND every table for it is reserved.
     function isPackageSoldOut(pkgName) {
-      if (eventSoldOut) return true;   // full boat = every package is closed
+      if (eventSoldOut) return true;
       const cfg = PACKAGES[pkgName];
-      if (!cfg || cfg.per !== 'table') return false;      // per-person entry never table-sold-out
+      if (!cfg || cfg.per !== 'table') return false;
       const relevant = allTables.filter((t) => t.package === pkgName);
-      if (relevant.length === 0) return false;             // tables not loaded yet / backend offline -> not "sold out"
-      return relevant.every((t) => !t.is_available);       // all reserved
+      if (relevant.length === 0) return false;
+      return relevant.every((t) => !t.is_available);
     }
 
     function setFormSoldOut(isSoldOut) {
       const note = ensureSoldOutNote();
       note.style.display = isSoldOut ? 'block' : 'none';
-      // Say which kind of sold-out this is — "pick another package" is wrong
-      // advice when there is no other package left to pick.
       note.textContent = eventSoldOut
         ? 'The guestlist is full. No further bookings can be accepted.'
         : 'All tables in this category are fully reserved. Please pick another package.';
@@ -153,12 +144,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Reflect sold-out status on the package cards (Select buttons + a badge).
     function updateCardSoldOut() {
       document.querySelectorAll('.select-package-btn').forEach((btn) => {
         const pkg = btn.getAttribute('data-package');
         const soldOut = isPackageSoldOut(pkg);
-        // find the card container to place/remove a badge
         const card = btn.closest('[data-reveal]') || btn.closest('div');
         if (soldOut) {
           btn.textContent = eventSoldOut ? 'Guestlist Full' : 'Sold Out';
@@ -176,21 +165,17 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   
-    // Pre-fill the guest count to match the package size (e.g. Couch 6 pax -> 6).
-    // Per-person "Entrance Fee" stays at whatever the guest picks (default 1).
     function applyDefaultGuests() {
       if (!pkgSel || !guestsSel) return;
       const cfg = PACKAGES[pkgSel.value];
       if (!cfg) return;
       const desired = cfg.defaultGuests || 1;
-      // Only set if the option exists (it always does for 1..8)
       const hasOption = Array.prototype.some.call(
         guestsSel.options, (o) => parseInt(o.value, 10) === desired
       );
       if (hasOption) guestsSel.value = String(desired);
     }
 
-    // --- 1. Form Estimation & Limits ---
     function applyGuestLimit() {
       if (!pkgSel || !guestsSel) return;
       const cfg = PACKAGES[pkgSel.value];
@@ -208,7 +193,6 @@ document.addEventListener('DOMContentLoaded', () => {
       setText('estimated-total', peso(total));
     }
 
-    // ---- Guest name fields: one input per guest, field 1 mirrors the booker ----
     const guestNamesWrap = $('guest-names');
 
     function currentGuestNames() {
@@ -222,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderGuestNameFields() {
       if (!guestNamesWrap || !guestsSel) return;
       const n = parseInt(guestsSel.value, 10) || 1;
-      const existing = currentGuestNames();   // preserve what was typed
+      const existing = currentGuestNames();
       guestNamesWrap.innerHTML = '';
       for (let i = 0; i < n; i++) {
         const wrap = document.createElement('div');
@@ -232,7 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
         input.required = true;
         input.className = 'guest-name-input w-full bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice font-light text-sm px-4 py-3 outline-none transition-colors duration-300';
         input.placeholder = (i === 0) ? 'Guest 1 (lead booker)' : ('Guest ' + (i + 1) + ' full name');
-        // restore prior value; guest 1 defaults to the booker name field
         if (existing[i]) input.value = existing[i];
         else if (i === 0) { const fn = $('fullname'); if (fn) input.value = fn.value.trim(); }
         wrap.appendChild(input);
@@ -240,7 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Keep guest 1 in sync when the booker types their name (only if guest 1 is empty/matching)
     (function wireBookerSync() {
       const fn = $('fullname');
       if (!fn || !guestNamesWrap) return;
@@ -258,41 +240,36 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     })();
     
-    // --- 2. Dynamic Table Dropdown Logic ---
     function updateTableDropdown() {
         if (!pkgSel || !tablePrefSel) return;
         const selectedPkg = pkgSel.value;
         tablePrefSel.innerHTML = '';
         
-        // Lock the dropdown if GA is selected
-        if (selectedPkg === 'Entrance Fee') {
+        // Lock the dropdown if GA or an entrance bundle is selected
+        if (selectedPkg === 'Entrance Fee' || PACKAGES[selectedPkg]?.per === 'bundle') {
             const opt = document.createElement('option');
             opt.value = 'None';
             opt.textContent = 'None / Solo Entry';
             tablePrefSel.appendChild(opt);
             tablePrefSel.disabled = true;
-            setFormSoldOut(false);   // entry is never table-sold-out
+            setFormSoldOut(false);   // entrance bundles are never table-sold-out
             return;
         }
 
-        // Filter tables to ONLY match the selected package
         const relevantTables = allTables.filter(t => t.package === selectedPkg);
-        tablePrefSel.disabled = false; // Unlock the dropdown
+        tablePrefSel.disabled = false;
 
         if (relevantTables.length === 0) {
             const opt = document.createElement('option');
             opt.value = '';
-            // Distinguish "still trying" from "gave up after retries" — these need
-            // different guest reactions (wait vs. hit the retry button).
             opt.textContent = tablesLoadFailed
                 ? 'Could not load tables — tap to retry'
                 : 'Loading tables\u2026';
             tablePrefSel.appendChild(opt);
-            setFormSoldOut(false);   // loading/offline is not the same as sold out
+            setFormSoldOut(false);
             return;
         }
 
-        // Outdoor = DC1/DC2; everything else is indoor.
         const isOutdoor = (id) => /^DC\d+/i.test(String(id));
 
         let hasAvailable = false;
@@ -303,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!t.is_available) {
                 opt.disabled = true;
             } else if (!hasAvailable) {
-                opt.selected = true; // auto-select first free spot
+                opt.selected = true;
                 hasAvailable = true;
             }
             return opt;
@@ -312,7 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const indoorTables  = relevantTables.filter(t => !isOutdoor(t.id));
         const outdoorTables = relevantTables.filter(t =>  isOutdoor(t.id));
 
-        // Only show group headers when both kinds exist; otherwise a flat list reads cleaner.
         if (indoorTables.length && outdoorTables.length) {
             const gIn = document.createElement('optgroup');
             gIn.label = 'Indoor';
@@ -328,7 +304,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!hasAvailable) {
-            // Every table in this category is reserved -> SOLD OUT
             tablePrefSel.innerHTML = '';
             const opt = document.createElement('option');
             opt.value = '';
@@ -343,38 +318,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Clicking/opening the dropdown while it's in the "failed" state retries the load.
-    // (Selects fire 'mousedown' before they open, which is the earliest reliable hook.)
     tablePrefSel && tablePrefSel.addEventListener('mousedown', () => {
-      if (tablesLoadFailed && pkgSel && pkgSel.value !== 'Entrance Fee') {
+      if (tablesLoadFailed && pkgSel && PACKAGES[pkgSel.value]?.per === 'table') {
         loadTables();
       }
     });
 
-    // Trigger updates when the user clicks a dropdown
     pkgSel && pkgSel.addEventListener('change', () => {
         applyDefaultGuests();
         updateTableDropdown();
         updateEstimate();
         renderGuestNameFields();
-        // Selecting a table package while we never managed to load tables -> retry now.
-        if (tablesLoadFailed && pkgSel.value !== 'Entrance Fee') {
+        if (tablesLoadFailed && PACKAGES[pkgSel.value]?.per === 'table') {
           loadTables();
         }
     });
     guestsSel && guestsSel.addEventListener('change', function(){ updateEstimate(); renderGuestNameFields(); });
   
-    // --- 3. Backend Fetching ---
-    // Website displays a fixed public capacity of 120 (admin/backend may enforce a
-    // different real cap). We compute the spots-left and bar against 120.
-    // Fallback only — the backend is the source of truth and reports its own capacity.
     const PUBLIC_CAPACITY = 150;
-
-    // The guestlist strip has three states, driven by how many seats are taken:
-    //   taken <  LOW_STOCK_AT   -> "Guestlist filling"     (calm, pulsing)
-    //   taken >= LOW_STOCK_AT   -> "Only a few spots left" (urgent, still open)
-    //   spots_left === 0        -> "Guestlist full"        (closed, no pulse)
-    const LOW_STOCK_AT = 100;   // seats taken, out of the 150 cap
+    const LOW_STOCK_AT = 100;
 
     function scarcityStrip() {
       const fill = $('scarcity-fill');
@@ -403,13 +365,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Kept as a named helper because the 409 handler calls it directly.
     function paintScarcitySoldOut() { paintScarcity('full'); }
 
     async function loadAvailability() {
-      // The "N of M spots left" counter was removed from the page on purpose —
-      // the bar communicates pressure without publishing exact numbers.
-      // These lookups stay (and no-op) so the code survives if it's ever re-added.
       const spotsEl = $('spots-left');
       const capEl = $('spots-capacity');
       const fill = $('scarcity-fill');
@@ -417,7 +375,6 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const data = await fetchJsonWithRetry(`${API_BASE}/api/availability`);
 
-        // Trust the backend's own numbers — it is the thing that enforces the cap.
         const capacity = data.capacity != null ? data.capacity : PUBLIC_CAPACITY;
         const taken = data.taken != null ? data.taken : 0;
         spotsLeft = data.spots_left != null ? data.spots_left : Math.max(0, capacity - taken);
@@ -437,18 +394,16 @@ document.addEventListener('DOMContentLoaded', () => {
           lockGuestSelectorsAtZero();
         } else if (taken >= LOW_STOCK_AT) {
           paintScarcity('low');
-          lockGuestSelectorsAtZero();   // hide party sizes bigger than what's left
+          lockGuestSelectorsAtZero();
         } else {
           paintScarcity('filling');
         }
         updateCardSoldOut();
       } catch (_) {
-        // Backend unreachable is NOT sold out — leave the form open rather than
-        // turning away real guests because a slow/cold server didn't answer in time.
+        // Backend unreachable is NOT sold out
       }
     }
 
-    // If fewer spots remain than the guest dropdown offers, hide the impossible options.
     function lockGuestSelectorsAtZero() {
       if (!guestsSel || spotsLeft == null) return;
       Array.prototype.forEach.call(guestsSel.options, (o) => {
@@ -456,40 +411,35 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    let tablesLoadToken = 0;   // guards against a slow retry clobbering a fresher one
+    let tablesLoadToken = 0;
 
     async function loadTables() {
       const myToken = ++tablesLoadToken;
       tablesLoadFailed = false;
-      // Reflect "actively retrying" in the dropdown right away if it's currently
-      // showing the failed state, rather than waiting for the fetch to finish.
-      if (pkgSel && pkgSel.value !== 'Entrance Fee') updateTableDropdown();
+      if (pkgSel && PACKAGES[pkgSel.value]?.per === 'table') updateTableDropdown();
       try {
         const data = await fetchJsonWithRetry(`${API_BASE}/api/tables/availability`);
-        if (myToken !== tablesLoadToken) return; // a newer call already superseded this one
+        if (myToken !== tablesLoadToken) return;
         allTables = data.tables || [];
         tablesLoadFailed = false;
         updateTableDropdown();
         updateEstimate();
-        updateCardSoldOut();     // reflect sold-out on the package cards
+        updateCardSoldOut();
       } catch (e) {
         if (myToken !== tablesLoadToken) return;
         console.error('Failed to load table map after retries', e);
         tablesLoadFailed = true;
-        updateTableDropdown();   // show the "tap to retry" state instead of a silent dead end
+        updateTableDropdown();
       }
     }
 
-    // Initialize 
     loadAvailability();
     loadTables();
     renderGuestNameFields();
   
-    // Package Cards "Select" Buttons (From HTML layout)
     document.querySelectorAll('.select-package-btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const pkg = btn.getAttribute('data-package');
-        // Block selecting a sold-out package
         if (isPackageSoldOut(pkg)) {
           e.preventDefault();
           alert('Sorry, all tables in this category are sold out. Please choose another package.');
@@ -501,12 +451,11 @@ document.addEventListener('DOMContentLoaded', () => {
           updateTableDropdown(); 
           updateEstimate();
           renderGuestNameFields();
-          if (tablesLoadFailed && pkg !== 'Entrance Fee') loadTables();
+          if (tablesLoadFailed && PACKAGES[pkg]?.per === 'table') loadTables();
         }
       });
     });
   
-    // --- 4. RSVP Submit ---
     form && form.addEventListener('submit', (e) => {
       e.preventDefault();
       const terms = $('verify-terms');
@@ -515,7 +464,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Guest names: one required per guest (Manila Yacht Club manifest)
       const names = currentGuestNames();
       const guestCount = parseInt(guestsSel ? guestsSel.value : '1', 10) || 1;
       if (names.length < guestCount || names.some(function (nm) { return !nm; })) {
@@ -525,19 +473,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const selectedPkg = pkgSel ? pkgSel.value : '';
 
-      // HARD BLOCK: the whole guestlist is full.
       if (eventSoldOut) {
         alert('The guestlist is full — no spots remain. Follow @exclusivesph for the next event.');
         setFormSoldOut(true);
         return;
       }
-      // HARD BLOCK: not enough room left for this party size.
       if (spotsLeft != null && guestCount > spotsLeft) {
         alert('Only ' + spotsLeft + ' spot' + (spotsLeft === 1 ? '' : 's') + ' left. Please reduce your guest count.');
         return;
       }
 
-      // HARD BLOCK: if this is a table package and everything is reserved, stop here.
       if (isPackageSoldOut(selectedPkg)) {
         alert('Sorry, all tables in this category are sold out. Please choose another package.');
         setFormSoldOut(true);
@@ -547,7 +492,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const cfg = PACKAGES[selectedPkg];
       const chosenTable = tablePrefSel && tablePrefSel.value !== 'None' ? tablePrefSel.value : null;
 
-      // Table packages must have a real, available table selected.
       if (cfg && cfg.per === 'table') {
         if (!chosenTable) {
           if (tablesLoadFailed) {
@@ -594,7 +538,6 @@ document.addEventListener('DOMContentLoaded', () => {
       openModal($('confirm-modal'));
     });
   
-    // --- 5. Modal Navigation ---
     const editBtn = $('edit-booking');
     editBtn && editBtn.addEventListener('click', () => closeModal($('confirm-modal')));
   
@@ -613,8 +556,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (res.status === 409) {
           const msg = extractError(data) || '';
-          // The backend uses 409 for both "table taken" and "boat full" — tell them apart,
-          // because the guest's next move is completely different.
           if (/full|spot/i.test(msg)) {
             eventSoldOut = true;
             setFormSoldOut(true);
@@ -641,7 +582,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   
-    // --- 6. Receipt Upload ---
     const submitRefBtn = $('submit-reference'); 
     submitRefBtn && submitRefBtn.addEventListener('click', async () => {
       if (!currentBooking) return;
@@ -712,4 +652,4 @@ document.addEventListener('DOMContentLoaded', () => {
       if (Array.isArray(data.detail)) return data.detail.map((d) => d.msg || JSON.stringify(d)).join('; ');
       return '';
     }
-  });
+});
