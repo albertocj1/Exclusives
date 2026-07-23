@@ -12,23 +12,24 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from supabase import Client, create_client
 
-# Branded confirmation email + inline QR (see email_module.py)
-from email_module import send_approval_email
+# Branded confirmation email + inline QR & reminders (see email_module.py)
+from email_module import send_approval_email, send_pending_reminder_email
 
 EVENT_CAPACITY = int(os.getenv("EVENT_CAPACITY", "150"))  # hard cap: no bookings accepted past this
 HOLD_MINUTES = int(os.getenv("HOLD_MINUTES", "15"))       # how long an unpaid booking holds its seat/table
 EXTRA_HEAD_FEE = 2500
 
-# per: person | table
+# per: person | table | bundle
 # base_pax: guests included in base price
 # extra_head: if True, each guest beyond base_pax costs EXTRA_HEAD_FEE
 # max_guests: hard cap for the package
 PACKAGES = {
-    "Entrance Fee":   {"price": 2500,  "per": "person", "base_pax": 1, "max_guests": 12, "extra_head": False},
-    "Standing Table": {"price": 8000,  "per": "table",  "base_pax": 4, "max_guests": 4,  "extra_head": False},
-    "Indoor Couch":   {"price": 15000, "per": "table",  "base_pax": 6, "max_guests": 12, "extra_head": True},
-    "Outdoor Couch":  {"price": 15000, "per": "table",  "base_pax": 6, "max_guests": 12, "extra_head": True},
-    "SVIP Couch":     {"price": 20000, "per": "table",  "base_pax": 8, "max_guests": 14, "extra_head": True},
+    "Entrance Fee":        {"price": 2500,  "per": "person", "base_pax": 1, "max_guests": 12, "extra_head": False},
+    "6-Pax Bottle Bundle": {"price": 15000, "per": "bundle", "base_pax": 6, "max_guests": 6,  "extra_head": False},
+    "Standing Table":      {"price": 8000,  "per": "table",  "base_pax": 4, "max_guests": 4,  "extra_head": False},
+    "Indoor Couch":        {"price": 15000, "per": "table",  "base_pax": 6, "max_guests": 12, "extra_head": True},
+    "Outdoor Couch":       {"price": 15000, "per": "table",  "base_pax": 6, "max_guests": 12, "extra_head": True},
+    "SVIP Couch":          {"price": 20000, "per": "table",  "base_pax": 8, "max_guests": 14, "extra_head": True},
 }
 
 # Which physical spots belong to which package (DB keeps these IDs).
@@ -103,7 +104,6 @@ class BookingCreate(BaseModel):
             raise ValueError(f"{self.package} allows at most {cfg['max_guests']} guests.")
         if cfg["per"] == "table" and not self.table_id:
             raise ValueError("This package requires selecting a table.")
-        # table_id must belong to the chosen package
         if self.table_id:
             allowed = PACKAGE_SPOTS.get(self.package, [])
             if allowed and self.table_id not in allowed:
@@ -130,6 +130,10 @@ class Booking(BaseModel):
 class CheckinBody(BaseModel):
     heads_present: int = Field(..., ge=0, le=50)
 
+# Schema for selective pending reminder requests
+class RemindPayload(BaseModel):
+    booking_ids: Optional[list[str]] = None
+
 app = FastAPI()
 
 # Dynamically handle allowed origins from your .env string
@@ -154,11 +158,6 @@ def require_admin(x_admin_key: str = Header(default="")):
     if not secrets.compare_digest(x_admin_key, os.environ.get("ADMIN_API_KEY", "")):
         raise HTTPException(status_code=401, detail="Invalid admin key.")
 
-# Reception staff authenticate via Supabase Auth (email/password on the frontend).
-# The frontend sends the resulting access token as "Authorization: Bearer <jwt>".
-# We verify it by asking Supabase to resolve the user for that token — this works
-# regardless of whether the project uses the legacy shared secret or the newer
-# asymmetric signing keys.
 _reception_bearer = HTTPBearer(auto_error=False)
 
 def require_reception(cred: Optional[HTTPAuthorizationCredentials] = Depends(_reception_bearer)):
@@ -189,13 +188,6 @@ def _confirmed_guest_count() -> int:
     return sum(row["guests"] for row in (res.data or []))
 
 def _committed_guest_count() -> int:
-    """Seats that are really spoken for.
-
-    confirmed  -> paid and approved
-    verifying  -> receipt uploaded, awaiting admin review; their seat must be held
-    pending    -> mid-checkout, held only for HOLD_MINUTES (same window as tables),
-                  so an abandoned form doesn't block a seat forever
-    """
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
 
     settled = db().table("bookings").select("guests") \
@@ -223,7 +215,7 @@ def availability():
         "taken": taken,
         "spots_left": left,
         "sold_out": left <= 0,
-        "confirmed": _confirmed_guest_count(),  # paid + approved only, for the admin view
+        "confirmed": _confirmed_guest_count(),
     }
 
 @app.get("/api/tables/availability")
@@ -251,10 +243,6 @@ def get_tables():
 
 @app.post("/api/bookings", response_model=Booking)
 def create_booking(payload: BookingCreate):
-    # --- CAPACITY GATE ---
-    # Checked here, at write time, not just in the UI. A disabled button stops
-    # honest guests; this stops everyone. Re-read the count on every request so
-    # two people submitting at the same second can't both slip through.
     taken = _committed_guest_count()
     left = max(0, EVENT_CAPACITY - taken)
     if left <= 0:
@@ -368,13 +356,47 @@ def cancel_booking(booking_id: str):
     res = db().table("bookings").update({"status": "cancelled"}).eq("id", booking_id).execute()
     return Booking(**res.data[0])
 
+@app.post("/api/bookings/remind-pending", dependencies=[Depends(require_admin)])
+def remind_pending_bookings(payload: RemindPayload, background_tasks: BackgroundTasks):
+    """Sends payment reminder emails to selected (or all) pending reservations, skipping duplicate emails."""
+    query = db().table("bookings").select("*").eq("status", "pending")
+    if payload.booking_ids:
+        query = query.in_("id", payload.booking_ids)
+    res = query.execute()
+    pending_rows = res.data or []
+
+    # Deduplicate by email address (keeps the most recent attempt for each unique email)
+    unique_pending = {}
+    for row in pending_rows:
+        email_key = row["email"].lower().strip()
+        if email_key not in unique_pending:
+            unique_pending[email_key] = row
+
+    reminded_count = 0
+    for email, b in unique_pending.items():
+        background_tasks.add_task(
+            send_pending_reminder_email,
+            to_email=email,
+            guest_name=b["full_name"],
+            package_name=b["package"],
+            guests=b["guests"],
+            total_amount=b["total_amount"],
+        )
+        reminded_count += 1
+
+    return {
+        "status": "success",
+        "reminded_count": reminded_count,
+        "total_pending_rows": len(pending_rows),
+        "duplicates_skipped": len(pending_rows) - reminded_count,
+    }
+
 # ---------------------------------------------------------------------------
 #  RECEPTION ENDPOINTS  (Supabase-Auth protected)
 # ---------------------------------------------------------------------------
 
 @app.get("/api/reception/lookup/{ticket_code}", dependencies=[Depends(require_reception)])
 def reception_lookup(ticket_code: str):
-    """Scan/lookup a ticket code -> return guest details + current check-in state."""
     code = (ticket_code or "").strip().upper()
     res = db().table("bookings").select("*").eq("ticket_code", code).execute()
     if not res.data:
@@ -396,7 +418,6 @@ def reception_lookup(ticket_code: str):
 
 @app.post("/api/reception/checkin/{booking_id}", dependencies=[Depends(require_reception)])
 def reception_checkin(booking_id: str, body: CheckinBody):
-    """Mark a guest as arrived and record how many people actually showed."""
     b = _get_booking(booking_id)
     if b["status"] != "confirmed":
         raise HTTPException(status_code=400, detail="This booking is not confirmed — cannot check in.")
@@ -421,35 +442,29 @@ def reception_checkin(booking_id: str, body: CheckinBody):
 
 @app.get("/api/reception/summary", dependencies=[Depends(require_reception)])
 def reception_summary():
-    """Live door totals across ALL confirmed bookings (tables + solo entry)."""
     confirmed = db().table("bookings").select("*").eq("status", "confirmed").execute().data or []
 
     total_bookings = len(confirmed)
     checked_in_bookings = sum(1 for b in confirmed if b.get("checked_in"))
 
-    # Expected heads = sum of booked guests across all confirmed bookings.
     expected_heads = sum((b.get("guests") or 0) for b in confirmed)
-    expected_entrance = sum((b.get("guests") or 0) for b in confirmed if b.get("package") == "Entrance Fee")
+    expected_entrance = sum((b.get("guests") or 0) for b in confirmed if b.get("package") in ["Entrance Fee", "6-Pax Bottle Bundle"])
     expected_couch = expected_heads - expected_entrance
-    # Present heads = actual people seated, only for those checked in.
     present_heads = sum((b.get("heads_present") or 0) for b in confirmed if b.get("checked_in"))
 
-    # Split present heads by source: standing "Entrance Fee" vs couch/table bookings.
     present_entrance = sum(
         (b.get("heads_present") or 0)
         for b in confirmed
-        if b.get("checked_in") and b.get("package") == "Entrance Fee"
+        if b.get("checked_in") and b.get("package") in ["Entrance Fee", "6-Pax Bottle Bundle"]
     )
     present_couch = present_heads - present_entrance
 
-    # Heads still expected to arrive = booked guests minus heads already present,
-    # per booking (floored at 0), split by Entrance Fee vs couch/table.
     def _remaining(b):
         present = (b.get("heads_present") or 0) if b.get("checked_in") else 0
         return max(0, (b.get("guests") or 0) - present)
 
-    coming_entrance = sum(_remaining(b) for b in confirmed if b.get("package") == "Entrance Fee")
-    coming_couch = sum(_remaining(b) for b in confirmed if b.get("package") != "Entrance Fee")
+    coming_entrance = sum(_remaining(b) for b in confirmed if b.get("package") in ["Entrance Fee", "6-Pax Bottle Bundle"])
+    coming_couch = sum(_remaining(b) for b in confirmed if b.get("package") not in ["Entrance Fee", "6-Pax Bottle Bundle"])
     coming_heads = coming_entrance + coming_couch
 
     return {
@@ -469,7 +484,6 @@ def reception_summary():
 
 @app.get("/api/reception/tables", dependencies=[Depends(require_reception)])
 def reception_tables():
-    """Live per-table board: who's reserved, booked pax, and heads seated so far."""
     tables = db().table("tables").select("*").execute().data or []
     confirmed = db().table("bookings").select("*") \
         .eq("status", "confirmed") \
@@ -494,6 +508,5 @@ def reception_tables():
             "seated": seated,
             "any_checked_in": any(bk.get("checked_in") for bk in bks),
         })
-    # Sort by table id for a stable board
     out.sort(key=lambda x: str(x["id"]))
     return {"tables": out}
