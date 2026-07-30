@@ -80,7 +80,6 @@ class BookingCreate(BaseModel):
     @field_validator("guest_names")
     @classmethod
     def _clean_names(cls, v):
-        # trim, drop blanks
         return [str(n).strip() for n in (v or []) if str(n).strip()]
 
     @field_validator("accept_terms")
@@ -130,7 +129,6 @@ class Booking(BaseModel):
 class CheckinBody(BaseModel):
     heads_present: int = Field(..., ge=0, le=50)
 
-# Schema for selective pending reminder requests
 class RemindPayload(BaseModel):
     booking_ids: Optional[list[str]] = None
 
@@ -138,10 +136,8 @@ app = FastAPI()
 
 @app.on_event("startup")
 def startup_event():
-    # Force the database connection to initialize immediately when the server boots
     db()
 
-# Dynamically handle allowed origins from your .env string
 origins_str = os.environ.get("ALLOWED_ORIGINS", "*")
 if origins_str == "*":
     origins_list = ["*"]
@@ -179,7 +175,7 @@ def require_reception(cred: Optional[HTTPAuthorizationCredentials] = Depends(_re
     return user
 
 # ---------------------------------------------------------------------------
-#  HELPERS
+#  IN-MEMORY QUERY OPTIMIZATIONS
 # ---------------------------------------------------------------------------
 
 def _get_booking(booking_id: str):
@@ -190,18 +186,22 @@ def _get_booking(booking_id: str):
 
 def _confirmed_guest_count() -> int:
     res = db().table("bookings").select("guests").eq("status", "confirmed").execute()
-    return sum(row["guests"] for row in (res.data or []))
+    return sum(row.get("guests", 0) for row in (res.data or []))
 
 def _committed_guest_count() -> int:
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
-
-    settled = db().table("bookings").select("guests") \
-        .in_("status", ["confirmed", "verifying"]).execute().data or []
-
-    holds = db().table("bookings").select("guests") \
-        .eq("status", "pending").gte("created_at", cutoff).execute().data or []
-
-    return sum(r["guests"] for r in settled) + sum(r["guests"] for r in holds)
+    # SINGLE QUERY: Fetch relevant statuses to calculate holds in memory.
+    res = db().table("bookings").select("guests, status, created_at").in_("status", ["confirmed", "verifying", "pending"]).execute()
+    
+    taken = 0
+    for r in (res.data or []):
+        st = r.get("status")
+        g = r.get("guests", 0)
+        if st in ["confirmed", "verifying"]:
+            taken += g
+        elif st == "pending" and r.get("created_at") >= cutoff:
+            taken += g
+    return taken
 
 def _table_capacity(package_name: Optional[str]) -> Optional[int]:
     cfg = PACKAGES.get(package_name or "")
@@ -228,19 +228,19 @@ def get_tables():
     all_tables = db().table("tables").select("*").execute().data
     lock_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
 
-    confirmed = db().table("bookings").select("table_id") \
-        .eq("status", "confirmed") \
-        .not_.is_("table_id", "null") \
-        .execute()
+    # SINGLE QUERY: Pull active table reservations and process locally to skip multiple round-trips
+    res = db().table("bookings").select("table_id, status, created_at").in_("status", ["confirmed", "verifying", "pending"]).not_.is_("table_id", "null").execute()
+    bookings = res.data or []
 
-    holds = db().table("bookings").select("table_id") \
-        .in_("status", ["pending", "verifying"]) \
-        .gte("created_at", lock_cutoff) \
-        .not_.is_("table_id", "null") \
-        .execute()
-
-    taken_ids = {r["table_id"] for r in (confirmed.data or []) if r.get("table_id")}
-    taken_ids |= {r["table_id"] for r in (holds.data or []) if r.get("table_id")}
+    taken_ids = set()
+    for b in bookings:
+        st = b.get("status")
+        tid = b.get("table_id")
+        if not tid: continue
+        if st == "confirmed":
+            taken_ids.add(tid)
+        elif st in ["pending", "verifying"] and b.get("created_at") >= lock_cutoff:
+            taken_ids.add(tid)
 
     for t in all_tables:
         t["is_available"] = t["id"] not in taken_ids
@@ -260,20 +260,15 @@ def create_booking(payload: BookingCreate):
 
     if payload.table_id:
         lock_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
-
-        confirmed = db().table("bookings").select("id") \
-            .eq("table_id", payload.table_id) \
-            .eq("status", "confirmed") \
-            .execute()
-
-        held = db().table("bookings").select("id") \
-            .eq("table_id", payload.table_id) \
-            .in_("status", ["pending", "verifying"]) \
-            .gte("created_at", lock_cutoff) \
-            .execute()
-
-        if confirmed.data or held.data:
-            raise HTTPException(status_code=409, detail="Table just got reserved by someone else.")
+        
+        # Consolidate duplicate table checks
+        res = db().table("bookings").select("id, status, created_at").eq("table_id", payload.table_id).in_("status", ["confirmed", "verifying", "pending"]).execute()
+        for b in (res.data or []):
+            st = b.get("status")
+            if st == "confirmed":
+                raise HTTPException(status_code=409, detail="Table just got reserved by someone else.")
+            elif st in ["pending", "verifying"] and b.get("created_at") >= lock_cutoff:
+                raise HTTPException(status_code=409, detail="Table just got reserved by someone else.")
 
     unit = PACKAGES[payload.package]["price"]
     total = compute_total(payload.package, payload.guests)
@@ -363,14 +358,12 @@ def cancel_booking(booking_id: str):
 
 @app.post("/api/bookings/remind-pending", dependencies=[Depends(require_admin)])
 def remind_pending_bookings(payload: RemindPayload, background_tasks: BackgroundTasks):
-    """Sends payment reminder emails to selected (or all) pending reservations, skipping duplicate emails."""
     query = db().table("bookings").select("*").eq("status", "pending")
     if payload.booking_ids:
         query = query.in_("id", payload.booking_ids)
     res = query.execute()
     pending_rows = res.data or []
 
-    # Deduplicate by email address (keeps the most recent attempt for each unique email)
     unique_pending = {}
     for row in pending_rows:
         email_key = row["email"].lower().strip()
@@ -397,7 +390,7 @@ def remind_pending_bookings(payload: RemindPayload, background_tasks: Background
     }
 
 # ---------------------------------------------------------------------------
-#  RECEPTION ENDPOINTS  (Supabase-Auth protected)
+#  RECEPTION ENDPOINTS
 # ---------------------------------------------------------------------------
 
 @app.get("/api/reception/lookup/{ticket_code}", dependencies=[Depends(require_reception)])
