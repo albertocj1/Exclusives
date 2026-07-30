@@ -247,7 +247,7 @@
       <div class="absolute inset-0 horizon-glow"></div>
     </div>
     <div class="relative z-20 text-center max-w-4xl px-6 flex flex-col items-center">
-      <span class="font-mono text-xs md:text-sm tracking-[0.35em] text-brand-gold mb-6 uppercase mt-4">MANILA BAY · AUGUST 14, 2026 · 9PM</span>
+      <span class="font-mono text-xs md:text-sm tracking-[0.35em] text-brand-gold mb-6 uppercase mt-4">MANILA BAY · AUGUST 14, 2026 · 8PM</span>
       <img src="images/logo.png" alt="Exclusives PH"
            class="w-full max-w-md md:max-w-lg lg:max-w-xl h-auto object-contain mb-4 drop-shadow-[0_0_30px_rgba(245,197,24,0.35)]">
       <h1 class="font-serif text-5xl md:text-7xl lg:text-8xl font-semibold tracking-tight leading-[0.95] mb-8 text-transparent bg-clip-text bg-gradient-to-r from-brand-gold via-amber-300 to-brand-gold">
@@ -484,7 +484,7 @@
     </div>
   </section>
 
-  <!-- ================= PACKAGES GRID (UPDATED WITH 6-PAX BUNDLE) ================= -->
+  <!-- ================= PACKAGES GRID ================= -->
   <section id="packages" class="py-28 bg-brand-obsidian/60 backdrop-blur-md relative z-20">
     <div class="max-w-7xl mx-auto px-6">
       <div class="text-center max-w-2xl mx-auto mb-20" data-reveal>
@@ -492,7 +492,6 @@
         <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">Entry & Tables</h2>
         <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
       </div>
-      <!-- 3-Column layout perfectly balances all 6 cards across two rows -->
       <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
 
         <div data-reveal class="bg-brand-slate border border-white/5 rounded-3xl overflow-hidden group hover:border-brand-gold/40 transition-all duration-500 flex flex-col justify-between">
@@ -517,7 +516,6 @@
           </div>
         </div>
 
-        <!-- NEW: 6-Pax Bottle Bundle Card -->
         <div data-reveal class="bg-brand-slate border border-brand-gold/40 glow-hover rounded-3xl overflow-hidden group transition-all duration-500 flex flex-col justify-between relative">
           <div class="absolute top-4 right-4 z-20 font-mono text-[9px] tracking-widest border border-brand-gold text-brand-gold px-2 py-1 rounded-full uppercase bg-brand-obsidian/90">Value Deal</div>
           <div>
@@ -723,7 +721,6 @@
             </div>
           </div>
 
-          <!-- Package Selection Dropdown (UPDATED WITH 6-PAX BUNDLE) -->
           <div class="grid md:grid-cols-2 gap-6 mb-6">
             <div class="md:col-span-2">
               <label for="package" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Ticket / Package</label>
@@ -1406,6 +1403,31 @@
         closeLightbox();
       }
     });
+  })();
+
+  // Updated fetch timeout logic for the inline script execution
+  (function() {
+    async function fetchJsonWithRetry(url, { attempts = 4, timeoutMs = 15000, baseDelayMs = 900 } = {}) {
+      let lastErr;
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const controller = new AbortController();
+          const id = setTimeout(() => controller.abort(), timeoutMs);
+          const res = await fetch(url, { signal: controller.signal }).finally(() => clearTimeout(id));
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return await res.json();
+        } catch (err) {
+          lastErr = err;
+          if (i < attempts - 1) {
+            const delay = baseDelayMs * Math.pow(1.6, i);
+            await new Promise((r) => setTimeout(r, delay));
+          }
+        }
+      }
+      throw lastErr;
+    }
+    // Re-bind to global scope so any inline logic hitting this endpoint respects the 15s timeout
+    window.fetchJsonWithRetry = fetchJsonWithRetry;
   })();
   </script>
 </body>

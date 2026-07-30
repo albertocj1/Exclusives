@@ -136,6 +136,11 @@ class RemindPayload(BaseModel):
 
 app = FastAPI()
 
+@app.on_event("startup")
+def startup_event():
+    # Force the database connection to initialize immediately when the server boots
+    db()
+
 # Dynamically handle allowed origins from your .env string
 origins_str = os.environ.get("ALLOWED_ORIGINS", "*")
 if origins_str == "*":

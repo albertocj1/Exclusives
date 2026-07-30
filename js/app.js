@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .finally(() => clearTimeout(id));
     }
 
-    async function fetchJsonWithRetry(url, { attempts = 4, timeoutMs = 8000, baseDelayMs = 900 } = {}) {
+    async function fetchJsonWithRetry(url, { attempts = 4, timeoutMs = 15000, baseDelayMs = 900 } = {}) {
       let lastErr;
       for (let i = 0; i < attempts; i++) {
         try {
