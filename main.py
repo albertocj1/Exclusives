@@ -19,6 +19,15 @@ EVENT_CAPACITY = int(os.getenv("EVENT_CAPACITY", "150"))  # hard cap: no booking
 HOLD_MINUTES = int(os.getenv("HOLD_MINUTES", "15"))       # how long an unpaid booking holds its seat/table
 EXTRA_HEAD_FEE = 2500
 
+# Receipt upload validation
+ALLOWED_RECEIPT_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "application/pdf": ".pdf",
+}
+MAX_RECEIPT_SIZE = 10 * 1024 * 1024  # 10 MB
+
 # per: person | table | bundle
 # base_pax: guests included in base price
 # extra_head: if True, each guest beyond base_pax costs EXTRA_HEAD_FEE
@@ -56,6 +65,20 @@ def compute_total(package: str, guests: int) -> int:
         extra = max(0, guests - cfg["base_pax"])
         total += extra * EXTRA_HEAD_FEE
     return total
+
+
+def _is_valid_file_signature(data: bytes, content_type: str) -> bool:
+    """Check magic bytes so a renamed malicious file can't slip through
+    just because it claims an allowed Content-Type header."""
+    signatures = {
+        "image/jpeg": [b"\xff\xd8\xff"],
+        "image/png": [b"\x89PNG\r\n\x1a\n"],
+        "image/webp": [b"RIFF"],  # WEBP files start with RIFF....WEBP
+        "application/pdf": [b"%PDF-"],
+    }
+    expected = signatures.get(content_type, [])
+    return any(data.startswith(sig) for sig in expected)
+
 
 _client: Optional[Client] = None
 def db() -> Client:
@@ -294,12 +317,34 @@ async def submit_payment(booking_id: str, receipt: UploadFile = File(...)):
     if booking["status"] != "pending":
         raise HTTPException(status_code=400, detail="Cannot submit payment for this booking.")
 
+    # 1. Check declared content-type against allowlist
+    content_type = (receipt.content_type or "").lower()
+    if content_type not in ALLOWED_RECEIPT_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type. Please upload a JPG, PNG, WEBP, or PDF.",
+        )
+
+    # 2. Read bytes and check actual size (don't trust Content-Length header alone)
     file_bytes = await receipt.read()
-    file_ext = receipt.filename.split(".")[-1] if "." in receipt.filename else "jpg"
-    file_name = f"{booking_id}_{secrets.token_hex(4)}.{file_ext}"
+    if len(file_bytes) > MAX_RECEIPT_SIZE:
+        raise HTTPException(status_code=400, detail="File too large. Max size is 10MB.")
+    if len(file_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Empty file.")
+
+    # 3. Verify the file's actual bytes match the declared type (magic number check)
+    #    This stops someone renaming a .html/.js file to receipt.jpg
+    if not _is_valid_file_signature(file_bytes, content_type):
+        raise HTTPException(status_code=400, detail="File content doesn't match its type.")
+
+    # 4. Use a server-controlled extension, never trust the client's filename
+    file_ext = ALLOWED_RECEIPT_TYPES[content_type]
+    file_name = f"{booking_id}_{secrets.token_hex(4)}{file_ext}"
 
     try:
-        db().storage.from_("receipts").upload(file_name, file_bytes, {"content-type": receipt.content_type})
+        db().storage.from_("receipts").upload(
+            file_name, file_bytes, {"content-type": content_type}
+        )
         receipt_url = db().storage.from_("receipts").get_public_url(file_name)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Could not upload receipt: {str(e)}")

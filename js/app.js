@@ -590,6 +590,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const file = fileInput ? fileInput.files[0] : null;
       if (!file) return alert('Please upload a screenshot of your transfer receipt.');
 
+      const ALLOWED_RECEIPT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      const MAX_RECEIPT_SIZE = 10 * 1024 * 1024; // 10 MB
+      if (!ALLOWED_RECEIPT_TYPES.includes(file.type)) {
+        return alert('Please upload a JPG, PNG, WEBP, or PDF file.');
+      }
+      if (file.size > MAX_RECEIPT_SIZE) {
+        return alert('File too large. Max size is 10MB.');
+      }
+
       const originalLabel = submitRefBtn.textContent;
       setBusy(submitRefBtn, true, 'Uploading\u2026');
       
