@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Exclusives PH — Manila Bay Yacht Party</title>
+  <title>Exclusives PH — Manila Bay Yacht Sessions</title>
   <link rel="icon" type="image/x-icon" href="images/favicon.ico">
   <link rel="shortcut icon" href="images/favicon.ico">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -247,7 +247,7 @@
       <div class="absolute inset-0 horizon-glow"></div>
     </div>
     <div class="relative z-20 text-center max-w-4xl px-6 flex flex-col items-center">
-      <span class="font-mono text-xs md:text-sm tracking-[0.35em] text-brand-gold mb-6 uppercase mt-4">MANILA BAY · AUGUST 14, 2026 · 8PM</span>
+      <span class="font-mono text-xs md:text-sm tracking-[0.35em] text-brand-gold mb-6 uppercase mt-4">MANILA BAY · AUGUST 14, 2026 · 9PM</span>
       <img src="images/logo.png" alt="Exclusives PH"
            class="w-full max-w-md md:max-w-lg lg:max-w-xl h-auto object-contain mb-4 drop-shadow-[0_0_30px_rgba(245,197,24,0.35)]">
       <h1 class="font-serif text-5xl md:text-7xl lg:text-8xl font-semibold tracking-tight leading-[0.95] mb-8 text-transparent bg-clip-text bg-gradient-to-r from-brand-gold via-amber-300 to-brand-gold">
@@ -342,6 +342,29 @@
             <div class="flex items-center space-x-3"><span class="text-brand-gold font-serif text-lg">→</span><span class="text-brand-ice font-light">Full-deck light &amp; sound</span></div>
             <div class="flex items-center space-x-3"><span class="text-brand-gold font-serif text-lg">→</span><span class="text-brand-ice font-light">Strictly 18+, vetted list</span></div>
           </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= VIDEO TOUR ================= -->
+  <section id="tour" class="py-28 bg-brand-slate/40 backdrop-blur-md border-b border-white/5 relative z-20">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="text-center max-w-2xl mx-auto mb-16" data-reveal>
+        <span class="font-mono text-[11px] tracking-[0.3em] text-brand-gold uppercase block mb-3">The Experience</span>
+        <h2 class="font-serif text-4xl md:text-6xl font-medium tracking-tight">Tour the Yacht</h2>
+        <div class="w-16 h-[2px] bg-brand-gold mx-auto mt-6 rounded-full"></div>
+      </div>
+      
+      <!-- Video Container: Limits width on desktop so the vertical video doesn't stretch massively -->
+      <div class="max-w-sm mx-auto" data-reveal>
+        <div class="relative rounded-3xl overflow-hidden border border-brand-gold/30 shadow-[0_0_40px_rgba(245,197,24,0.15)] bg-black">
+          <video class="w-full h-auto block" controls playsinline loop muted autoplay>
+            <source src="videos/video.mov" type="video/quicktime">
+            <!-- Optional fallback for maximum browser support if you ever export to MP4 -->
+            <!-- <source src="videos/yacht-tour.mp4" type="video/mp4"> -->
+            Your browser does not support the video tag.
+          </video>
         </div>
       </div>
     </div>
@@ -721,6 +744,7 @@
             </div>
           </div>
 
+          <!-- Package Selection Dropdown -->
           <div class="grid md:grid-cols-2 gap-6 mb-6">
             <div class="md:col-span-2">
               <label for="package" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Ticket / Package</label>
@@ -991,7 +1015,7 @@
 
       <div class="mb-6 relative z-10">
         <label for="receipt-upload" class="block font-mono text-[11px] tracking-wider text-brand-muted mb-2 uppercase">Upload Screenshot</label>
-        <input type="file" id="receipt-upload" accept="image/*" class="w-full bg-brand-obsidian border border-white/10 rounded-xl text-brand-ice font-light text-sm px-4 py-3 outline-none focus:border-brand-gold file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-mono file:bg-brand-gold file:text-brand-obsidian hover:file:bg-brand-ice transition-colors cursor-pointer">
+        <input type="file" id="receipt-upload" accept="image/*,application/pdf" class="w-full bg-brand-obsidian border border-white/10 rounded-xl text-brand-ice font-light text-sm px-4 py-3 outline-none focus:border-brand-gold file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-mono file:bg-brand-gold file:text-brand-obsidian hover:file:bg-brand-ice transition-colors cursor-pointer">
       </div>
 
       <button id="submit-reference" class="w-full py-4 rounded-full bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-[0.2em] hover:bg-brand-ice transition-colors duration-300 uppercase relative z-10">Submit Receipt</button>
@@ -1426,7 +1450,6 @@
       }
       throw lastErr;
     }
-    // Re-bind to global scope so any inline logic hitting this endpoint respects the 15s timeout
     window.fetchJsonWithRetry = fetchJsonWithRetry;
   })();
   </script>
