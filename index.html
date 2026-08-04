@@ -313,7 +313,7 @@
         <div data-reveal class="bg-brand-slate p-3 rounded-3xl border border-white/5 glow-hover transition-all duration-500">
           <div class="overflow-hidden rounded-2xl">
             <img src="images/night-yacht.png" alt="Happy Life Yacht docked on Manila Bay at night, with the city skyline behind"
-                 class="w-full h-auto block">
+                 class="w-full h-auto block" loading="lazy" decoding="async">
           </div>
           <div class="px-5 pt-5 pb-2 md:px-6 md:pt-6 md:pb-3">
             <h4 class="font-mono text-brand-gold text-[11px] tracking-widest uppercase mb-1">Happy Life Yacht</h4>
@@ -359,7 +359,11 @@
       <!-- Video Container: Limits width on desktop so the vertical video doesn't stretch massively -->
       <div class="max-w-sm mx-auto" data-reveal>
         <div class="relative rounded-3xl overflow-hidden border border-brand-gold/30 shadow-[0_0_40px_rgba(245,197,24,0.15)] bg-black">
-          <video class="w-full h-auto block" controls playsinline loop muted autoplay>
+          <!-- preload="none" + poster: the full video no longer downloads on page load for every
+               visitor. It only fetches once someone actually presses play. Export a compressed
+               still frame (~100-150KB) from the video as images/video-poster.webp and drop it in
+               the images/ folder. -->
+          <video class="w-full h-auto block" controls playsinline loop muted preload="none" poster="images/video-poster.webp">
             <source src="videos/video.mp4" type="video/mp4">
             <!-- Optional fallback for maximum browser support if you ever export to MP4 -->
             <!-- <source src="videos/yacht-tour.mp4" type="video/mp4"> -->
@@ -488,13 +492,13 @@
 
       <div data-reveal class="relative bg-black border border-white/10 rounded-3xl overflow-hidden glow-hover transition-all duration-500">
         <div class="deck-panel" data-deck="lower">
-          <img src="images/deck-lower.png" alt="Lower Deck floor plan" class="w-full h-auto block">
+          <img src="images/deck-lower.png" alt="Lower Deck floor plan" class="w-full h-auto block" loading="lazy" decoding="async">
         </div>
         <div class="deck-panel hidden" data-deck="main">
-          <img src="images/deck-main.png" alt="Main Deck floor plan" class="w-full h-auto block">
+          <img src="images/deck-main.png" alt="Main Deck floor plan" class="w-full h-auto block" loading="lazy" decoding="async">
         </div>
         <div class="deck-panel hidden" data-deck="sky">
-          <img src="images/deck-sky.png" alt="Sky Deck floor plan" class="w-full h-auto block">
+          <img src="images/deck-sky.png" alt="Sky Deck floor plan" class="w-full h-auto block" loading="lazy" decoding="async">
         </div>
       </div>
 
@@ -999,8 +1003,8 @@
       <div class="relative z-10 mb-6">
         <button id="qr-zoom-trigger" type="button" aria-label="Tap to enlarge QR code"
                 class="bg-white p-3 rounded-2xl mx-auto w-72 h-72 flex items-center justify-center border-4 border-brand-gold/20 hover:border-brand-gold/60 transition-colors duration-300 cursor-zoom-in outline-none">
-          <img id="qr-gcash" src="images/gcash-qr.png" alt="GCash QR code" class="max-w-full max-h-full object-contain">
-          <img id="qr-maribank" src="images/maribank-qr.png" alt="Maribank QR code" class="hidden max-w-full max-h-full object-contain">
+          <img id="qr-gcash" src="images/gcash-qr.png" alt="GCash QR code" class="max-w-full max-h-full object-contain" loading="lazy" decoding="async">
+          <img id="qr-maribank" src="images/maribank-qr.png" alt="Maribank QR code" class="hidden max-w-full max-h-full object-contain" loading="lazy" decoding="async">
         </button>
         <p id="payment-qr-label" class="text-center font-mono text-[10px] tracking-[0.25em] text-brand-gold uppercase mt-3">GCash</p>
 
@@ -1091,7 +1095,7 @@
       <div class="space-y-4 md:col-span-2">
         <div class="flex items-center space-x-3">
           <div class="w-40 md:w-56 h-10 md:h-16 relative overflow-hidden">
-            <img src="images/logo.png" alt="Exclusives PH Logo" class="absolute inset-0 w-full h-full object-contain object-center">
+            <img src="images/logo.png" alt="Exclusives PH Logo" class="absolute inset-0 w-full h-full object-contain object-center" loading="lazy" decoding="async">
           </div>
         </div>
         <p class="text-brand-muted text-xs leading-relaxed max-w-sm font-light">A lifestyle and events platform for entrepreneurs, professionals, and creatives. Exclusive Yacht Party 2026 — August 14, aboard Happy Life Yacht at the Manila Yacht Club.</p>
