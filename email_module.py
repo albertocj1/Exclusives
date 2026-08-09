@@ -72,6 +72,8 @@ EVENT_DATE_SHORT = "Aug 14, 2026 &middot; 8:00 PM"
 # Path to the logo file used in the email header. Override with LOGO_PATH if
 # your deploy layout differs from the frontend's images/ folder.
 LOGO_PATH = os.environ.get("LOGO_PATH", "images/logo.png")
+BOTTLE_POSTER_PATH = os.environ.get("BOTTLE_POSTER_PATH", "images/bottle-poster.jpg")
+FOOD_POSTER_PATH = os.environ.get("FOOD_POSTER_PATH", "images/food-poster.jpg")
 
 
 def get_gmail_service():
@@ -127,6 +129,18 @@ def _load_logo_bytes() -> bytes | None:
             return f.read()
     except FileNotFoundError:
         print(f"WARNING: logo not found at {LOGO_PATH}; falling back to text wordmark.")
+        return None
+
+
+def _load_image_bytes(path: str, label: str) -> bytes | None:
+    """Generic version of _load_logo_bytes for the bottle/food poster images —
+    returns None on a missing file so the email still sends (just without that
+    image) instead of failing outright."""
+    try:
+        with open(path, "rb") as f:
+            return f.read()
+    except FileNotFoundError:
+        print(f"WARNING: {label} not found at {path}; sending email without it.")
         return None
 
 
@@ -347,6 +361,20 @@ def send_event_details_email(to_email, guest_name):
             logo_msgid = make_msgid(domain="exclusivesph")
             logo_cid = logo_msgid[1:-1]
 
+        bottle_bytes = _load_image_bytes(BOTTLE_POSTER_PATH, "bottle poster")
+        bottle_msgid = None
+        bottle_cid = None
+        if bottle_bytes:
+            bottle_msgid = make_msgid(domain="exclusivesph")
+            bottle_cid = bottle_msgid[1:-1]
+
+        food_bytes = _load_image_bytes(FOOD_POSTER_PATH, "food poster")
+        food_msgid = None
+        food_cid = None
+        if food_bytes:
+            food_msgid = make_msgid(domain="exclusivesph")
+            food_cid = food_msgid[1:-1]
+
         if logo_cid:
             wordmark_html = f"""
           <img src="cid:{logo_cid}" alt="Exclusives PH" width="200" style="display:block; width:200px; max-width:60%; height:auto; border:0; margin:0 auto;">
@@ -391,6 +419,32 @@ def send_event_details_email(to_email, guest_name):
         bottle_rows_html = choice_rows_html(bottle_lines)
         food_rows_html = choice_rows_html(FOOD_OPTIONS)
 
+        # Poster images sit OUTSIDE the blend wrapper with a gradient-locked
+        # container, same rule as the QR code and logo — see the dark-mode
+        # notes at the top of this file. Falls back to empty string (just the
+        # text list below it) if the file isn't found on disk.
+        bottle_poster_html = ""
+        if bottle_cid:
+            bottle_poster_html = f"""
+        <tr><td align="center" style="padding:22px 32px 0 32px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card-edge" style="background-color:#60602D; background-image:linear-gradient(#60602D,#60602D); border-radius:16px; padding:1px;">
+            <tr><td style="line-height:0; font-size:0;">
+              <img src="cid:{bottle_cid}" alt="Choose your complimentary bottle: Absolut Vodka, Johnnie Walker Black Label, or J\u00e4germeister" width="416" style="display:block; width:100%; max-width:416px; height:auto; border:0; border-radius:15px;">
+            </td></tr>
+          </table>
+        </td></tr>"""
+
+        food_poster_html = ""
+        if food_cid:
+            food_poster_html = f"""
+        <tr><td align="center" style="padding:20px 32px 0 32px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card-edge" style="background-color:#60602D; background-image:linear-gradient(#60602D,#60602D); border-radius:16px; padding:1px;">
+            <tr><td style="line-height:0; font-size:0;">
+              <img src="cid:{food_cid}" alt="Choose one complimentary food item: Nachos, Tacos, or Charcuterie Board" width="416" style="display:block; width:100%; max-width:416px; height:auto; border:0; border-radius:15px;">
+            </td></tr>
+          </table>
+        </td></tr>"""
+
         html_body = f"""\
 <!DOCTYPE html>
 <html lang="en">
@@ -433,7 +487,7 @@ def send_event_details_email(to_email, guest_name):
             </div>
           </div></div>
         </td></tr>
-
+{bottle_poster_html}
         <tr><td style="padding:22px 32px 4px 32px;">
           <div class="gmail-blend-screen"><div class="gmail-blend-difference">
             <div class="text-gold" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; color:#F5C518; text-transform:uppercase; font-weight:bold;">Your Complimentary Bottle</div>
@@ -447,7 +501,7 @@ def send_event_details_email(to_email, guest_name):
             <div style="border-top:2px dashed #55582E; font-size:0; line-height:0;">&nbsp;</div>
           </div></div>
         </td></tr>
-
+{food_poster_html}
         <tr><td style="padding:20px 32px 4px 32px;">
           <div class="gmail-blend-screen"><div class="gmail-blend-difference">
             <div class="text-gold" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; color:#F5C518; text-transform:uppercase; font-weight:bold;">Your Complimentary Food Item</div>
@@ -472,10 +526,26 @@ def send_event_details_email(to_email, guest_name):
           </table>
         </td></tr>
 
-        <tr><td style="padding:8px 32px 36px 32px;">
+        <tr><td style="padding:8px 32px 8px 32px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="notice-edge" style="background-color:#4C532F; background-image:linear-gradient(#4C532F,#4C532F); border-radius:14px;">
+            <tr><td style="padding:1px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="notice-bg" style="background-color:#223635; background-image:linear-gradient(#223635,#223635); border-radius:13px;">
+                <tr><td style="padding:16px;">
+                  <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+                    <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6;">
+                      <span class="text-gold" style="color:#F5C518; font-weight:bold;">Bring your own clean slippers</span> &mdash; advisable for onboard comfort.
+                    </div>
+                  </div></div>
+                </td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <tr><td style="padding:16px 32px 36px 32px;">
           <div class="gmail-blend-screen"><div class="gmail-blend-difference">
             <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6; border-top:1px solid #1E3744; padding-top:16px;">
-              Also &mdash; advisable to bring your own clean slippers. Check-in 8:00pm &middot; Manila Yacht Club. See you on board!
+              Check-in 8:00pm &middot; Manila Yacht Club. See you on board!
             </div>
           </div></div>
         </td></tr>
@@ -506,7 +576,7 @@ def send_event_details_email(to_email, guest_name):
             f"Reply to this email with your bottle and food selections by {RSVP_DEADLINE}. "
             f"If we don't hear from you by then, your complimentary bottle and food item "
             f"will be assigned based on availability.\n\n"
-            f"Also - advisable to bring your own clean slippers.\n\n"
+            f"** BRING YOUR OWN CLEAN SLIPPERS ** -- advisable for onboard comfort.\n\n"
             f"Check-in 8:00pm - Manila Yacht Club. See you on board!\n\n"
             f"Exclusives PH"
         )
@@ -518,9 +588,13 @@ def send_event_details_email(to_email, guest_name):
         msg.set_content(text_body)
         msg.add_alternative(html_body, subtype='html')
 
+        html_part = msg.get_payload()[1]
         if logo_bytes:
-            html_part = msg.get_payload()[1]
             html_part.add_related(logo_bytes, maintype='image', subtype='png', cid=logo_msgid)
+        if bottle_bytes:
+            html_part.add_related(bottle_bytes, maintype='image', subtype='jpeg', cid=bottle_msgid)
+        if food_bytes:
+            html_part.add_related(food_bytes, maintype='image', subtype='jpeg', cid=food_msgid)
 
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         service.users().messages().send(userId="me", body={'raw': raw}).execute()
