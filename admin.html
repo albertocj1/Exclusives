@@ -51,6 +51,7 @@
       <div class="flex items-center gap-3">
         <!-- Remind Pending Button -->
         <button id="remind-pending" title="Send payment reminders to checked pending bookings (or all if none checked)" class="font-mono text-[11px] tracking-widest uppercase border border-amber-400/40 text-amber-300 hover:bg-amber-400/10 hover:border-amber-300 rounded-full px-5 py-2 transition-colors">Remind Pending</button>
+        <button id="notify-confirmed" title="Send drink/food choices + slippers note to checked confirmed bookings (or all if none checked)" class="font-mono text-[11px] tracking-widest uppercase border border-sky-400/40 text-sky-300 hover:bg-sky-400/10 hover:border-sky-300 rounded-full px-5 py-2 transition-colors">Send Event Details</button>
         <button id="export-xlsx" title="Full manifest + a Bookings sheet for reconciliation" class="font-mono text-[11px] tracking-widest uppercase border border-emerald-400/40 text-emerald-300 hover:bg-emerald-400/10 hover:border-emerald-300 rounded-full px-5 py-2 transition-colors">Excel (Full)</button>
         <button id="export-names" title="Guest name, who booked them, ticket code — nothing else" class="font-mono text-[11px] tracking-widest uppercase border border-cyan-400/40 text-cyan-300 hover:bg-cyan-400/10 hover:border-cyan-300 rounded-full px-5 py-2 transition-colors">Excel (Names)</button>
         <button id="export-pdf" title="Printable A4 passenger manifest for the yacht club" class="font-mono text-[11px] tracking-widest uppercase border border-brand-gold/40 text-brand-gold hover:bg-brand-goldDim/30 hover:border-brand-gold rounded-full px-5 py-2 transition-colors">Export PDF</button>
@@ -97,7 +98,7 @@
         <table class="w-full text-sm min-w-[950px]">
           <thead class="bg-brand-obsidian/50 text-brand-muted font-mono text-[10px] tracking-widest uppercase">
             <tr>
-              <th class="px-4 py-3 w-10 text-center"><input type="checkbox" id="select-all-cb" title="Select / deselect all visible pending bookings" class="rounded bg-brand-obsidian border-white/20 accent-brand-gold cursor-pointer w-4 h-4"></th>
+              <th class="px-4 py-3 w-10 text-center"><input type="checkbox" id="select-all-cb" title="Select / deselect all visible pending or confirmed bookings" class="rounded bg-brand-obsidian border-white/20 accent-brand-gold cursor-pointer w-4 h-4"></th>
               <th class="text-left px-4 py-3">Guest</th>
               <th class="text-left px-4 py-3">Instagram</th>
               <th class="text-left px-4 py-3">Referred by</th>
@@ -626,7 +627,7 @@
     const selectAllCb = $('select-all-cb');
     if (selectAllCb) {
       selectAllCb.addEventListener('change', () => {
-        document.querySelectorAll('.pending-cb').forEach((cb) => {
+        document.querySelectorAll('.row-cb').forEach((cb) => {
           cb.checked = selectAllCb.checked;
         });
       });
@@ -634,7 +635,7 @@
 
     // Remind Pending Button Event Listener (with selective checked logic)
     $('remind-pending').addEventListener('click', async () => {
-      const checkedEls = Array.from(document.querySelectorAll('.pending-cb:checked'));
+      const checkedEls = Array.from(document.querySelectorAll('.row-cb:checked'));
       let targetRows = [];
 
       if (checkedEls.length > 0) {
@@ -690,7 +691,76 @@
           return;
         }
         alert(`Success! Queued payment reminders for ${d.reminded_count} guest(s). ${d.duplicates_skipped} duplicate(s) skipped.`);
-        document.querySelectorAll('.pending-cb:checked').forEach((cb) => cb.checked = false);
+        document.querySelectorAll('.row-cb:checked').forEach((cb) => cb.checked = false);
+        if ($('select-all-cb')) $('select-all-cb').checked = false;
+      } catch (e) {
+        alert('Could not reach the backend server.');
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        btn.style.opacity = '1';
+      }
+    });
+
+    // Send Event Details Button Event Listener (drinks/food choices + slippers note)
+    $('notify-confirmed').addEventListener('click', async () => {
+      const checkedEls = Array.from(document.querySelectorAll('.row-cb:checked'));
+      let targetRows = [];
+
+      if (checkedEls.length > 0) {
+        const checkedIds = new Set(checkedEls.map((el) => el.value));
+        targetRows = allRows.filter((r) => checkedIds.has(r.id) && r.status === 'confirmed');
+      } else {
+        const allConfirmed = allRows.filter((r) => r.status === 'confirmed');
+        if (!allConfirmed.length) {
+          alert('There are currently no confirmed bookings to notify.');
+          return;
+        }
+        if (!confirm(`No specific checkboxes selected.\n\nWould you like to send the pre-event details email to ALL ${allConfirmed.length} confirmed booking(s)?`)) {
+          return;
+        }
+        targetRows = allConfirmed;
+      }
+
+      if (!targetRows.length) {
+        alert('No valid confirmed bookings selected.');
+        return;
+      }
+
+      const uniqueEmails = new Set(targetRows.map((r) => String(r.email).toLowerCase().trim()));
+      const dups = targetRows.length - uniqueEmails.size;
+      const selectedIds = targetRows.map((r) => r.id);
+
+      let confirmMsg = `Send the pre-event details email (drink/food choices + slippers note) to ${uniqueEmails.size} unique guest(s)?`;
+      if (dups > 0) {
+        confirmMsg += `\n\n(${dups} duplicate email address attempt${dups === 1 ? '' : 'es'} will automatically be skipped.)`;
+      }
+
+      if (!confirm(confirmMsg)) return;
+
+      const btn = $('notify-confirmed');
+      const originalText = btn.textContent;
+      btn.textContent = 'Sending...';
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/bookings/notify-confirmed`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Key': adminKey
+          },
+          body: JSON.stringify({ booking_ids: selectedIds }),
+        });
+        if (res.status === 401) { showGate(); return; }
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          alert((d && d.detail) || 'Could not send event details emails.');
+          return;
+        }
+        alert(`Success! Queued event details emails for ${d.notified_count} guest(s). ${d.duplicates_skipped} duplicate(s) skipped.`);
+        document.querySelectorAll('.row-cb:checked').forEach((cb) => cb.checked = false);
         if ($('select-all-cb')) $('select-all-cb').checked = false;
       } catch (e) {
         alert('Could not reach the backend server.');
@@ -719,11 +789,13 @@
         const canCancel = r.status !== 'cancelled';
         const canApprove = r.status === 'verifying';
         const isPending = r.status === 'pending';
+        const isConfirmed = r.status === 'confirmed';
         const referrer = (r.referrer && String(r.referrer).trim()) ? esc(r.referrer) : '—';
 
-        // Checkbox cell: active for pending, grayed out dash for confirmed/cancelled
-        const cbCell = isPending
-          ? `<input type="checkbox" class="pending-cb rounded bg-brand-obsidian border-white/20 accent-brand-gold cursor-pointer w-4 h-4" value="${esc(r.id)}">`
+        // Checkbox cell: active for pending (Remind Pending) and confirmed (Send Event Details),
+        // grayed out dash for verifying/cancelled since neither bulk action applies to them.
+        const cbCell = (isPending || isConfirmed)
+          ? `<input type="checkbox" class="row-cb rounded bg-brand-obsidian border-white/20 accent-brand-gold cursor-pointer w-4 h-4" value="${esc(r.id)}">`
           : `<span class="text-brand-muted/30 text-xs">—</span>`;
 
         let igCell = '—';
