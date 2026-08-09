@@ -119,6 +119,91 @@
     </div>
   </div>
 
+  <!-- Edit booking modal -->
+  <div id="edit-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-brand-obsidian/85 backdrop-blur-md p-4">
+    <div class="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-brand-slate border border-white/10 rounded-3xl p-6 md:p-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="font-serif text-2xl text-brand-ice">Edit booking</h2>
+          <p id="edit-subtitle" class="font-mono text-[10px] tracking-widest text-brand-muted uppercase mt-1">&nbsp;</p>
+        </div>
+        <button id="edit-close" class="text-brand-muted hover:text-brand-ice text-2xl leading-none px-2">&times;</button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-1.5">Full name</label>
+          <input id="edit-full_name" type="text"
+                 class="w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-4 py-2.5 outline-none">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-1.5">Email</label>
+            <input id="edit-email" type="email"
+                   class="w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-4 py-2.5 outline-none">
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-1.5">Phone</label>
+            <input id="edit-phone" type="text"
+                   class="w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-4 py-2.5 outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-1.5">Instagram</label>
+            <input id="edit-instagram" type="text" placeholder="@handle"
+                   class="w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-4 py-2.5 outline-none">
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-1.5">Referred by</label>
+            <input id="edit-referrer" type="text"
+                   class="w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-4 py-2.5 outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-1.5">Package</label>
+            <select id="edit-package"
+                    class="w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-4 py-2.5 outline-none"></select>
+          </div>
+          <div>
+            <label class="block font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-1.5">Table / Spot</label>
+            <select id="edit-table"
+                    class="w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-4 py-2.5 outline-none"></select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-1.5">Guests</label>
+          <input id="edit-guests" type="number" min="1"
+                 class="w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-4 py-2.5 outline-none">
+        </div>
+
+        <div>
+          <label class="block font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-1.5">Guest names</label>
+          <div id="edit-guest-names" class="space-y-2"></div>
+        </div>
+
+        <div class="flex items-center justify-between pt-3 border-t border-white/10">
+          <span class="font-mono text-[10px] tracking-widest text-brand-muted uppercase">Total</span>
+          <span id="edit-total" class="font-mono text-brand-gold text-lg">₱0</span>
+        </div>
+
+        <p id="edit-error" class="text-red-400 text-xs font-mono hidden"></p>
+
+        <div class="flex gap-3 pt-2">
+          <button id="edit-cancel-btn" type="button"
+                  class="flex-1 font-mono text-[11px] tracking-widest uppercase border border-white/10 text-brand-muted hover:text-brand-ice hover:border-white/20 rounded-full py-3 transition-colors">Cancel</button>
+          <button id="edit-save" type="button"
+                  class="flex-1 font-mono text-[11px] tracking-widest uppercase bg-brand-gold text-brand-obsidian font-bold rounded-full py-3 hover:bg-brand-ice transition-colors">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
   (function () {
     'use strict';
@@ -135,6 +220,33 @@
       LC4: 'VIP 1',  LC7: 'VIP 2',  DC1: 'VIP 3',  DC2: 'VIP 4',
       DT1: 'Table 1', DT2: 'Table 2',
     };
+
+    // Mirrors PACKAGES / PACKAGE_SPOTS in main.py — keep these two in sync.
+    // Used only for the edit modal's live preview; the backend re-validates
+    // and recomputes the real total on save.
+    const EXTRA_HEAD_FEE = 2500;
+    const PACKAGES = {
+      'Entrance Fee':        { price: 2500,  per: 'person', basePax: 1, maxGuests: 12, extraHead: false },
+      '6-Pax Bottle Bundle': { price: 15000, per: 'bundle', basePax: 6, maxGuests: 6,  extraHead: false },
+      'Standing Table':      { price: 8000,  per: 'table',  basePax: 4, maxGuests: 4,  extraHead: false },
+      'Indoor Couch':        { price: 15000, per: 'table',  basePax: 6, maxGuests: 12, extraHead: true },
+      'Outdoor Couch':       { price: 15000, per: 'table',  basePax: 6, maxGuests: 12, extraHead: true },
+      'SVIP Couch':          { price: 20000, per: 'table',  basePax: 8, maxGuests: 14, extraHead: true },
+    };
+    const PACKAGE_SPOTS = {
+      'Standing Table': ['DT1', 'DT2'],
+      'Indoor Couch':   ['LC4', 'LC7'],
+      'Outdoor Couch':  ['DC1', 'DC2'],
+      'SVIP Couch':     ['LC1', 'LC2', 'LC3', 'LC5', 'LC6'],
+    };
+    function computeTotal(pkg, guests) {
+      const cfg = PACKAGES[pkg];
+      if (!cfg) return 0;
+      if (cfg.per === 'person') return cfg.price * guests;
+      let total = cfg.price;
+      if (cfg.extraHead) total += Math.max(0, guests - cfg.basePax) * EXTRA_HEAD_FEE;
+      return total;
+    }
 
     const EVENT = {
       name: 'Exclusives PH — Manila Bay Yacht Party',
@@ -631,6 +743,9 @@
         const pkgText = r.table_id ? `${esc(spotLabel(r.table_id))} · ${esc(r.package)}` : esc(r.package);
 
         let actionButtons = '';
+        if (canCancel) {
+           actionButtons += `<button data-edit="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-brand-gold hover:text-brand-ice border border-brand-gold/30 hover:border-brand-gold rounded-full px-3 py-1 transition-colors mr-2">Edit</button>`;
+        }
         if (canApprove) {
            actionButtons += `<button data-approve="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-emerald-300 hover:text-emerald-200 border border-emerald-400/30 hover:border-emerald-300 rounded-full px-3 py-1 transition-colors mr-2">Approve</button>`;
         }
@@ -667,6 +782,9 @@
       });
       tbody.querySelectorAll('[data-approve]').forEach((btn) => {
         btn.addEventListener('click', () => approveBooking(btn.getAttribute('data-approve')));
+      });
+      tbody.querySelectorAll('[data-edit]').forEach((btn) => {
+        btn.addEventListener('click', () => openEditModal(btn.getAttribute('data-edit')));
       });
     }
 
@@ -707,6 +825,188 @@
         alert('Could not reach the server.');
       }
     }
+
+    // -------------------------------------------------------------------
+    // Edit booking modal
+    // -------------------------------------------------------------------
+    let editingId = null;
+
+    function packageOptionsHtml() {
+      return Object.keys(PACKAGES).map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join('');
+    }
+
+    function tableOptionsHtml(pkg, selected) {
+      const cfg = PACKAGES[pkg];
+      const spots = PACKAGE_SPOTS[pkg] || [];
+      const options = [];
+      if (!cfg || cfg.per !== 'table') {
+        options.push(`<option value="">None</option>`);
+      }
+      spots.forEach((id) => {
+        options.push(`<option value="${esc(id)}">${esc(spotLabel(id))}</option>`);
+      });
+      let html = options.join('');
+      // Keep the currently-assigned table selectable even if it falls outside
+      // the package's normal spot list (edge case safety, shouldn't happen).
+      if (selected && !spots.includes(selected)) {
+        html = `<option value="${esc(selected)}">${esc(spotLabel(selected))}</option>` + html;
+      }
+      return html;
+    }
+
+    function renderGuestNameInputs(count, existingNames) {
+      const wrap = $('edit-guest-names');
+      const current = Array.from(wrap.querySelectorAll('input')).map((i) => i.value);
+      const base = existingNames || current;
+      wrap.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = `Guest ${i + 1} name`;
+        input.value = base[i] || '';
+        input.className = 'w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-4 py-2.5 outline-none';
+        wrap.appendChild(input);
+      }
+    }
+
+    function currentGuestNames() {
+      return Array.from($('edit-guest-names').querySelectorAll('input')).map((i) => i.value.trim());
+    }
+
+    function updateEditTotalPreview() {
+      const pkg = $('edit-package').value;
+      const guests = Number($('edit-guests').value) || 0;
+      $('edit-total').textContent = peso(computeTotal(pkg, guests));
+    }
+
+    function onEditPackageChange() {
+      const pkg = $('edit-package').value;
+      const cfg = PACKAGES[pkg];
+      const guestsInput = $('edit-guests');
+      const maxGuests = cfg ? cfg.maxGuests : 14;
+      guestsInput.max = maxGuests;
+      if (Number(guestsInput.value) > maxGuests) guestsInput.value = maxGuests;
+      if (Number(guestsInput.value) < 1) guestsInput.value = cfg ? cfg.basePax : 1;
+
+      const tableSelect = $('edit-table');
+      tableSelect.innerHTML = tableOptionsHtml(pkg, '');
+      tableSelect.disabled = !cfg;
+
+      renderGuestNameInputs(Number(guestsInput.value));
+      updateEditTotalPreview();
+    }
+
+    function openEditModal(id) {
+      const r = allRows.find((row) => row.id === id);
+      if (!r) return;
+      editingId = id;
+
+      $('edit-error').classList.add('hidden');
+      $('edit-subtitle').textContent = `${r.ticket_code || 'No ticket yet'} \u00B7 ${r.status}`;
+      $('edit-full_name').value = r.full_name || '';
+      $('edit-email').value = r.email || '';
+      $('edit-phone').value = r.phone || '';
+      $('edit-instagram').value = r.instagram || '';
+      $('edit-referrer').value = r.referrer || '';
+
+      $('edit-package').innerHTML = packageOptionsHtml();
+      $('edit-package').value = r.package;
+
+      $('edit-guests').value = r.guests || 1;
+
+      const cfg = PACKAGES[r.package];
+      $('edit-table').innerHTML = tableOptionsHtml(r.package, r.table_id);
+      $('edit-table').value = r.table_id || '';
+      $('edit-table').disabled = !cfg;
+
+      renderGuestNameInputs(r.guests || 0, Array.isArray(r.guest_names) ? r.guest_names : []);
+      updateEditTotalPreview();
+
+      $('edit-modal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+      $('edit-modal').classList.add('hidden');
+      editingId = null;
+    }
+
+    function extractErrorDetail(d) {
+      if (!d || !d.detail) return 'Could not save changes.';
+      if (typeof d.detail === 'string') return d.detail;
+      if (Array.isArray(d.detail)) return d.detail.map((e) => e.msg || JSON.stringify(e)).join(' ');
+      return 'Could not save changes.';
+    }
+
+    $('edit-close').addEventListener('click', closeEditModal);
+    $('edit-cancel-btn').addEventListener('click', closeEditModal);
+    $('edit-modal').addEventListener('click', (e) => { if (e.target.id === 'edit-modal') closeEditModal(); });
+
+    $('edit-package').addEventListener('change', onEditPackageChange);
+    $('edit-guests').addEventListener('input', () => {
+      const cfg = PACKAGES[$('edit-package').value];
+      const max = cfg ? cfg.maxGuests : 14;
+      let val = Number($('edit-guests').value) || 1;
+      if (val < 1) val = 1;
+      if (val > max) val = max;
+      $('edit-guests').value = val;
+      renderGuestNameInputs(val);
+      updateEditTotalPreview();
+    });
+    $('edit-table').addEventListener('change', updateEditTotalPreview);
+
+    $('edit-save').addEventListener('click', async () => {
+      if (!editingId) return;
+      const errEl = $('edit-error');
+      errEl.classList.add('hidden');
+
+      const guests = Number($('edit-guests').value) || 0;
+      const names = currentGuestNames().filter(Boolean);
+      if (names.length !== guests) {
+        errEl.textContent = `Please provide a name for each guest (${guests} required, got ${names.length}).`;
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      const body = {
+        full_name: $('edit-full_name').value.trim(),
+        email: $('edit-email').value.trim(),
+        phone: $('edit-phone').value.trim(),
+        instagram: $('edit-instagram').value.trim() || null,
+        referrer: $('edit-referrer').value.trim() || null,
+        package: $('edit-package').value,
+        table_id: $('edit-table').value || null,
+        guests: guests,
+        guest_names: names,
+      };
+
+      const btn = $('edit-save');
+      const originalText = btn.textContent;
+      btn.textContent = 'Saving…';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/bookings/${editingId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+          body: JSON.stringify(body),
+        });
+        if (res.status === 401) { closeEditModal(); showGate(); return; }
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          errEl.textContent = extractErrorDetail(d);
+          errEl.classList.remove('hidden');
+          return;
+        }
+        closeEditModal();
+        load();
+      } catch (e) {
+        errEl.textContent = 'Could not reach the server.';
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    });
 
     (async function boot() {
       if (adminKey && await tryKey(adminKey).catch(() => false)) {

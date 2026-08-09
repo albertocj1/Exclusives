@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exclusives PH — Bar & Food POS</title>
+  <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        fontFamily: { serif: ['Fraunces','serif'], sans: ['Archivo','sans-serif'], mono: ['Space Mono','monospace'] },
+        colors: { brand: {
+          obsidian:'#0A1A24', slate:'#102A38', gold:'#F5C518',
+          goldDim:'rgba(245,197,24,0.15)', ice:'#F2EADD', muted:'#8AA0AD'
+        }}
+      }}
+    }
+  </script>
+  <style>
+    /* Custom Scrollbar for POS */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(245, 197, 24, 0.2); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(245, 197, 24, 0.5); }
+    
+    .glow-hover:hover { box-shadow: 0 0 15px rgba(245, 197, 24, 0.15); border-color: #F5C518; }
+    .glass-panel { background: rgba(16, 42, 56, 0.7); backdrop-filter: blur(12px); }
+  </style>
+</head>
+<body class="bg-brand-obsidian text-brand-ice font-sans antialiased h-screen overflow-hidden flex selection:bg-brand-gold selection:text-brand-obsidian">
+
+  <!-- LEFT: MAIN POS AREA -->
+  <main class="flex-1 flex flex-col h-full overflow-hidden">
+    
+    <!-- TOP NAVBAR -->
+    <header class="h-20 border-b border-white/5 bg-brand-obsidian/80 backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-10">
+      <div class="flex items-center gap-4">
+        <div class="w-10 h-10 rounded-full border border-brand-gold/30 flex items-center justify-center text-brand-gold font-serif text-xl">E</div>
+        <div>
+          <h1 class="font-serif text-xl text-brand-ice tracking-tight leading-none">Exclusives Bar</h1>
+          <span class="font-mono text-[9px] tracking-widest text-brand-muted uppercase">Yacht Sessions POS</span>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-6">
+        <div class="text-right">
+          <div id="clock" class="font-mono text-sm text-brand-gold">00:00:00</div>
+          <div class="font-mono text-[9px] tracking-widest text-brand-muted uppercase">August 14, 2026</div>
+        </div>
+        <div class="h-8 w-px bg-white/10"></div>
+        <button class="flex items-center gap-2 group">
+          <div class="w-8 h-8 rounded-full bg-brand-slate border border-white/10 flex items-center justify-center group-hover:border-brand-gold transition-colors">
+            <span class="font-mono text-xs text-brand-ice">RØ</span>
+          </div>
+        </button>
+      </div>
+    </header>
+
+    <!-- CATEGORIES -->
+    <div class="px-6 py-5 border-b border-white/5 shrink-0">
+      <div class="flex gap-3 overflow-x-auto pb-2 scroll-smooth" id="category-filters">
+        <button data-cat="all" class="cat-btn font-mono text-[10px] tracking-widest uppercase px-5 py-2.5 rounded-full border border-brand-gold bg-brand-goldDim/20 text-brand-gold whitespace-nowrap transition-colors">All Items</button>
+        <button data-cat="drinks" class="cat-btn font-mono text-[10px] tracking-widest uppercase px-5 py-2.5 rounded-full border border-white/10 text-brand-muted hover:border-brand-gold/50 hover:text-brand-ice whitespace-nowrap transition-colors">Beverages & Cocktails</button>
+        <button data-cat="bites" class="cat-btn font-mono text-[10px] tracking-widest uppercase px-5 py-2.5 rounded-full border border-white/10 text-brand-muted hover:border-brand-gold/50 hover:text-brand-ice whitespace-nowrap transition-colors">Premium Bites</button>
+        <button data-cat="bottles" class="cat-btn font-mono text-[10px] tracking-widest uppercase px-5 py-2.5 rounded-full border border-white/10 text-brand-muted hover:border-brand-gold/50 hover:text-brand-ice whitespace-nowrap transition-colors">Hard Bottles</button>
+      </div>
+    </div>
+
+    <!-- ITEM GRID -->
+    <div class="flex-1 overflow-y-auto p-6">
+      <div id="products-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-20">
+        <!-- Products injected via JS -->
+      </div>
+    </div>
+  </main>
+
+  <!-- RIGHT: ORDER TICKET (CART) -->
+  <aside class="w-96 glass-panel border-l border-white/5 flex flex-col h-full shrink-0 z-20 shadow-2xl">
+    
+    <!-- TICKET HEADER -->
+    <div class="h-20 border-b border-white/5 flex items-center justify-between px-6 shrink-0">
+      <div>
+        <h2 class="font-serif text-xl text-brand-ice tracking-tight">Current Order</h2>
+        <span class="font-mono text-[10px] tracking-widest text-brand-gold uppercase" id="order-number">TKT-001</span>
+      </div>
+      <button id="clear-cart" class="font-mono text-[10px] tracking-widest text-red-400 hover:text-red-300 uppercase border border-red-400/30 hover:border-red-400/60 px-3 py-1.5 rounded-full transition-colors">Clear</button>
+    </div>
+
+    <!-- TICKET ITEMS -->
+    <div class="flex-1 overflow-y-auto p-6" id="cart-items">
+      <div class="h-full flex flex-col items-center justify-center text-center opacity-50 select-none" id="empty-cart-msg">
+        <div class="w-12 h-12 rounded-full border border-brand-muted/30 flex items-center justify-center mb-3">
+          <span class="font-serif text-brand-muted text-xl">+</span>
+        </div>
+        <p class="font-mono text-[10px] tracking-widest uppercase text-brand-muted">Order is empty</p>
+      </div>
+    </div>
+
+    <!-- TICKET SUMMARY & CHECKOUT -->
+    <div class="p-6 bg-brand-obsidian/50 border-t border-white/5 shrink-0">
+      <div class="space-y-3 mb-6">
+        <div class="flex justify-between font-mono text-xs text-brand-muted">
+          <span>Subtotal</span>
+          <span id="cart-subtotal">₱0</span>
+        </div>
+        <div class="flex justify-between font-mono text-xs text-brand-muted">
+          <span>Service Charge (10%)</span>
+          <span id="cart-tax">₱0</span>
+        </div>
+        <div class="h-px w-full bg-white/5 my-1"></div>
+        <div class="flex justify-between items-end">
+          <span class="font-mono text-[11px] tracking-widest text-brand-ice uppercase">Total</span>
+          <span id="cart-total" class="font-serif text-3xl text-brand-gold leading-none">₱0</span>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <button class="py-3 rounded-xl border border-white/10 hover:border-brand-gold font-mono text-[10px] tracking-widest uppercase text-brand-ice transition-colors">Charge Room</button>
+        <button class="py-3 rounded-xl border border-white/10 hover:border-cyan-400 font-mono text-[10px] tracking-widest uppercase text-brand-ice transition-colors">Card / QR</button>
+      </div>
+      <button id="pay-button" disabled class="w-full py-4 rounded-xl bg-brand-gold text-brand-obsidian font-mono text-xs font-bold tracking-[0.2em] uppercase hover:bg-brand-ice transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-brand-gold shadow-[0_0_20px_rgba(245,197,24,0.15)]">
+        Pay Exact Cash
+      </button>
+    </div>
+  </aside>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    const peso = (n) => '₱' + Number(n || 0).toLocaleString('en-PH');
+    
+    // Placeholder Products featuring elevated familiar favorites
+    const products = [
+      { id: 'b1', name: 'Golden Pearl Milk Tea', desc: 'Normal Sugar/Ice', price: 250, cat: 'drinks', color: 'from-amber-700/40 to-amber-900/40' },
+      { id: 'b2', name: 'Signature Iced Tea', desc: 'House Brew', price: 150, cat: 'drinks', color: 'from-orange-700/40 to-orange-900/40' },
+      { id: 'b3', name: 'Yacht Club Negroni', desc: 'Classic Cocktail', price: 450, cat: 'drinks', color: 'from-red-700/40 to-red-900/40' },
+      { id: 'b4', name: 'Midnight Old Fashioned', desc: 'Premium Spirit', price: 500, cat: 'drinks', color: 'from-amber-600/40 to-amber-800/40' },
+      
+      { id: 'f1', name: 'Truffle Pork Sisig', desc: 'Chicharon Crust', price: 380, cat: 'bites', color: 'from-stone-700/40 to-stone-900/40' },
+      { id: 'f2', name: 'Vigan Longganisa Bites', desc: 'Spiced Vinegar Dip', price: 320, cat: 'bites', color: 'from-red-800/40 to-stone-900/40' },
+      { id: 'f3', name: 'Mini Tapsilog Bowls', desc: 'Wagyu Beef, Quail Egg', price: 420, cat: 'bites', color: 'from-amber-800/40 to-stone-900/40' },
+      { id: 'f4', name: 'Artisan Burger Steak', desc: 'Mushroom Gravy', price: 350, cat: 'bites', color: 'from-zinc-700/40 to-zinc-900/40' },
+      { id: 'f5', name: 'Premium Pork Siomai', desc: 'Chili Garlic Crunch', price: 220, cat: 'bites', color: 'from-neutral-700/40 to-neutral-900/40' },
+      { id: 'f6', name: '24-Hour Fried Chicken', desc: 'Truffle Honey Glaze', price: 450, cat: 'bites', color: 'from-yellow-700/40 to-yellow-900/40' },
+      { id: 'f7', name: 'Classic Chicken Nuggets', desc: 'Curry Mayo', price: 280, cat: 'bites', color: 'from-yellow-600/40 to-orange-900/40' },
+      
+      { id: 'h1', name: 'Moët & Chandon Brut', desc: '750ml Bottle', price: 6500, cat: 'bottles', color: 'from-emerald-700/40 to-emerald-900/40' },
+      { id: 'h2', name: 'Hennessy VSOP', desc: '750ml Bottle', price: 8500, cat: 'bottles', color: 'from-amber-800/40 to-amber-950/40' },
+    ];
+
+    let cart = [];
+
+    const grid = document.getElementById('products-grid');
+    const cartEl = document.getElementById('cart-items');
+    const emptyMsg = document.getElementById('empty-cart-msg');
+    const subtotalEl = document.getElementById('cart-subtotal');
+    const taxEl = document.getElementById('cart-tax');
+    const totalEl = document.getElementById('cart-total');
+    const payBtn = document.getElementById('pay-button');
+
+    function renderProducts(filterCat = 'all') {
+      grid.innerHTML = '';
+      products.forEach(p => {
+        if (filterCat !== 'all' && p.cat !== filterCat) return;
+        
+        const card = document.createElement('div');
+        card.className = 'group cursor-pointer rounded-2xl bg-brand-slate border border-white/5 hover:border-brand-gold/60 transition-all duration-300 overflow-hidden flex flex-col h-48 relative shadow-lg';
+        card.onclick = () => addToCart(p);
+        
+        card.innerHTML = `
+          <div class="h-24 w-full bg-gradient-to-br ${p.color} relative">
+            <div class="absolute inset-0 bg-brand-obsidian/20 group-hover:bg-transparent transition-colors"></div>
+            <div class="absolute bottom-2 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+              <span class="bg-brand-gold text-brand-obsidian font-mono text-[9px] px-2 py-1 rounded-full font-bold uppercase tracking-widest">+ Add</span>
+            </div>
+          </div>
+          <div class="p-4 flex-1 flex flex-col justify-between bg-brand-slate relative z-10">
+            <div>
+              <h3 class="font-serif text-sm text-brand-ice leading-tight mb-1 group-hover:text-brand-gold transition-colors">${p.name}</h3>
+              <p class="font-mono text-[9px] text-brand-muted tracking-widest uppercase truncate">${p.desc}</p>
+            </div>
+            <div class="font-mono text-sm text-brand-gold">${peso(p.price)}</div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function addToCart(product) {
+      const existing = cart.find(i => i.id === product.id);
+      if (existing) {
+        existing.qty++;
+      } else {
+        cart.push({ ...product, qty: 1 });
+      }
+      renderCart();
+    }
+
+    function changeQty(id, delta) {
+      const item = cart.find(i => i.id === id);
+      if (!item) return;
+      item.qty += delta;
+      if (item.qty <= 0) {
+        cart = cart.filter(i => i.id !== id);
+      }
+      renderCart();
+    }
+
+    function renderCart() {
+      if (cart.length === 0) {
+        cartEl.innerHTML = '';
+        cartEl.appendChild(emptyMsg);
+        emptyMsg.style.display = 'flex';
+        payBtn.disabled = true;
+        subtotalEl.textContent = peso(0);
+        taxEl.textContent = peso(0);
+        totalEl.textContent = peso(0);
+        return;
+      }
+
+      emptyMsg.style.display = 'none';
+      cartEl.innerHTML = '';
+      
+      let subtotal = 0;
+      
+      cart.forEach(item => {
+        const itemTotal = item.price * item.qty;
+        subtotal += itemTotal;
+        
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between py-4 border-b border-white/5 last:border-0';
+        div.innerHTML = `
+          <div class="flex-1 pr-4">
+            <h4 class="font-serif text-sm text-brand-ice mb-1 leading-tight">${item.name}</h4>
+            <div class="font-mono text-[10px] text-brand-muted tracking-widest uppercase">${peso(item.price)} each</div>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <div class="flex items-center bg-brand-obsidian rounded-full border border-white/10">
+              <button onclick="changeQty('${item.id}', -1)" class="w-7 h-7 flex items-center justify-center text-brand-muted hover:text-brand-gold transition-colors font-mono font-bold">-</button>
+              <span class="w-6 text-center font-mono text-xs text-brand-ice">${item.qty}</span>
+              <button onclick="changeQty('${item.id}', 1)" class="w-7 h-7 flex items-center justify-center text-brand-muted hover:text-brand-gold transition-colors font-mono font-bold">+</button>
+            </div>
+            <div class="w-16 text-right font-mono text-sm text-brand-gold">${peso(itemTotal)}</div>
+          </div>
+        `;
+        cartEl.appendChild(cartEl.lastChild ? div : div);
+      });
+
+      const tax = subtotal * 0.10;
+      const total = subtotal + tax;
+
+      subtotalEl.textContent = peso(subtotal);
+      taxEl.textContent = peso(tax);
+      totalEl.textContent = peso(total);
+      payBtn.disabled = false;
+      
+      // Auto-scroll to bottom
+      cartEl.scrollTop = cartEl.scrollHeight;
+    }
+
+    document.getElementById('clear-cart').addEventListener('click', () => {
+      cart = [];
+      renderCart();
+    });
+
+    // Category Filtering Logic
+    document.querySelectorAll('.cat-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.cat-btn').forEach(b => {
+          b.className = 'cat-btn font-mono text-[10px] tracking-widest uppercase px-5 py-2.5 rounded-full border border-white/10 text-brand-muted hover:border-brand-gold/50 hover:text-brand-ice whitespace-nowrap transition-colors';
+        });
+        e.target.className = 'cat-btn font-mono text-[10px] tracking-widest uppercase px-5 py-2.5 rounded-full border border-brand-gold bg-brand-goldDim/20 text-brand-gold whitespace-nowrap transition-colors';
+        
+        renderProducts(e.target.getAttribute('data-cat'));
+      });
+    });
+
+    // Clock
+    setInterval(() => {
+      const now = new Date();
+      document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+    }, 1000);
+
+    // Initial Render
+    renderProducts();
+  </script>
+</body>
+</html>

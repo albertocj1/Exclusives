@@ -149,6 +149,34 @@ class Booking(BaseModel):
     guest_names: list[str] = Field(default_factory=list)
     created_at: datetime
 
+class BookingUpdate(BaseModel):
+    """Admin edit — every field optional so the client can send just what changed.
+    Uses `exclude_unset` server-side so an omitted field is left alone, while an
+    explicit `null` (e.g. clearing table_id) is still respected."""
+    full_name: Optional[str] = Field(None, min_length=2, max_length=120)
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = Field(None, min_length=7, max_length=20)
+    instagram: Optional[str] = None
+    referrer: Optional[str] = None
+    package: Optional[str] = None
+    table_id: Optional[str] = None
+    guests: Optional[int] = Field(None, ge=1, le=14)
+    guest_names: Optional[list[str]] = None
+
+    @field_validator("guest_names")
+    @classmethod
+    def _clean_names(cls, v):
+        if v is None:
+            return v
+        return [str(n).strip() for n in v if str(n).strip()]
+
+    @field_validator("package")
+    @classmethod
+    def _known_package(cls, v):
+        if v is not None and v not in PACKAGES:
+            raise ValueError(f"Unknown package: {v}")
+        return v
+
 class CheckinBody(BaseModel):
     heads_present: int = Field(..., ge=0, le=50)
 
@@ -361,6 +389,94 @@ async def submit_payment(booking_id: str, receipt: UploadFile = File(...)):
 @app.get("/api/bookings", dependencies=[Depends(require_admin)])
 def list_bookings():
     return db().table("bookings").select("*").order("created_at", desc=True).limit(1000).execute().data
+
+@app.patch("/api/bookings/{booking_id}", response_model=Booking, dependencies=[Depends(require_admin)])
+def update_booking(booking_id: str, payload: BookingUpdate):
+    existing = _get_booking(booking_id)
+    if existing["status"] == "cancelled":
+        raise HTTPException(status_code=400, detail="Cannot edit a cancelled booking.")
+
+    updates = payload.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update.")
+
+    merged = {**existing, **updates}
+
+    package = merged.get("package")
+    if package not in PACKAGES:
+        raise HTTPException(status_code=400, detail=f"Unknown package: {package}")
+    cfg = PACKAGES[package]
+
+    guests = merged.get("guests")
+    if not guests or guests < 1:
+        raise HTTPException(status_code=400, detail="Guests must be at least 1.")
+    if guests > cfg["max_guests"]:
+        raise HTTPException(status_code=400, detail=f"{package} allows at most {cfg['max_guests']} guests.")
+
+    table_id = merged.get("table_id")
+    if cfg["per"] == "table" and not table_id:
+        raise HTTPException(status_code=400, detail="This package requires selecting a table.")
+    if table_id:
+        allowed = PACKAGE_SPOTS.get(package, [])
+        if allowed and table_id not in allowed:
+            raise HTTPException(status_code=400, detail=f"{table_id} is not a valid spot for {package}.")
+
+    guest_names = merged.get("guest_names") or []
+    if len(guest_names) != guests:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Please provide a name for each guest ({guests} required, got {len(guest_names)}).",
+        )
+
+    # Capacity check — back out this booking's own current seats first, so
+    # editing a booking isn't blocked by the seats it already holds.
+    if guests != existing.get("guests"):
+        taken = _committed_guest_count()
+        counts_toward_cap = existing["status"] in ("confirmed", "verifying", "pending")
+        available = EVENT_CAPACITY - taken + (existing.get("guests", 0) if counts_toward_cap else 0)
+        if guests > available:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Only {available} spot{'s' if available != 1 else ''} available for this booking.",
+            )
+
+    # Table conflict check — exclude this booking's own row from the lookup.
+    if table_id and table_id != existing.get("table_id"):
+        lock_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
+        res = (
+            db().table("bookings").select("id, status, created_at")
+            .eq("table_id", table_id).neq("id", booking_id)
+            .in_("status", ["confirmed", "verifying", "pending"]).execute()
+        )
+        for b in (res.data or []):
+            st = b.get("status")
+            if st == "confirmed" or (st in ["pending", "verifying"] and b.get("created_at") >= lock_cutoff):
+                raise HTTPException(status_code=409, detail="That table is already reserved by another guest.")
+
+    update_payload = {
+        "full_name": merged.get("full_name"),
+        "email": merged.get("email"),
+        "phone": merged.get("phone"),
+        "instagram": merged.get("instagram"),
+        "referrer": merged.get("referrer"),
+        "package": package,
+        "table_id": table_id,
+        "guests": guests,
+        "guest_names": guest_names,
+        "unit_price": cfg["price"],
+        "total_amount": compute_total(package, guests),
+    }
+
+    try:
+        res = db().table("bookings").update(update_payload).eq("id", booking_id).execute()
+    except Exception as e:
+        if "23505" in str(e) or "duplicate key" in str(e).lower():
+            raise HTTPException(status_code=409, detail="That table is already reserved by another guest.")
+        raise
+
+    if not res.data:
+        raise HTTPException(status_code=502, detail="Failed to update booking.")
+    return Booking(**res.data[0])
 
 @app.post("/api/bookings/{booking_id}/approve", dependencies=[Depends(require_admin)])
 def approve_booking(booking_id: str, background_tasks: BackgroundTasks):
