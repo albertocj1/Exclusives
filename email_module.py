@@ -334,6 +334,200 @@ def send_approval_email(to_email, guest_name, ticket_code, package_name, guests=
         print(f"ERROR sending email to {to_email}: {str(e)}")
 
 
+def send_event_details_email(to_email, guest_name):
+    """Sends the pre-event choices email to an already-confirmed guest — pick a
+    complimentary bottle, pick a complimentary food item, reply by the RSVP
+    deadline, plus the bring-your-own-slippers note."""
+    try:
+        service = get_gmail_service()
+        logo_bytes = _load_logo_bytes()
+        logo_msgid = None
+        logo_cid = None
+        if logo_bytes:
+            logo_msgid = make_msgid(domain="exclusivesph")
+            logo_cid = logo_msgid[1:-1]
+
+        if logo_cid:
+            wordmark_html = f"""
+          <img src="cid:{logo_cid}" alt="Exclusives PH" width="200" style="display:block; width:200px; max-width:60%; height:auto; border:0; margin:0 auto;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:10px;">Manila Bay &middot; Yacht Sessions</div>
+          </div></div>"""
+        else:
+            wordmark_html = """
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <span class="text-gold" style="font-family:'Courier New', monospace; font-size:12px; letter-spacing:4px; color:#F5C518; text-transform:uppercase; font-weight:bold;">EXCLUSIVES&nbsp;PH</span>
+            <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:6px;">Manila Bay &middot; Yacht Sessions</div>
+          </div></div>"""
+
+        # Reply-by deadline for the bottle/food picks. Keep in sync with the
+        # BOTTLE.png / FOOD.png selection posters this copy is based on.
+        RSVP_DEADLINE = "August 12, 2026"
+        BOTTLE_OPTIONS = [
+            ("Absolut Vodka", "Sprite"),
+            ("Johnnie Walker Black Label", "Coca-Cola"),
+            ("J\u00e4germeister", "Red Bull"),
+        ]
+        FOOD_OPTIONS = ["Nachos", "Tacos", "Charcuterie Board"]
+
+        def choice_rows_html(lines):
+            rows = ""
+            for i, line in enumerate(lines, start=1):
+                rows += f"""
+              <tr>
+                <td valign="top" style="padding:8px 0; width:26px;">
+                  <div class="text-gold" style="color:#F5C518; font-family:'Courier New', monospace; font-size:13px; font-weight:bold;">{i}.</div>
+                </td>
+                <td valign="top" style="padding:8px 0;">
+                  <div class="text-cream" style="font-size:14px; color:#F2EADD; line-height:1.5;">{line}</div>
+                </td>
+              </tr>"""
+            return rows
+
+        bottle_lines = [
+            f'{name} <span class="text-muted" style="color:#8AA0AD;">&mdash; with {mixer}</span>'
+            for name, mixer in BOTTLE_OPTIONS
+        ]
+        bottle_rows_html = choice_rows_html(bottle_lines)
+        food_rows_html = choice_rows_html(FOOD_OPTIONS)
+
+        html_body = f"""\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
+<style>
+  :root {{ color-scheme: dark; supported-color-schemes: dark; }}
+  u + .body .gmail-blend-screen     {{ background:#000000; mix-blend-mode:screen; }}
+  u + .body .gmail-blend-difference {{ background:#000000; mix-blend-mode:difference; }}
+  u + .body .text-gold  {{ color:#F4BA00 !important; border-color:#F4BA00 !important; }}
+  u + .body .text-cream {{ color:#F1E6D3 !important; }}
+  u + .body .text-muted {{ color:#828D96 !important; }}
+  @media (prefers-color-scheme: dark) {{
+    .body-bg {{ background-color:#0A1A24 !important; }}
+    .card-edge {{ background-color:#60602D !important; }}
+    .card-bg {{ background-color:#102A38 !important; }}
+    .notice-edge{{ background-color:#4C532F !important; }}
+    .notice-bg  {{ background-color:#223635 !important; }}
+    .text-cream {{ color:#F2EADD !important; }}
+    .text-muted {{ color:#8AA0AD !important; }}
+    .text-gold  {{ color:#F5C518 !important; }}
+  }}
+</style>
+</head>
+<body class="body body-bg" style="margin:0; padding:0; background-color:#0A1A24; font-family:Arial, Helvetica, sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="body-bg" style="background-color:#0A1A24; background-image:linear-gradient(#0A1A24,#0A1A24); padding:32px 12px;">
+<tr><td align="center">
+  <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%;">
+    <tr><td align="center" style="padding-bottom:28px;">{wordmark_html}</td></tr>
+    <tr><td class="card-edge" style="background-color:#60602D; background-image:linear-gradient(#60602D,#60602D); border-radius:24px; padding:1px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card-bg" style="background-color:#102A38; background-image:linear-gradient(#102A38,#102A38); border-radius:23px;">
+        <tr><td align="center" style="padding:36px 32px 8px 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-cream" style="font-family:Georgia, 'Times New Roman', serif; font-size:26px; color:#F2EADD; letter-spacing:-0.5px;">Choose Your Bottle &amp; Food</div>
+            <div class="text-muted" style="font-size:13px; color:#8AA0AD; line-height:1.6; padding:14px 8px 0 8px;">
+              Hi {guest_name}, two quick picks before you board Exclusives PH &mdash; Manila Bay:
+            </div>
+          </div></div>
+        </td></tr>
+
+        <tr><td style="padding:22px 32px 4px 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-gold" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; color:#F5C518; text-transform:uppercase; font-weight:bold;">Your Complimentary Bottle</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{bottle_rows_html}
+            </table>
+          </div></div>
+        </td></tr>
+
+        <tr><td style="padding:0 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div style="border-top:2px dashed #55582E; font-size:0; line-height:0;">&nbsp;</div>
+          </div></div>
+        </td></tr>
+
+        <tr><td style="padding:20px 32px 4px 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-gold" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; color:#F5C518; text-transform:uppercase; font-weight:bold;">Your Complimentary Food Item</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{food_rows_html}
+            </table>
+          </div></div>
+        </td></tr>
+
+        <tr><td style="padding:20px 32px 8px 32px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="notice-edge" style="background-color:#4C532F; background-image:linear-gradient(#4C532F,#4C532F); border-radius:14px;">
+            <tr><td style="padding:1px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="notice-bg" style="background-color:#223635; background-image:linear-gradient(#223635,#223635); border-radius:13px;">
+                <tr><td style="padding:16px;">
+                  <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+                    <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6;">
+                      <span class="text-gold" style="color:#F5C518; font-weight:bold;">Reply to this email</span> with your bottle and food selections by <span class="text-gold" style="color:#F5C518; font-weight:bold;">{RSVP_DEADLINE}</span>. If we don't hear from you by then, your complimentary bottle and food item will be assigned based on availability.
+                    </div>
+                  </div></div>
+                </td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <tr><td style="padding:8px 32px 36px 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6; border-top:1px solid #1E3744; padding-top:16px;">
+              Also &mdash; advisable to bring your own clean slippers. Check-in 8:00pm &middot; Manila Yacht Club. See you on board!
+            </div>
+          </div></div>
+        </td></tr>
+      </table>
+    </td></tr>
+    <tr><td align="center" style="padding:28px 20px 8px 20px;">
+      <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+        <div class="text-muted" style="font-size:11px; color:#8AA0AD; line-height:1.7;">
+          Exclusives PH &middot; Manila Yacht Club, CCP Complex, Roxas Blvd, Malate, Manila<br>
+          Questions? Reply directly to this email.
+        </div>
+      </div></div>
+    </td></tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>"""
+
+        bottle_text = "\n".join(f"{i}. {name} - with {mixer}" for i, (name, mixer) in enumerate(BOTTLE_OPTIONS, start=1))
+        food_text = "\n".join(f"{i}. {item}" for i, item in enumerate(FOOD_OPTIONS, start=1))
+
+        text_body = (
+            f"Hi {guest_name},\n\n"
+            f"Two quick picks before you board Exclusives PH - Manila Bay:\n\n"
+            f"YOUR COMPLIMENTARY BOTTLE\n{bottle_text}\n\n"
+            f"YOUR COMPLIMENTARY FOOD ITEM\n{food_text}\n\n"
+            f"Reply to this email with your bottle and food selections by {RSVP_DEADLINE}. "
+            f"If we don't hear from you by then, your complimentary bottle and food item "
+            f"will be assigned based on availability.\n\n"
+            f"Also - advisable to bring your own clean slippers.\n\n"
+            f"Check-in 8:00pm - Manila Yacht Club. See you on board!\n\n"
+            f"Exclusives PH"
+        )
+
+        msg = EmailMessage()
+        msg['To'] = to_email
+        msg['From'] = os.environ.get("SENDER_EMAIL", "your-email@gmail.com")
+        msg['Subject'] = f"Choose your bottle & food — reply by {RSVP_DEADLINE.split(',')[0]}"
+        msg.set_content(text_body)
+        msg.add_alternative(html_body, subtype='html')
+
+        if logo_bytes:
+            html_part = msg.get_payload()[1]
+            html_part.add_related(logo_bytes, maintype='image', subtype='png', cid=logo_msgid)
+
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        service.users().messages().send(userId="me", body={'raw': raw}).execute()
+        print(f"Successfully sent event details email to {to_email}")
+    except Exception as e:
+        print(f"ERROR sending event details email to {to_email}: {str(e)}")
+
 def send_pending_reminder_email(to_email, guest_name, package_name, guests, total_amount):
     """Sends a friendly reminder to complete payment for a pending reservation."""
     try:
