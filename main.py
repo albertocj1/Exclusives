@@ -559,6 +559,7 @@ def notify_confirmed_bookings(payload: NotifyPayload, background_tasks: Backgrou
             send_event_details_email,
             to_email=email,
             guest_name=b["full_name"],
+            package_name=b["package"],
             table_id=b.get("table_id"),
         )
         notified_count += 1

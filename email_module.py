@@ -348,11 +348,38 @@ def send_approval_email(to_email, guest_name, ticket_code, package_name, guests=
         print(f"ERROR sending email to {to_email}: {str(e)}")
 
 
-def send_event_details_email(to_email, guest_name):
-    """Sends the pre-event choices email to an already-confirmed guest — pick a
-    complimentary bottle, pick a complimentary food item, reply by the RSVP
-    deadline, plus the bring-your-own-slippers note."""
+# Per-package complimentary bottle/food config for the pre-event choices email.
+# bottle_count: how many complimentary bottles this tier gets to pick (0 = no
+# bottle section at all). food: whether a complimentary food pick is offered.
+PACKAGE_TIER_CONFIG = {
+    "SVIP Couch":           {"bottle_count": 2, "food": True},
+    "Indoor Couch":         {"bottle_count": 1, "food": True},
+    "Outdoor Couch":        {"bottle_count": 1, "food": True},
+    "6-Pax Bottle Bundle":  {"bottle_count": 1, "food": False},
+    "Standing Table":       {"bottle_count": 0, "food": False},
+    "Entrance Fee":         {"bottle_count": 0, "food": False},
+}
+
+
+def send_event_details_email(to_email, guest_name, package_name=None, table_id=None):
+    """Sends the pre-event details email to an already-confirmed guest.
+
+    What's included depends on the package tier (see PACKAGE_TIER_CONFIG):
+      - SVIP Couch gets 2 complimentary bottle picks + a food pick.
+      - Indoor/Outdoor Couch (VIP) gets 1 complimentary bottle pick + a food pick.
+      - 6-Pax Bottle Bundle gets 1 complimentary bottle pick, no food.
+      - Standing Table / Entrance Fee get neither — just a plain confirmation
+        with check-in info.
+    Unknown/missing package_name falls back to no bottle/food section (safest
+    default — never over-promises a perk that wasn't paid for).
+    """
     try:
+        cfg = PACKAGE_TIER_CONFIG.get(package_name, {"bottle_count": 0, "food": False})
+        bottle_count = cfg["bottle_count"]
+        has_bottle = bottle_count > 0
+        has_food = cfg["food"]
+        has_choices = has_bottle or has_food
+
         service = get_gmail_service()
         logo_bytes = _load_logo_bytes()
         logo_msgid = None
@@ -361,19 +388,23 @@ def send_event_details_email(to_email, guest_name):
             logo_msgid = make_msgid(domain="exclusivesph")
             logo_cid = logo_msgid[1:-1]
 
-        bottle_bytes = _load_image_bytes(BOTTLE_POSTER_PATH, "bottle poster")
+        bottle_bytes = None
         bottle_msgid = None
         bottle_cid = None
-        if bottle_bytes:
-            bottle_msgid = make_msgid(domain="exclusivesph")
-            bottle_cid = bottle_msgid[1:-1]
+        if has_bottle:
+            bottle_bytes = _load_image_bytes(BOTTLE_POSTER_PATH, "bottle poster")
+            if bottle_bytes:
+                bottle_msgid = make_msgid(domain="exclusivesph")
+                bottle_cid = bottle_msgid[1:-1]
 
-        food_bytes = _load_image_bytes(FOOD_POSTER_PATH, "food poster")
+        food_bytes = None
         food_msgid = None
         food_cid = None
-        if food_bytes:
-            food_msgid = make_msgid(domain="exclusivesph")
-            food_cid = food_msgid[1:-1]
+        if has_food:
+            food_bytes = _load_image_bytes(FOOD_POSTER_PATH, "food poster")
+            if food_bytes:
+                food_msgid = make_msgid(domain="exclusivesph")
+                food_cid = food_msgid[1:-1]
 
         if logo_cid:
             wordmark_html = f"""
@@ -419,6 +450,8 @@ def send_event_details_email(to_email, guest_name):
         bottle_rows_html = choice_rows_html(bottle_lines)
         food_rows_html = choice_rows_html(FOOD_OPTIONS)
 
+        bottle_heading = "Your Complimentary Bottles &mdash; Pick 2" if bottle_count == 2 else "Your Complimentary Bottle"
+
         # Poster images sit OUTSIDE the blend wrapper with a gradient-locked
         # container, same rule as the QR code and logo — see the dark-mode
         # notes at the top of this file. Falls back to empty string (just the
@@ -444,6 +477,79 @@ def send_event_details_email(to_email, guest_name):
             </td></tr>
           </table>
         </td></tr>"""
+
+        # --- Conditionally-rendered sections -------------------------------
+        bottle_section_html = ""
+        if has_bottle:
+            bottle_section_html = f"""
+{bottle_poster_html}
+        <tr><td style="padding:22px 32px 4px 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-gold" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; color:#F5C518; text-transform:uppercase; font-weight:bold;">{bottle_heading}</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{bottle_rows_html}
+            </table>
+          </div></div>
+        </td></tr>"""
+
+        divider_html = ""
+        if has_bottle and has_food:
+            divider_html = """
+        <tr><td style="padding:0 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div style="border-top:2px dashed #55582E; font-size:0; line-height:0;">&nbsp;</div>
+          </div></div>
+        </td></tr>"""
+
+        food_section_html = ""
+        if has_food:
+            food_section_html = f"""
+{food_poster_html}
+        <tr><td style="padding:20px 32px 4px 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-gold" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; color:#F5C518; text-transform:uppercase; font-weight:bold;">Your Complimentary Food Item</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{food_rows_html}
+            </table>
+          </div></div>
+        </td></tr>"""
+
+        # Intro copy + reply notice adapt to what's actually being offered.
+        if has_bottle and has_food:
+            intro_line = "two quick picks before you board Exclusives PH &mdash; Manila Bay:"
+            reply_what = "your two bottle selections and food selection" if bottle_count == 2 else "your bottle and food selections"
+        elif has_bottle:
+            intro_line = ("your two complimentary bottle picks before you board Exclusives PH &mdash; Manila Bay:"
+                           if bottle_count == 2 else
+                           "your complimentary bottle pick before you board Exclusives PH &mdash; Manila Bay:")
+            reply_what = "your two bottle selections" if bottle_count == 2 else "your bottle selection"
+        elif has_food:
+            intro_line = "your complimentary food pick before you board Exclusives PH &mdash; Manila Bay:"
+            reply_what = "your food selection"
+        else:
+            intro_line = "you're all set to board Exclusives PH &mdash; Manila Bay:"
+            reply_what = None
+
+        reply_notice_html = ""
+        if reply_what:
+            reply_notice_html = f"""
+        <tr><td style="padding:20px 32px 8px 32px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="notice-edge" style="background-color:#4C532F; background-image:linear-gradient(#4C532F,#4C532F); border-radius:14px;">
+            <tr><td style="padding:1px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="notice-bg" style="background-color:#223635; background-image:linear-gradient(#223635,#223635); border-radius:13px;">
+                <tr><td style="padding:16px;">
+                  <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+                    <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6;">
+                      <span class="text-gold" style="color:#F5C518; font-weight:bold;">Reply to this email</span> with {reply_what} by <span class="text-gold" style="color:#F5C518; font-weight:bold;">{RSVP_DEADLINE}</span>. If we don't hear from you by then, these will be assigned based on availability.
+                    </div>
+                  </div></div>
+                </td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </td></tr>"""
+
+        heading_text = "Choose Your Bottle &amp; Food" if (has_bottle and has_food) else (
+            bottle_heading if has_bottle else ("Choose Your Food" if has_food else "You're Confirmed")
+        )
 
         html_body = f"""\
 <!DOCTYPE html>
@@ -481,50 +587,16 @@ def send_event_details_email(to_email, guest_name):
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card-bg" style="background-color:#102A38; background-image:linear-gradient(#102A38,#102A38); border-radius:23px;">
         <tr><td align="center" style="padding:36px 32px 8px 32px;">
           <div class="gmail-blend-screen"><div class="gmail-blend-difference">
-            <div class="text-cream" style="font-family:Georgia, 'Times New Roman', serif; font-size:26px; color:#F2EADD; letter-spacing:-0.5px;">Choose Your Bottle &amp; Food</div>
+            <div class="text-cream" style="font-family:Georgia, 'Times New Roman', serif; font-size:26px; color:#F2EADD; letter-spacing:-0.5px;">{heading_text}</div>
             <div class="text-muted" style="font-size:13px; color:#8AA0AD; line-height:1.6; padding:14px 8px 0 8px;">
-              Hi {guest_name}, two quick picks before you board Exclusives PH &mdash; Manila Bay:
+              Hi {guest_name}, {intro_line}
             </div>
           </div></div>
         </td></tr>
-{bottle_poster_html}
-        <tr><td style="padding:22px 32px 4px 32px;">
-          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
-            <div class="text-gold" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; color:#F5C518; text-transform:uppercase; font-weight:bold;">Your Complimentary Bottle</div>
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{bottle_rows_html}
-            </table>
-          </div></div>
-        </td></tr>
-
-        <tr><td style="padding:0 32px;">
-          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
-            <div style="border-top:2px dashed #55582E; font-size:0; line-height:0;">&nbsp;</div>
-          </div></div>
-        </td></tr>
-{food_poster_html}
-        <tr><td style="padding:20px 32px 4px 32px;">
-          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
-            <div class="text-gold" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; color:#F5C518; text-transform:uppercase; font-weight:bold;">Your Complimentary Food Item</div>
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{food_rows_html}
-            </table>
-          </div></div>
-        </td></tr>
-
-        <tr><td style="padding:20px 32px 8px 32px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="notice-edge" style="background-color:#4C532F; background-image:linear-gradient(#4C532F,#4C532F); border-radius:14px;">
-            <tr><td style="padding:1px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="notice-bg" style="background-color:#223635; background-image:linear-gradient(#223635,#223635); border-radius:13px;">
-                <tr><td style="padding:16px;">
-                  <div class="gmail-blend-screen"><div class="gmail-blend-difference">
-                    <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6;">
-                      <span class="text-gold" style="color:#F5C518; font-weight:bold;">Reply to this email</span> with your bottle and food selections by <span class="text-gold" style="color:#F5C518; font-weight:bold;">{RSVP_DEADLINE}</span>. If we don't hear from you by then, your complimentary bottle and food item will be assigned based on availability.
-                    </div>
-                  </div></div>
-                </td></tr>
-              </table>
-            </td></tr>
-          </table>
-        </td></tr>
+{bottle_section_html}
+{divider_html}
+{food_section_html}
+{reply_notice_html}
 
         <tr><td style="padding:8px 32px 8px 32px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="notice-edge" style="background-color:#4C532F; background-image:linear-gradient(#4C532F,#4C532F); border-radius:14px;">
@@ -565,26 +637,43 @@ def send_event_details_email(to_email, guest_name):
 </body>
 </html>"""
 
-        bottle_text = "\n".join(f"{i}. {name} - with {mixer}" for i, (name, mixer) in enumerate(BOTTLE_OPTIONS, start=1))
-        food_text = "\n".join(f"{i}. {item}" for i, item in enumerate(FOOD_OPTIONS, start=1))
+        text_sections = []
+        if has_bottle:
+            bottle_text = "\n".join(f"{i}. {name} - with {mixer}" for i, (name, mixer) in enumerate(BOTTLE_OPTIONS, start=1))
+            label = "YOUR COMPLIMENTARY BOTTLES (PICK 2)" if bottle_count == 2 else "YOUR COMPLIMENTARY BOTTLE"
+            text_sections.append(f"{label}\n{bottle_text}")
+        if has_food:
+            food_text = "\n".join(f"{i}. {item}" for i, item in enumerate(FOOD_OPTIONS, start=1))
+            text_sections.append(f"YOUR COMPLIMENTARY FOOD ITEM\n{food_text}")
 
-        text_body = (
-            f"Hi {guest_name},\n\n"
-            f"Two quick picks before you board Exclusives PH - Manila Bay:\n\n"
-            f"YOUR COMPLIMENTARY BOTTLE\n{bottle_text}\n\n"
-            f"YOUR COMPLIMENTARY FOOD ITEM\n{food_text}\n\n"
-            f"Reply to this email with your bottle and food selections by {RSVP_DEADLINE}. "
-            f"If we don't hear from you by then, your complimentary bottle and food item "
-            f"will be assigned based on availability.\n\n"
+        text_body = f"Hi {guest_name},\n\n"
+        text_body += ("Two quick picks" if (has_bottle and has_food) else "A quick note") + f" before you board Exclusives PH - Manila Bay:\n\n"
+        if text_sections:
+            text_body += "\n\n".join(text_sections) + "\n\n"
+        if reply_what:
+            text_body += (
+                f"Reply to this email with {reply_what} by {RSVP_DEADLINE}. "
+                f"If we don't hear from you by then, these will be assigned based on availability.\n\n"
+            )
+        text_body += (
             f"** BRING YOUR OWN CLEAN SLIPPERS ** -- advisable for onboard comfort.\n\n"
             f"Check-in 8:00pm - Manila Yacht Club. See you on board!\n\n"
             f"Exclusives PH"
         )
 
+        if has_bottle and has_food:
+            subject = f"Choose your bottle & food — reply by {RSVP_DEADLINE.split(',')[0]}"
+        elif has_bottle:
+            subject = f"Choose your bottle — reply by {RSVP_DEADLINE.split(',')[0]}"
+        elif has_food:
+            subject = f"Choose your food — reply by {RSVP_DEADLINE.split(',')[0]}"
+        else:
+            subject = "You're confirmed — Exclusives PH"
+
         msg = EmailMessage()
         msg['To'] = to_email
         msg['From'] = os.environ.get("SENDER_EMAIL", "your-email@gmail.com")
-        msg['Subject'] = f"Choose your bottle & food — reply by {RSVP_DEADLINE.split(',')[0]}"
+        msg['Subject'] = subject
         msg.set_content(text_body)
         msg.add_alternative(html_body, subtype='html')
 
@@ -598,9 +687,10 @@ def send_event_details_email(to_email, guest_name):
 
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         service.users().messages().send(userId="me", body={'raw': raw}).execute()
-        print(f"Successfully sent event details email to {to_email}")
+        print(f"Successfully sent event details email to {to_email} (package={package_name})")
     except Exception as e:
         print(f"ERROR sending event details email to {to_email}: {str(e)}")
+
 
 def send_pending_reminder_email(to_email, guest_name, package_name, guests, total_amount):
     """Sends a friendly reminder to complete payment for a pending reservation."""
