@@ -75,6 +75,14 @@ LOGO_PATH = os.environ.get("LOGO_PATH", "images/logo.png")
 BOTTLE_POSTER_PATH = os.environ.get("BOTTLE_POSTER_PATH", "images/bottle-poster.jpg")
 FOOD_POSTER_PATH = os.environ.get("FOOD_POSTER_PATH", "images/food-poster.jpg")
 
+# If set, the logo is referenced as a normal hosted <img src="..."> instead of
+# being embedded as an inline cid: MIME part. This avoids Gmail's behavior of
+# listing any cid-embedded image in its attachment strip (see email_module
+# dark-mode notes above for background) — a hosted URL has no MIME part at
+# all, so there's nothing for Gmail to list. Falls back to inline cid
+# embedding (LOGO_PATH) if this is empty.
+LOGO_URL = "https://gvtutnofyrkmyyclfshe.supabase.co/storage/v1/object/public/assets/logo.png"
+
 
 def get_gmail_service():
     creds = None
@@ -148,7 +156,13 @@ def _build_email_html(guest_name, ticket_code, package_name, guests, table_id, q
     table_display = _spot_label(table_id)
     guest_word = "guest" if str(guests) == "1" else "guests"
 
-    if logo_cid:
+    if LOGO_URL:
+        wordmark_html = f"""
+      <img src="{LOGO_URL}" alt="Exclusives PH" width="200" style="display:block; width:200px; max-width:60%; height:auto; border:0; margin:0 auto;">
+      <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+        <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:10px;">Manila Bay &middot; Yacht Sessions</div>
+      </div></div>"""
+    elif logo_cid:
         wordmark_html = f"""
       <img src="cid:{logo_cid}" alt="Exclusives PH" width="200" style="display:block; width:200px; max-width:60%; height:auto; border:0; margin:0 auto;">
       <div class="gmail-blend-screen"><div class="gmail-blend-difference">
@@ -306,7 +320,7 @@ def send_approval_email(to_email, guest_name, ticket_code, package_name, guests=
         qr_msgid = make_msgid(domain="exclusivesph")
         qr_cid = qr_msgid[1:-1]
 
-        logo_bytes = _load_logo_bytes()
+        logo_bytes = None if LOGO_URL else _load_logo_bytes()
         logo_msgid = None
         logo_cid = None
         if logo_bytes:
@@ -381,7 +395,7 @@ def send_event_details_email(to_email, guest_name, package_name=None, table_id=N
         has_choices = has_bottle or has_food
 
         service = get_gmail_service()
-        logo_bytes = _load_logo_bytes()
+        logo_bytes = None if LOGO_URL else _load_logo_bytes()
         logo_msgid = None
         logo_cid = None
         if logo_bytes:
@@ -406,7 +420,13 @@ def send_event_details_email(to_email, guest_name, package_name=None, table_id=N
                 food_msgid = make_msgid(domain="exclusivesph")
                 food_cid = food_msgid[1:-1]
 
-        if logo_cid:
+        if LOGO_URL:
+            wordmark_html = f"""
+          <img src="{LOGO_URL}" alt="Exclusives PH" width="200" style="display:block; width:200px; max-width:60%; height:auto; border:0; margin:0 auto;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:10px;">Manila Bay &middot; Yacht Sessions</div>
+          </div></div>"""
+        elif logo_cid:
             wordmark_html = f"""
           <img src="cid:{logo_cid}" alt="Exclusives PH" width="200" style="display:block; width:200px; max-width:60%; height:auto; border:0; margin:0 auto;">
           <div class="gmail-blend-screen"><div class="gmail-blend-difference">
@@ -696,7 +716,7 @@ def send_pending_reminder_email(to_email, guest_name, package_name, guests, tota
     """Sends a friendly reminder to complete payment for a pending reservation."""
     try:
         service = get_gmail_service()
-        logo_bytes = _load_logo_bytes()
+        logo_bytes = None if LOGO_URL else _load_logo_bytes()
         logo_msgid = None
         logo_cid = None
         if logo_bytes:
@@ -705,7 +725,13 @@ def send_pending_reminder_email(to_email, guest_name, package_name, guests, tota
 
         guest_word = "guest" if str(guests) == "1" else "guests"
 
-        if logo_cid:
+        if LOGO_URL:
+            wordmark_html = f"""
+          <img src="{LOGO_URL}" alt="Exclusives PH" width="200" style="display:block; width:200px; max-width:60%; height:auto; border:0; margin:0 auto;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:10px;">Manila Bay &middot; Yacht Sessions</div>
+          </div></div>"""
+        elif logo_cid:
             wordmark_html = f"""
           <img src="cid:{logo_cid}" alt="Exclusives PH" width="200" style="display:block; width:200px; max-width:60%; height:auto; border:0; margin:0 auto;">
           <div class="gmail-blend-screen"><div class="gmail-blend-difference">
