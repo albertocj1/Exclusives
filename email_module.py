@@ -337,9 +337,9 @@ def send_approval_email(to_email, guest_name, ticket_code, package_name, guests=
         msg.add_alternative(html_body, subtype='html')
 
         html_part = msg.get_payload()[1]
-        html_part.add_related(qr_png, maintype='image', subtype='png', cid=qr_msgid)
+        html_part.add_related(qr_png, maintype='image', subtype='png', cid=qr_msgid, filename='ticket-qr.png', disposition='inline')
         if logo_bytes:
-            html_part.add_related(logo_bytes, maintype='image', subtype='png', cid=logo_msgid)
+            html_part.add_related(logo_bytes, maintype='image', subtype='png', cid=logo_msgid, filename='logo.png', disposition='inline')
 
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         service.users().messages().send(userId="me", body={'raw': raw}).execute()
@@ -679,11 +679,11 @@ def send_event_details_email(to_email, guest_name, package_name=None, table_id=N
 
         html_part = msg.get_payload()[1]
         if logo_bytes:
-            html_part.add_related(logo_bytes, maintype='image', subtype='png', cid=logo_msgid)
+            html_part.add_related(logo_bytes, maintype='image', subtype='png', cid=logo_msgid, filename='logo.png', disposition='inline')
         if bottle_bytes:
-            html_part.add_related(bottle_bytes, maintype='image', subtype='jpeg', cid=bottle_msgid)
+            html_part.add_related(bottle_bytes, maintype='image', subtype='jpeg', cid=bottle_msgid, filename='bottle-poster.jpg', disposition='inline')
         if food_bytes:
-            html_part.add_related(food_bytes, maintype='image', subtype='jpeg', cid=food_msgid)
+            html_part.add_related(food_bytes, maintype='image', subtype='jpeg', cid=food_msgid, filename='food-poster.jpg', disposition='inline')
 
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         service.users().messages().send(userId="me", body={'raw': raw}).execute()
@@ -814,7 +814,7 @@ def send_pending_reminder_email(to_email, guest_name, package_name, guests, tota
 
         if logo_bytes:
             html_part = msg.get_payload()[1]
-            html_part.add_related(logo_bytes, maintype='image', subtype='png', cid=logo_msgid)
+            html_part.add_related(logo_bytes, maintype='image', subtype='png', cid=logo_msgid, filename='logo.png', disposition='inline')
 
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         service.users().messages().send(userId="me", body={'raw': raw}).execute()
