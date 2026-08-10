@@ -150,9 +150,6 @@ class Booking(BaseModel):
     created_at: datetime
 
 class BookingUpdate(BaseModel):
-    """Admin edit — every field optional so the client can send just what changed.
-    Uses `exclude_unset` server-side so an omitted field is left alone, while an
-    explicit `null` (e.g. clearing table_id) is still respected."""
     full_name: Optional[str] = Field(None, min_length=2, max_length=120)
     email: Optional[EmailStr] = None
     phone: Optional[str] = Field(None, min_length=7, max_length=20)
@@ -244,7 +241,6 @@ def _confirmed_guest_count() -> int:
 
 def _committed_guest_count() -> int:
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
-    # SINGLE QUERY: Fetch relevant statuses to calculate holds in memory.
     res = db().table("bookings").select("guests, status, created_at").in_("status", ["confirmed", "verifying", "pending"]).execute()
     
     taken = 0
@@ -282,7 +278,6 @@ def get_tables():
     all_tables = db().table("tables").select("*").execute().data
     lock_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
 
-    # SINGLE QUERY: Pull active table reservations and process locally to skip multiple round-trips
     res = db().table("bookings").select("table_id, status, created_at").in_("status", ["confirmed", "verifying", "pending"]).not_.is_("table_id", "null").execute()
     bookings = res.data or []
 
@@ -315,7 +310,6 @@ def create_booking(payload: BookingCreate):
     if payload.table_id:
         lock_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
         
-        # Consolidate duplicate table checks
         res = db().table("bookings").select("id, status, created_at").eq("table_id", payload.table_id).in_("status", ["confirmed", "verifying", "pending"]).execute()
         for b in (res.data or []):
             st = b.get("status")
@@ -348,7 +342,6 @@ async def submit_payment(booking_id: str, receipt: UploadFile = File(...)):
     if booking["status"] != "pending":
         raise HTTPException(status_code=400, detail="Cannot submit payment for this booking.")
 
-    # 1. Check declared content-type against allowlist
     content_type = (receipt.content_type or "").lower()
     if content_type not in ALLOWED_RECEIPT_TYPES:
         raise HTTPException(
@@ -356,19 +349,15 @@ async def submit_payment(booking_id: str, receipt: UploadFile = File(...)):
             detail="Invalid file type. Please upload a JPG, PNG, WEBP, or PDF.",
         )
 
-    # 2. Read bytes and check actual size (don't trust Content-Length header alone)
     file_bytes = await receipt.read()
     if len(file_bytes) > MAX_RECEIPT_SIZE:
         raise HTTPException(status_code=400, detail="File too large. Max size is 10MB.")
     if len(file_bytes) == 0:
         raise HTTPException(status_code=400, detail="Empty file.")
 
-    # 3. Verify the file's actual bytes match the declared type (magic number check)
-    #    This stops someone renaming a .html/.js file to receipt.jpg
     if not _is_valid_file_signature(file_bytes, content_type):
         raise HTTPException(status_code=400, detail="File content doesn't match its type.")
 
-    # 4. Use a server-controlled extension, never trust the client's filename
     file_ext = ALLOWED_RECEIPT_TYPES[content_type]
     file_name = f"{booking_id}_{secrets.token_hex(4)}{file_ext}"
 
@@ -431,8 +420,6 @@ def update_booking(booking_id: str, payload: BookingUpdate):
             detail=f"Please provide a name for each guest ({guests} required, got {len(guest_names)}).",
         )
 
-    # Capacity check — back out this booking's own current seats first, so
-    # editing a booking isn't blocked by the seats it already holds.
     if guests != existing.get("guests"):
         taken = _committed_guest_count()
         counts_toward_cap = existing["status"] in ("confirmed", "verifying", "pending")
@@ -443,7 +430,6 @@ def update_booking(booking_id: str, payload: BookingUpdate):
                 detail=f"Only {available} spot{'s' if available != 1 else ''} available for this booking.",
             )
 
-    # Table conflict check — exclude this booking's own row from the lookup.
     if table_id and table_id != existing.get("table_id"):
         lock_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
         res = (
@@ -587,6 +573,37 @@ def notify_confirmed_bookings(payload: NotifyPayload, background_tasks: Backgrou
 # ---------------------------------------------------------------------------
 #  RECEPTION ENDPOINTS
 # ---------------------------------------------------------------------------
+
+@app.get("/api/reception/search", dependencies=[Depends(require_reception)])
+def reception_search(q: str):
+    """Fallback search: look up confirmed guests by lead booker name or guest manifest name."""
+    query_str = (q or "").strip()
+    if not query_str or len(query_str) < 2:
+        raise HTTPException(status_code=400, detail="Search query must be at least 2 characters.")
+    
+    confirmed = db().table("bookings").select("*").eq("status", "confirmed").execute().data or []
+    q_lower = query_str.lower()
+    matches = []
+    for b in confirmed:
+        full_name = (b.get("full_name") or "").lower()
+        ticket = (b.get("ticket_code") or "").lower()
+        gnames = [str(n).lower() for n in (b.get("guest_names") or [])]
+        
+        if q_lower in full_name or q_lower in ticket or any(q_lower in n for n in gnames):
+            matches.append({
+                "id": b["id"],
+                "ticket_code": b.get("ticket_code"),
+                "full_name": b["full_name"],
+                "package": b["package"],
+                "table_id": b.get("table_id"),
+                "guests": b["guests"],
+                "status": b["status"],
+                "checked_in": b.get("checked_in", False),
+                "checked_in_at": b.get("checked_in_at"),
+                "heads_present": b.get("heads_present", 0),
+                "guest_names": b.get("guest_names") or [],
+            })
+    return {"results": matches}
 
 @app.get("/api/reception/lookup/{ticket_code}", dependencies=[Depends(require_reception)])
 def reception_lookup(ticket_code: str):
