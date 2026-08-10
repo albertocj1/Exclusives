@@ -727,14 +727,34 @@
         return;
       }
 
-      const uniqueEmails = new Set(targetRows.map((r) => String(r.email).toLowerCase().trim()));
-      const dups = targetRows.length - uniqueEmails.size;
+      // --- DYNAMIC BREAKDOWN LOGIC ---
+      const processedEmails = new Set();
+      let svipCount = 0;
+      let standardCount = 0;
+
+      targetRows.forEach((r) => {
+        const email = String(r.email).toLowerCase().trim();
+        if (!processedEmails.has(email)) {
+          processedEmails.add(email);
+          const spotName = SPOT_NAMES[r.table_id] || '';
+          if (spotName.includes('SVIP')) {
+            svipCount++;
+          } else {
+            standardCount++;
+          }
+        }
+      });
+
+      const dups = targetRows.length - processedEmails.size;
       const selectedIds = targetRows.map((r) => r.id);
 
-      let confirmMsg = `Send the pre-event details email (drink/food choices + slippers note) to ${uniqueEmails.size} unique guest(s)?`;
+      let confirmMsg = `Send the pre-event details email to ${processedEmails.size} unique guest(s)?\n\n`;
+      confirmMsg += `Breakdown:\n- SVIP Guests (2 bottles): ${svipCount}\n- VIP/Standard Guests (1 bottle): ${standardCount}`;
+
       if (dups > 0) {
         confirmMsg += `\n\n(${dups} duplicate email address attempt${dups === 1 ? '' : 'es'} will automatically be skipped.)`;
       }
+      // -------------------------------
 
       if (!confirm(confirmMsg)) return;
 
