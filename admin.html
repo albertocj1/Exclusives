@@ -42,59 +42,59 @@
     </div>
   </div>
 
-  <div id="dash" class="hidden max-w-7xl mx-auto px-6 py-10">
-    <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+  <div id="dash" class="hidden max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
       <div>
-        <h1 class="font-serif text-3xl md:text-4xl text-brand-ice">Guestlist</h1>
+        <h1 class="font-serif text-2xl sm:text-3xl md:text-4xl text-brand-ice">Guestlist</h1>
         <p class="text-brand-muted text-xs font-mono tracking-widest uppercase mt-1">Exclusives PH — Manila Bay</p>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-2">
         <!-- Remind Pending Button -->
-        <button id="remind-pending" title="Send payment reminders to checked pending bookings (or all if none checked)" class="font-mono text-[11px] tracking-widest uppercase border border-amber-400/40 text-amber-300 hover:bg-amber-400/10 hover:border-amber-300 rounded-full px-5 py-2 transition-colors">Remind Pending</button>
-        <button id="notify-confirmed" title="Send drink/food choices + slippers note to checked confirmed bookings (or all if none checked)" class="font-mono text-[11px] tracking-widest uppercase border border-sky-400/40 text-sky-300 hover:bg-sky-400/10 hover:border-sky-300 rounded-full px-5 py-2 transition-colors">Send Event Details</button>
-        <button id="export-xlsx" title="Full manifest + a Bookings sheet for reconciliation" class="font-mono text-[11px] tracking-widest uppercase border border-emerald-400/40 text-emerald-300 hover:bg-emerald-400/10 hover:border-emerald-300 rounded-full px-5 py-2 transition-colors">Excel (Full)</button>
-        <button id="export-names" title="Guest name, who booked them, ticket code — nothing else" class="font-mono text-[11px] tracking-widest uppercase border border-cyan-400/40 text-cyan-300 hover:bg-cyan-400/10 hover:border-cyan-300 rounded-full px-5 py-2 transition-colors">Excel (Names)</button>
-        <button id="export-pdf" title="Printable A4 passenger manifest for the yacht club" class="font-mono text-[11px] tracking-widest uppercase border border-brand-gold/40 text-brand-gold hover:bg-brand-goldDim/30 hover:border-brand-gold rounded-full px-5 py-2 transition-colors">Export PDF</button>
-        <button id="refresh" class="font-mono text-[11px] tracking-widest uppercase border border-white/10 hover:border-brand-gold hover:text-brand-gold rounded-full px-5 py-2 transition-colors">Refresh</button>
-        <button id="logout" class="font-mono text-[11px] tracking-widest uppercase text-brand-muted hover:text-brand-ice rounded-full px-3 py-2 transition-colors">Log out</button>
+        <button id="remind-pending" title="Send payment reminders to checked pending bookings (or all if none checked)" class="font-mono text-[10px] sm:text-[11px] tracking-widest uppercase border border-amber-400/40 text-amber-300 hover:bg-amber-400/10 hover:border-amber-300 rounded-full px-3 py-1.5 sm:px-5 sm:py-2 transition-colors">Remind Pending</button>
+        <button id="notify-confirmed" title="Send drink/food choices + slippers note to checked confirmed bookings (or all if none checked)" class="font-mono text-[10px] sm:text-[11px] tracking-widest uppercase border border-sky-400/40 text-sky-300 hover:bg-sky-400/10 hover:border-sky-300 rounded-full px-3 py-1.5 sm:px-5 sm:py-2 transition-colors">Send Event Details</button>
+        <button id="export-xlsx" title="Full manifest + a Bookings sheet for reconciliation" class="font-mono text-[10px] sm:text-[11px] tracking-widest uppercase border border-emerald-400/40 text-emerald-300 hover:bg-emerald-400/10 hover:border-emerald-300 rounded-full px-3 py-1.5 sm:px-5 sm:py-2 transition-colors">Excel (Full)</button>
+        <button id="export-names" title="Guest name, who booked them, ticket code — nothing else" class="font-mono text-[10px] sm:text-[11px] tracking-widest uppercase border border-cyan-400/40 text-cyan-300 hover:bg-cyan-400/10 hover:border-cyan-300 rounded-full px-3 py-1.5 sm:px-5 sm:py-2 transition-colors">Excel (Names)</button>
+        <button id="export-pdf" title="Printable A4 passenger manifest for the yacht club" class="font-mono text-[10px] sm:text-[11px] tracking-widest uppercase border border-brand-gold/40 text-brand-gold hover:bg-brand-goldDim/30 hover:border-brand-gold rounded-full px-3 py-1.5 sm:px-5 sm:py-2 transition-colors">Export PDF</button>
+        <button id="refresh" class="font-mono text-[10px] sm:text-[11px] tracking-widest uppercase border border-white/10 hover:border-brand-gold hover:text-brand-gold rounded-full px-3 py-1.5 sm:px-5 sm:py-2 transition-colors">Refresh</button>
+        <button id="logout" class="font-mono text-[10px] sm:text-[11px] tracking-widest uppercase text-brand-muted hover:text-brand-ice rounded-full px-3 py-1.5 sm:py-2 transition-colors">Log out</button>
       </div>
     </div>
 
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-      <div class="bg-brand-slate border border-white/5 rounded-2xl p-5">
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
+      <div class="bg-brand-slate border border-white/5 rounded-2xl p-4 sm:p-5">
         <div class="font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-2">Confirmed revenue</div>
-        <div id="stat-revenue" class="font-serif text-2xl text-brand-gold">₱0</div>
+        <div id="stat-revenue" class="font-serif text-xl sm:text-2xl text-brand-gold">₱0</div>
       </div>
-      <div class="bg-brand-slate border border-cyan-400/30 bg-cyan-400/5 rounded-2xl p-5">
+      <div class="bg-brand-slate border border-cyan-400/30 bg-cyan-400/5 rounded-2xl p-4 sm:p-5">
         <div class="font-mono text-[10px] tracking-widest text-cyan-300 uppercase mb-2">Needs Approval</div>
-        <div id="stat-verifying" class="font-serif text-2xl text-cyan-300">0</div>
+        <div id="stat-verifying" class="font-serif text-xl sm:text-2xl text-cyan-300">0</div>
       </div>
-      <div class="bg-brand-slate border border-white/5 rounded-2xl p-5">
+      <div class="bg-brand-slate border border-white/5 rounded-2xl p-4 sm:p-5">
         <div class="font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-2">Confirmed</div>
-        <div id="stat-confirmed" class="font-serif text-2xl text-brand-ice">0</div>
+        <div id="stat-confirmed" class="font-serif text-xl sm:text-2xl text-brand-ice">0</div>
       </div>
-      <div class="bg-brand-slate border border-white/5 rounded-2xl p-5">
+      <div class="bg-brand-slate border border-white/5 rounded-2xl p-4 sm:p-5">
         <div class="font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-2">Pending</div>
-        <div id="stat-pending" class="font-serif text-2xl text-brand-ice">0</div>
+        <div id="stat-pending" class="font-serif text-xl sm:text-2xl text-brand-ice">0</div>
       </div>
-      <div class="bg-brand-slate border border-white/5 rounded-2xl p-5">
+      <div class="bg-brand-slate border border-white/5 rounded-2xl p-4 sm:p-5">
         <div class="font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-2">Guests confirmed</div>
-        <div id="stat-guests" class="font-serif text-2xl text-brand-ice">0</div>
+        <div id="stat-guests" class="font-serif text-xl sm:text-2xl text-brand-ice">0</div>
       </div>
     </div>
 
     <div class="flex flex-wrap gap-2 mb-3" id="filters">
-      <button data-filter="all"       class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-brand-gold bg-brand-goldDim/20 text-brand-gold">All</button>
-      <button data-filter="verifying" class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-cyan-300 hover:border-cyan-300 transition-colors">Needs Approval</button>
-      <button data-filter="confirmed" class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Confirmed</button>
-      <button data-filter="pending"   class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Pending</button>
-      <button data-filter="cancelled" class="filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Cancelled</button>
+      <button data-filter="all"       class="filter-btn font-mono text-[10px] sm:text-[11px] tracking-widest uppercase rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-brand-gold bg-brand-goldDim/20 text-brand-gold">All</button>
+      <button data-filter="verifying" class="filter-btn font-mono text-[10px] sm:text-[11px] tracking-widest uppercase rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-white/10 text-brand-muted hover:text-cyan-300 hover:border-cyan-300 transition-colors">Needs Approval</button>
+      <button data-filter="confirmed" class="filter-btn font-mono text-[10px] sm:text-[11px] tracking-widest uppercase rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Confirmed</button>
+      <button data-filter="pending"   class="filter-btn font-mono text-[10px] sm:text-[11px] tracking-widest uppercase rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Pending</button>
+      <button data-filter="cancelled" class="filter-btn font-mono text-[10px] sm:text-[11px] tracking-widest uppercase rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Cancelled</button>
     </div>
 
     <div id="export-hint" class="font-mono text-[11px] text-brand-muted mb-4">&nbsp;</div>
 
     <div class="bg-brand-slate border border-white/5 rounded-2xl overflow-hidden">
-      <div class="overflow-x-auto">
+      <div class="hidden md:block overflow-x-auto">
         <table class="w-full text-sm min-w-[950px]">
           <thead class="bg-brand-obsidian/50 text-brand-muted font-mono text-[10px] tracking-widest uppercase">
             <tr>
@@ -115,6 +115,16 @@
           <tbody id="rows" class="divide-y divide-white/5"></tbody>
         </table>
       </div>
+
+      <!-- Mobile card list: same data as the table above, laid out for a phone-width screen -->
+      <div class="md:hidden">
+        <div class="flex items-center gap-2 px-4 py-3 border-b border-white/5 bg-brand-obsidian/50">
+          <input type="checkbox" id="select-all-cb-mobile" class="rounded bg-brand-obsidian border-white/20 accent-brand-gold cursor-pointer w-4 h-4">
+          <label for="select-all-cb-mobile" class="font-mono text-[10px] tracking-widest text-brand-muted uppercase">Select all</label>
+        </div>
+        <div id="rows-mobile" class="divide-y divide-white/5"></div>
+      </div>
+
       <div id="empty" class="hidden text-center text-brand-muted text-sm font-light py-12">No bookings yet.</div>
       <div id="loading" class="text-center text-brand-muted text-sm font-light py-12">Loading…</div>
     </div>
@@ -138,7 +148,7 @@
                  class="w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-4 py-2.5 outline-none">
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-1.5">Email</label>
             <input id="edit-email" type="email"
@@ -151,7 +161,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-1.5">Instagram</label>
             <input id="edit-instagram" type="text" placeholder="@handle"
@@ -164,7 +174,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-1.5">Package</label>
             <select id="edit-package"
@@ -326,7 +336,7 @@
              b.classList.add('border-brand-gold', 'bg-brand-goldDim/20', 'text-brand-gold');
              b.classList.remove('border-white/10', 'text-brand-muted');
           } else {
-             b.className = 'filter-btn font-mono text-[11px] tracking-widest uppercase rounded-full px-4 py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors';
+             b.className = 'filter-btn font-mono text-[10px] sm:text-[11px] tracking-widest uppercase rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors';
           }
         });
         render();
@@ -623,14 +633,20 @@
     $('export-names').addEventListener('click', exportNamesExcel);
     $('export-pdf').addEventListener('click', exportPDF);
 
-    // Master Select All Header Checkbox logic
+    // Master Select All Header Checkbox logic (kept in sync between the
+    // desktop table header and the mobile card-list header)
     const selectAllCb = $('select-all-cb');
+    const selectAllCbMobile = $('select-all-cb-mobile');
+    function handleSelectAllChange(checked) {
+      document.querySelectorAll('.row-cb').forEach((cb) => { cb.checked = checked; });
+      if (selectAllCb) selectAllCb.checked = checked;
+      if (selectAllCbMobile) selectAllCbMobile.checked = checked;
+    }
     if (selectAllCb) {
-      selectAllCb.addEventListener('change', () => {
-        document.querySelectorAll('.row-cb').forEach((cb) => {
-          cb.checked = selectAllCb.checked;
-        });
-      });
+      selectAllCb.addEventListener('change', () => handleSelectAllChange(selectAllCb.checked));
+    }
+    if (selectAllCbMobile) {
+      selectAllCbMobile.addEventListener('change', () => handleSelectAllChange(selectAllCbMobile.checked));
     }
 
     // Remind Pending Button Event Listener (with selective checked logic)
@@ -693,6 +709,7 @@
         alert(`Success! Queued payment reminders for ${d.reminded_count} guest(s). ${d.duplicates_skipped} duplicate(s) skipped.`);
         document.querySelectorAll('.row-cb:checked').forEach((cb) => cb.checked = false);
         if ($('select-all-cb')) $('select-all-cb').checked = false;
+        if ($('select-all-cb-mobile')) $('select-all-cb-mobile').checked = false;
       } catch (e) {
         alert('Could not reach the backend server.');
       } finally {
@@ -782,6 +799,7 @@
         alert(`Success! Queued event details emails for ${d.notified_count} guest(s). ${d.duplicates_skipped} duplicate(s) skipped.`);
         document.querySelectorAll('.row-cb:checked').forEach((cb) => cb.checked = false);
         if ($('select-all-cb')) $('select-all-cb').checked = false;
+        if ($('select-all-cb-mobile')) $('select-all-cb-mobile').checked = false;
       } catch (e) {
         alert('Could not reach the backend server.');
       } finally {
@@ -794,16 +812,22 @@
     function render() {
       updateExportHint();
       if ($('select-all-cb')) $('select-all-cb').checked = false;
+      if ($('select-all-cb-mobile')) $('select-all-cb-mobile').checked = false;
 
       const rows = currentFilter === 'all' ? allRows : allRows.filter((r) => r.status === currentFilter);
       const tbody = $('rows');
+      const cardsWrap = $('rows-mobile');
       if (!rows.length) {
         tbody.innerHTML = '';
+        cardsWrap.innerHTML = '';
         $('empty').textContent = 'No bookings in this view.';
         $('empty').classList.remove('hidden');
         return;
       }
       $('empty').classList.add('hidden');
+
+      const cardHtmlParts = [];
+
       tbody.innerHTML = rows.map((r) => {
         const badge = STATUS_STYLE[r.status] || 'text-brand-muted border-white/10';
         const canCancel = r.status !== 'cancelled';
@@ -811,10 +835,11 @@
         const isPending = r.status === 'pending';
         const isConfirmed = r.status === 'confirmed';
         const referrer = (r.referrer && String(r.referrer).trim()) ? esc(r.referrer) : '—';
+        const canSelect = isPending || isConfirmed;
 
         // Checkbox cell: active for pending (Remind Pending) and confirmed (Send Event Details),
         // grayed out dash for verifying/cancelled since neither bulk action applies to them.
-        const cbCell = (isPending || isConfirmed)
+        const cbCell = canSelect
           ? `<input type="checkbox" class="row-cb rounded bg-brand-obsidian border-white/20 accent-brand-gold cursor-pointer w-4 h-4" value="${esc(r.id)}">`
           : `<span class="text-brand-muted/30 text-xs">—</span>`;
 
@@ -848,6 +873,65 @@
            actionButtons = `<span class="text-brand-muted text-xs">—</span>`;
         }
 
+        // --- Mobile card version of this same booking, same computed values above ---
+        const cardCb = canSelect
+          ? `<input type="checkbox" class="row-cb rounded bg-brand-obsidian border-white/20 accent-brand-gold cursor-pointer w-4 h-4 mt-1 shrink-0" value="${esc(r.id)}">`
+          : `<span class="w-4 shrink-0"></span>`;
+
+        cardHtmlParts.push(`<div class="p-4">
+          <div class="flex items-start gap-3">
+            ${cardCb}
+            <div class="min-w-0 flex-1">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="text-brand-ice truncate">${esc(r.full_name)}</div>
+                  <div class="text-brand-muted text-xs font-mono truncate">${esc(r.email)}</div>
+                </div>
+                <span class="shrink-0 font-mono text-[10px] tracking-widest uppercase border rounded-full px-2 py-1 ${badge}">${esc(r.status)}</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-x-3 gap-y-2 mt-3 text-xs">
+                <div>
+                  <div class="font-mono text-[9px] tracking-widest text-brand-muted uppercase mb-0.5">Package</div>
+                  <div class="text-brand-ice/90">${pkgText}</div>
+                </div>
+                <div>
+                  <div class="font-mono text-[9px] tracking-widest text-brand-muted uppercase mb-0.5">Pax</div>
+                  <div class="text-brand-ice/90">${guestsCell}</div>
+                </div>
+                <div>
+                  <div class="font-mono text-[9px] tracking-widest text-brand-muted uppercase mb-0.5">Total</div>
+                  <div class="text-brand-gold font-mono">${peso(r.total_amount)}</div>
+                </div>
+                <div>
+                  <div class="font-mono text-[9px] tracking-widest text-brand-muted uppercase mb-0.5">Ticket</div>
+                  <div class="text-brand-ice/80 font-mono">${esc(r.ticket_code || '—')}</div>
+                </div>
+                <div>
+                  <div class="font-mono text-[9px] tracking-widest text-brand-muted uppercase mb-0.5">Instagram</div>
+                  <div class="text-brand-ice/90 font-mono">${igCell}</div>
+                </div>
+                <div>
+                  <div class="font-mono text-[9px] tracking-widest text-brand-muted uppercase mb-0.5">Referred by</div>
+                  <div class="text-brand-ice/90">${referrer}</div>
+                </div>
+                <div>
+                  <div class="font-mono text-[9px] tracking-widest text-brand-muted uppercase mb-0.5">Receipt</div>
+                  <div class="font-mono">${receiptLink}</div>
+                </div>
+                <div>
+                  <div class="font-mono text-[9px] tracking-widest text-brand-muted uppercase mb-0.5">Created</div>
+                  <div class="text-brand-muted font-mono">${fmtDate(r.created_at)}</div>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-white/5">
+                ${actionButtons}
+              </div>
+            </div>
+          </div>
+        </div>`);
+
         return `<tr class="hover:bg-brand-obsidian/30">
           <td class="px-4 py-3 text-center">${cbCell}</td>
           <td class="px-4 py-3">
@@ -869,14 +953,18 @@
         </tr>`;
       }).join('');
 
-      tbody.querySelectorAll('[data-cancel]').forEach((btn) => {
-        btn.addEventListener('click', () => cancelBooking(btn.getAttribute('data-cancel')));
-      });
-      tbody.querySelectorAll('[data-approve]').forEach((btn) => {
-        btn.addEventListener('click', () => approveBooking(btn.getAttribute('data-approve')));
-      });
-      tbody.querySelectorAll('[data-edit]').forEach((btn) => {
-        btn.addEventListener('click', () => openEditModal(btn.getAttribute('data-edit')));
+      cardsWrap.innerHTML = cardHtmlParts.join('');
+
+      [tbody, cardsWrap].forEach((container) => {
+        container.querySelectorAll('[data-cancel]').forEach((btn) => {
+          btn.addEventListener('click', () => cancelBooking(btn.getAttribute('data-cancel')));
+        });
+        container.querySelectorAll('[data-approve]').forEach((btn) => {
+          btn.addEventListener('click', () => approveBooking(btn.getAttribute('data-approve')));
+        });
+        container.querySelectorAll('[data-edit]').forEach((btn) => {
+          btn.addEventListener('click', () => openEditModal(btn.getAttribute('data-edit')));
+        });
       });
     }
 
