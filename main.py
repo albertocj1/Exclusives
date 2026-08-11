@@ -809,6 +809,7 @@ def reception_tables():
         })
     out.sort(key=lambda x: str(x["id"]))
     return {"tables": out}
+
 # ---------------------------------------------------------------------------
 #  POS — orders
 # ---------------------------------------------------------------------------
@@ -839,14 +840,14 @@ def create_order(payload: OrderCreate):
         raise HTTPException(status_code=502, detail="Failed to create order.")
     return res.data[0]
 
-@app.get("/api/orders", dependencies=[Depends(require_admin)])
+@app.get("/api/orders", dependencies=[Depends(require_staff)])
 def list_orders(status_filter: Optional[str] = None):
     query = db().table("orders").select("*").order("created_at", desc=True).limit(500)
     if status_filter:
         query = query.eq("status", status_filter)
     return query.execute().data
 
-@app.patch("/api/orders/{order_id}/status", dependencies=[Depends(require_admin)])
+@app.patch("/api/orders/{order_id}/status", dependencies=[Depends(require_staff)])
 def update_order_status(order_id: str, payload: OrderStatusUpdate):
     res = db().table("orders").update({"status": payload.status}).eq("id", order_id).execute()
     if not res.data:
