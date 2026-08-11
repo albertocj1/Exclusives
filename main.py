@@ -187,9 +187,6 @@ class NotifyPayload(BaseModel):
 #  POS — menu, orders
 # ---------------------------------------------------------------------------
 
-# Mirrors the MENU array in pos.html — keep the two in sync. Prices are ALWAYS
-# looked up here, never trusted from the client, so a tampered request can't
-# check out an item at a fake price.
 POS_MENU_PRICES = {
     "pkg-breeze":       ("Breeze", 3550),
     "pkg-ignition-ab":  ("Ignition", 3850),
@@ -273,9 +270,6 @@ def _require_supabase_session(cred: Optional[HTTPAuthorizationCredentials], labe
 def require_reception(cred: Optional[HTTPAuthorizationCredentials] = Depends(_reception_bearer)):
     return _require_supabase_session(cred, "Reception")
 
-# Same underlying Supabase-session check as reception — there's no separate
-# roles table yet, so any authenticated staff account works for both. This
-# just gives POS its own error wording instead of "Reception login required".
 def require_staff(cred: Optional[HTTPAuthorizationCredentials] = Depends(_reception_bearer)):
     return _require_supabase_session(cred, "Staff")
 
@@ -628,43 +622,6 @@ def notify_confirmed_bookings(payload: NotifyPayload, background_tasks: Backgrou
 #  RECEPTION ENDPOINTS
 # ---------------------------------------------------------------------------
 
-@app.get("/api/reception/search", dependencies=[Depends(require_reception)])
-def reception_search(q: str):
-    """Look up guests by lead booker name, ticket code, or guest manifest name.
-    Includes non-confirmed bookings (with their real status) so a guest who
-    paid but is still awaiting admin approval shows up as "not approved yet"
-    rather than indistinguishable from someone who never booked at all."""
-    query_str = (q or "").strip()
-    if not query_str or len(query_str) < 2:
-        raise HTTPException(status_code=400, detail="Search query must be at least 2 characters.")
-
-    all_rows = db().table("bookings").select("*").neq("status", "cancelled").execute().data or []
-    q_lower = query_str.lower()
-    matches = []
-    for b in all_rows:
-        full_name = (b.get("full_name") or "").lower()
-        ticket = (b.get("ticket_code") or "").lower()
-        gnames = [str(n).lower() for n in (b.get("guest_names") or [])]
-
-        if q_lower in full_name or q_lower in ticket or any(q_lower in n for n in gnames):
-            matches.append({
-                "id": b["id"],
-                "ticket_code": b.get("ticket_code"),
-                "full_name": b["full_name"],
-                "package": b["package"],
-                "table_id": b.get("table_id"),
-                "guests": b["guests"],
-                "status": b["status"],
-                "checked_in": b.get("checked_in", False),
-                "checked_in_at": b.get("checked_in_at"),
-                "heads_present": b.get("heads_present", 0),
-                "guest_names": b.get("guest_names") or [],
-            })
-    # Confirmed matches first, so an approved guest never gets buried under
-    # stale pending/verifying rows for a similar name.
-    matches.sort(key=lambda m: 0 if m["status"] == "confirmed" else 1)
-    return {"results": matches}
-
 @app.get("/api/reception/lookup/{ticket_code}", dependencies=[Depends(require_reception)])
 def reception_lookup(ticket_code: str):
     code = (ticket_code or "").strip().upper()
@@ -692,13 +649,6 @@ def reception_checkin(booking_id: str, body: CheckinBody):
     if b["status"] != "confirmed":
         raise HTTPException(status_code=400, detail="This booking is not confirmed — cannot check in.")
 
-    max_heads = b.get("guests") or 0
-    if body.heads_present > max_heads:
-        raise HTTPException(
-            status_code=400,
-            detail=f"This booking only has {max_heads} guest{'s' if max_heads != 1 else ''} — can't check in {body.heads_present}.",
-        )
-
     already = bool(b.get("checked_in"))
     update = {"checked_in": True, "heads_present": body.heads_present}
     if not already:
@@ -715,28 +665,6 @@ def reception_checkin(booking_id: str, body: CheckinBody):
         "checked_in": row.get("checked_in", False),
         "checked_in_at": row.get("checked_in_at"),
         "already_checked_in": already,
-    }
-
-@app.post("/api/reception/checkin/{booking_id}/undo", dependencies=[Depends(require_reception)])
-def reception_undo_checkin(booking_id: str):
-    """Reverts a mis-scan: clears checked_in / heads_present / checked_in_at
-    so the booking goes back to not-yet-arrived."""
-    b = _get_booking(booking_id)
-    if not b.get("checked_in"):
-        raise HTTPException(status_code=400, detail="This booking isn't checked in.")
-
-    update = {"checked_in": False, "heads_present": 0, "checked_in_at": None}
-    res = db().table("bookings").update(update).eq("id", booking_id).execute()
-    row = res.data[0]
-    return {
-        "id": row["id"],
-        "ticket_code": row.get("ticket_code"),
-        "full_name": row["full_name"],
-        "table_id": row.get("table_id"),
-        "guests": row["guests"],
-        "heads_present": row.get("heads_present", 0),
-        "checked_in": row.get("checked_in", False),
-        "checked_in_at": row.get("checked_in_at"),
     }
 
 @app.get("/api/reception/summary", dependencies=[Depends(require_reception)])
@@ -853,3 +781,20 @@ def update_order_status(order_id: str, payload: OrderStatusUpdate):
     if not res.data:
         raise HTTPException(status_code=404, detail="Order not found.")
     return res.data[0]
+
+@app.get("/api/pos/destinations", dependencies=[Depends(require_staff)])
+def get_pos_destinations():
+    """Fetches confirmed guests to populate the POS assignment modal."""
+    res = db().table("bookings").select("full_name, table_id").eq("status", "confirmed").execute()
+    bookings = res.data or []
+    
+    destinations = []
+    for b in bookings:
+        if b.get("table_id"):
+            destinations.append(f"{b['table_id']} - {b['full_name']}")
+        else:
+            destinations.append(f"Walk-in - {b['full_name']}")
+            
+    # Sort alphabetically for the cashier
+    destinations.sort()
+    return {"destinations": destinations}
