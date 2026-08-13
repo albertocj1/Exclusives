@@ -15,7 +15,7 @@ from supabase import Client, create_client
 # Branded confirmation email + inline QR & reminders (see email_module.py)
 from email_module import send_approval_email, send_pending_reminder_email, send_event_details_email
 
-EVENT_CAPACITY = int(os.getenv("EVENT_CAPACITY", "125"))  # hard cap: no bookings accepted past this
+EVENT_CAPACITY = int(os.getenv("EVENT_CAPACITY", "135"))  # hard cap: no bookings accepted past this
 HOLD_MINUTES = int(os.getenv("HOLD_MINUTES", "15"))       # how long an unpaid booking holds its seat/table
 EXTRA_HEAD_FEE = 2500
 
