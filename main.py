@@ -198,7 +198,7 @@ POS_MENU_PRICES = {
     "btl-absolut":      ("Absolut Vodka", 2850),
     "btl-jager":        ("Jägermeister", 3000),
     "btl-jwblack":      ("Johnnie Walker Black Label", 3195),
-    "bev-water":        ("Bottled Water", 100),
+    "bev-water":        ("Bottled Water", 130),
     "bev-coke":         ("Coca-Cola Regular", 150),
     "bev-sprite":       ("Sprite Lemon-Lime Soda", 150),
     "bev-redbull":      ("Red Bull Energy Drink", 200),
