@@ -75,6 +75,7 @@ LOGO_PATH = os.environ.get("LOGO_PATH", "images/logo.png")
 BOTTLE_POSTER_PATH = os.environ.get("BOTTLE_POSTER_PATH", "images/bottle-poster.jpg")
 FOOD_POSTER_PATH = os.environ.get("FOOD_POSTER_PATH", "images/food-poster.jpg")
 PARKING_POSTER_PATH = os.environ.get("PARKING_POSTER_PATH", "images/parking-poster.jpg")
+HOUSE_RULES_POSTER_PATH = os.environ.get("HOUSE_RULES_POSTER_PATH", "images/house-rules-poster.jpg")
 
 # If set, the logo is referenced as a normal hosted <img src="..."> instead of
 # being embedded as an inline cid: MIME part. This avoids Gmail's behavior of
@@ -1055,3 +1056,257 @@ def send_parking_info_email(to_email, guest_name):
         print(f"Successfully sent parking info email to {to_email}")
     except Exception as e:
         print(f"ERROR sending parking info email to {to_email}: {str(e)}")
+
+
+# Key event facts for the final reminder email — kept in one place so the
+# copy stays in sync with the FAQ / House Rules on index.html. Update here
+# if the site copy changes.
+EVENT_CHECKIN_TIME = "8:00 PM"
+EVENT_DECK_UNTIL = "4:00 AM"
+EVENT_VENUE_LINE = "Manila Yacht Club, CCP Complex, Roxas Boulevard, Malate, Manila"
+
+
+def send_final_reminder_email(to_email, guest_name, package_name=None, table_id=None):
+    """Sends the day-of / final reminder email to a confirmed guest.
+
+    Covers the essentials guests need right before boarding: check-in time
+    and location, the footwear rule (shoes to enter, slippers once aboard —
+    per the house rules), dress code, what to bring, and the no-transfer
+    policy. Mirrors send_event_details_email's structure but is a single
+    fixed-content notice rather than a bottle/food picker.
+    """
+    try:
+        service = get_gmail_service()
+        logo_bytes = None if LOGO_URL else _load_logo_bytes()
+        logo_msgid = None
+        logo_cid = None
+        if logo_bytes:
+            logo_msgid = make_msgid(domain="exclusivesph")
+            logo_cid = logo_msgid[1:-1]
+
+        rules_bytes = _load_image_bytes(HOUSE_RULES_POSTER_PATH, "house rules poster")
+        rules_msgid = None
+        rules_cid = None
+        if rules_bytes:
+            rules_msgid = make_msgid(domain="exclusivesph")
+            rules_cid = rules_msgid[1:-1]
+
+        spot_line = _spot_label(table_id)
+
+        if LOGO_URL:
+            wordmark_html = f"""
+          <img src="{LOGO_URL}" alt="Exclusives PH" width="200" style="display:block; width:200px; max-width:60%; height:auto; border:0; margin:0 auto;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:10px;">Manila Bay &middot; Yacht Sessions</div>
+          </div></div>"""
+        elif logo_cid:
+            wordmark_html = f"""
+          <img src="cid:{logo_cid}" alt="Exclusives PH" width="200" style="display:block; width:200px; max-width:60%; height:auto; border:0; margin:0 auto;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:10px;">Manila Bay &middot; Yacht Sessions</div>
+          </div></div>"""
+        else:
+            wordmark_html = """
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <span class="text-gold" style="font-family:'Courier New', monospace; font-size:12px; letter-spacing:4px; color:#F5C518; text-transform:uppercase; font-weight:bold;">EXCLUSIVES&nbsp;PH</span>
+            <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:6px;">Manila Bay &middot; Yacht Sessions</div>
+          </div></div>"""
+
+        # Checklist rows — the footwear rule is called out separately below
+        # in its own highlighted notice, not buried in this list.
+        CHECKLIST = [
+            ("Valid government ID", "18+, no exceptions."),
+            ("Your boarding pass", "Printed or on your phone — this email's QR ticket."),
+            ("All-black outfit", "No shorts of any kind — the club's one hard rule."),
+        ]
+
+        def checklist_rows_html(items):
+            rows = ""
+            for i, (name, note) in enumerate(items, start=1):
+                rows += f"""
+              <tr>
+                <td valign="top" style="padding:8px 0; width:26px;">
+                  <div class="text-gold" style="color:#F5C518; font-family:'Courier New', monospace; font-size:13px; font-weight:bold;">{i}.</div>
+                </td>
+                <td valign="top" style="padding:8px 0;">
+                  <div class="text-cream" style="font-size:14px; color:#F2EADD; line-height:1.5; font-weight:bold;">{name}</div>
+                  <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.5; margin-top:2px;">{note}</div>
+                </td>
+              </tr>"""
+            return rows
+
+        checklist_rows = checklist_rows_html(CHECKLIST)
+
+        # House rules poster sits OUTSIDE the blend wrapper with a
+        # gradient-locked container, same rule as the QR code and logo — see
+        # the dark-mode notes at the top of this file. Falls back to nothing
+        # if the file isn't found on disk.
+        house_rules_poster_html = ""
+        if rules_cid:
+            house_rules_poster_html = f"""
+        <tr><td align="center" style="padding:22px 32px 0 32px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card-edge" style="background-color:#60602D; background-image:linear-gradient(#60602D,#60602D); border-radius:16px; padding:1px;">
+            <tr><td style="line-height:0; font-size:0;">
+              <img src="cid:{rules_cid}" alt="Aboard the yacht — House Rules" width="416" style="display:block; width:100%; max-width:416px; height:auto; border:0; border-radius:15px;">
+            </td></tr>
+          </table>
+        </td></tr>"""
+
+        html_body = f"""\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
+<style>
+  :root {{ color-scheme: dark; supported-color-schemes: dark; }}
+  u + .body .gmail-blend-screen     {{ background:#000000; mix-blend-mode:screen; }}
+  u + .body .gmail-blend-difference {{ background:#000000; mix-blend-mode:difference; }}
+  u + .body .text-gold  {{ color:#F4BA00 !important; border-color:#F4BA00 !important; }}
+  u + .body .text-cream {{ color:#F1E6D3 !important; }}
+  u + .body .text-muted {{ color:#828D96 !important; }}
+  @media (prefers-color-scheme: dark) {{
+    .body-bg {{ background-color:#0A1A24 !important; }}
+    .card-edge {{ background-color:#60602D !important; }}
+    .card-bg {{ background-color:#102A38 !important; }}
+    .notice-edge{{ background-color:#4C532F !important; }}
+    .notice-bg  {{ background-color:#223635 !important; }}
+    .text-cream {{ color:#F2EADD !important; }}
+    .text-muted {{ color:#8AA0AD !important; }}
+    .text-gold  {{ color:#F5C518 !important; }}
+  }}
+</style>
+</head>
+<body class="body body-bg" style="margin:0; padding:0; background-color:#0A1A24; font-family:Arial, Helvetica, sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="body-bg" style="background-color:#0A1A24; background-image:linear-gradient(#0A1A24,#0A1A24); padding:32px 12px;">
+<tr><td align="center">
+  <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%;">
+    <tr><td align="center" style="padding-bottom:28px;">{wordmark_html}</td></tr>
+    <tr><td class="card-edge" style="background-color:#60602D; background-image:linear-gradient(#60602D,#60602D); border-radius:24px; padding:1px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card-bg" style="background-color:#102A38; background-image:linear-gradient(#102A38,#102A38); border-radius:23px;">
+        <tr><td align="center" style="padding:36px 32px 8px 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-gold" style="font-family:'Courier New', monospace; font-size:11px; letter-spacing:3px; color:#F5C518; text-transform:uppercase; margin-bottom:12px;">Final Reminder</div>
+            <div class="text-cream" style="font-family:Georgia, 'Times New Roman', serif; font-size:26px; color:#F2EADD; letter-spacing:-0.5px;">See You Tonight</div>
+            <div class="text-muted" style="font-size:13px; color:#8AA0AD; line-height:1.6; padding:14px 8px 0 8px;">
+              Hi {guest_name}, we're just hours away. Here's everything you need before you board.
+            </div>
+          </div></div>
+        </td></tr>
+
+        <tr><td style="padding:12px 32px 4px 32px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="amount-box-bg" style="background-color:#0A1A24; background-image:linear-gradient(#0A1A24,#0A1A24); border:1px solid #1E3744; border-radius:16px;">
+            <tr><td style="padding:18px 20px;">
+              <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+                <div class="text-muted" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; color:#8AA0AD; text-transform:uppercase;">Check-in</div>
+                <div class="text-cream" style="font-family:Georgia, 'Times New Roman', serif; font-size:19px; color:#F2EADD; margin-top:3px;">{EVENT_CHECKIN_TIME} &middot; gate opens</div>
+                <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6; margin-top:6px;">
+                  {EVENT_VENUE_LINE}. Arrive 20&ndash;30 minutes early &mdash; the guestlist is checked name by name. Deck stays open until {EVENT_DECK_UNTIL}.
+                </div>
+                <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6; margin-top:10px; padding-top:10px; border-top:1px solid #1E3744;">
+                  Your spot: <span class="text-gold" style="color:#F5C518;">{package_name or "Confirmed booking"}</span>{f" &middot; {spot_line}" if table_id else ""}
+                </div>
+              </div></div>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <tr><td style="padding:22px 32px 4px 32px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="notice-edge" style="background-color:#4C532F; background-image:linear-gradient(#4C532F,#4C532F); border-radius:16px;">
+            <tr><td style="padding:1px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="notice-bg" style="background-color:#223635; background-image:linear-gradient(#223635,#223635); border-radius:15px;">
+                <tr><td style="padding:18px 20px;">
+                  <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+                    <div class="text-gold" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; color:#F5C518; text-transform:uppercase; font-weight:bold;">Footwear &mdash; read this</div>
+                    <div class="text-cream" style="font-size:14px; color:#F2EADD; line-height:1.6; margin-top:6px;">
+                      Wear <strong>shoes</strong> to arrive. Manila Yacht Club does not allow slippers at the gate &mdash; you won't be let in wearing them.
+                    </div>
+                    <div class="text-cream" style="font-size:14px; color:#F2EADD; line-height:1.6; margin-top:8px;">
+                      Once aboard, change into your own <strong>slippers</strong> for use inside the yacht. Any style is fine, as long as they're brand-new or in like-new condition &mdash; not worn or used.
+                    </div>
+                  </div></div>
+                </td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </td></tr>
+
+        <tr><td style="padding:22px 32px 4px 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-gold" style="font-family:'Courier New', monospace; font-size:10px; letter-spacing:2px; color:#F5C518; text-transform:uppercase; font-weight:bold;">What To Bring</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{checklist_rows}
+            </table>
+          </div></div>
+        </td></tr>
+{house_rules_poster_html}
+        <tr><td style="padding:8px 32px 8px 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6;">
+              A reminder: spots aren't transferable &mdash; only the guests named on your booking can board, and re-entry follows the same ID check.
+            </div>
+          </div></div>
+        </td></tr>
+
+        <tr><td style="padding:16px 32px 36px 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6; border-top:1px solid #1E3744; padding-top:16px;">
+              Docked at Manila Yacht Club aboard Happy Life Yacht. See you tonight!
+            </div>
+          </div></div>
+        </td></tr>
+      </table>
+    </td></tr>
+    <tr><td align="center" style="padding:28px 20px 8px 20px;">
+      <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+        <div class="text-muted" style="font-size:11px; color:#8AA0AD; line-height:1.7;">
+          Exclusives PH &middot; {EVENT_VENUE_LINE}<br>
+          Questions? Reply directly to this email.
+        </div>
+      </div></div>
+    </td></tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>"""
+
+        checklist_text = "\n".join(f"{i}. {name} - {note}" for i, (name, note) in enumerate(CHECKLIST, start=1))
+        spot_text_line = f"Your spot: {package_name or 'Confirmed booking'}" + (f" - {spot_line}" if table_id else "")
+
+        text_body = (
+            f"Hi {guest_name},\n\n"
+            f"FINAL REMINDER - we're just hours away. Here's everything you need before you board.\n\n"
+            f"CHECK-IN: {EVENT_CHECKIN_TIME}, gate opens\n"
+            f"{EVENT_VENUE_LINE}\n"
+            f"Arrive 20-30 minutes early - the guestlist is checked name by name. Deck stays open until {EVENT_DECK_UNTIL}.\n"
+            f"{spot_text_line}\n\n"
+            f"FOOTWEAR - READ THIS:\n"
+            f"Wear SHOES to arrive. Manila Yacht Club does not allow slippers at the gate - you won't be let in wearing them. "
+            f"Once you're aboard, change into your own slippers for use inside the yacht. Any style is fine, as long as they're "
+            f"brand-new or in like-new condition - not worn or used.\n\n"
+            f"WHAT TO BRING:\n{checklist_text}\n\n"
+            f"Reminder: spots aren't transferable - only the guests named on your booking can board.\n\n"
+            f"Docked at Manila Yacht Club aboard Happy Life Yacht. See you tonight!\n\n"
+            f"Exclusives PH"
+        )
+
+        msg = EmailMessage()
+        msg['To'] = to_email
+        msg['From'] = os.environ.get("SENDER_EMAIL", "your-email@gmail.com")
+        msg['Subject'] = "Final reminder — wear shoes to enter, slippers once aboard"
+        msg.set_content(text_body)
+        msg.add_alternative(html_body, subtype='html')
+
+        html_part = msg.get_payload()[1] if (logo_bytes or rules_bytes) else None
+        if logo_bytes:
+            html_part.add_related(logo_bytes, maintype='image', subtype='png', cid=logo_msgid, filename='logo.png', disposition='inline')
+        if rules_bytes:
+            html_part.add_related(rules_bytes, maintype='image', subtype='jpeg', cid=rules_msgid, filename='house-rules-poster.jpg', disposition='inline')
+
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        service.users().messages().send(userId="me", body={'raw': raw}).execute()
+        print(f"Successfully sent final reminder email to {to_email}")
+    except Exception as e:
+        print(f"ERROR sending final reminder email to {to_email}: {str(e)}")
