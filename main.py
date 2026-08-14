@@ -721,6 +721,47 @@ def reception_search(q: str):
     matches.sort(key=lambda m: 0 if m["status"] == "confirmed" else 1)
     return {"results": matches}
 
+@app.get("/api/reception/guests", dependencies=[Depends(require_reception)])
+def reception_guests():
+    all_rows = db().table("bookings").select("*").neq("status", "cancelled").execute().data or []
+
+    guests = []
+    for b in all_rows:
+        guests.append({
+            "id": b["id"],
+            "ticket_code": b.get("ticket_code"),
+            "full_name": b["full_name"],
+            "package": b["package"],
+            "table_id": b.get("table_id"),
+            "guests": b["guests"],
+            "status": b["status"],
+            "checked_in": b.get("checked_in", False),
+            "checked_in_at": b.get("checked_in_at"),
+            "heads_present": b.get("heads_present", 0),
+            "guest_names": b.get("guest_names") or [],
+        })
+
+    # Confirmed-and-not-yet-arrived first, then confirmed-checked-in, then anything else (pending/etc).
+    def sort_key(g):
+        if g["status"] == "confirmed" and not g["checked_in"]:
+            rank = 0
+        elif g["status"] == "confirmed" and g["checked_in"]:
+            rank = 1
+        else:
+            rank = 2
+        return (rank, g["full_name"].lower())
+
+    guests.sort(key=sort_key)
+
+    total = len(guests)
+    checked_in = sum(1 for g in guests if g["checked_in"])
+    return {
+        "guests": guests,
+        "total": total,
+        "checked_in": checked_in,
+        "not_checked_in": total - checked_in,
+    }
+
 @app.get("/api/reception/lookup/{ticket_code}", dependencies=[Depends(require_reception)])
 def reception_lookup(ticket_code: str):
     code = (ticket_code or "").strip().upper()
