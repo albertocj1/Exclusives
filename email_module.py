@@ -74,6 +74,7 @@ EVENT_DATE_SHORT = "Aug 14, 2026 &middot; 8:00 PM"
 LOGO_PATH = os.environ.get("LOGO_PATH", "images/logo.png")
 BOTTLE_POSTER_PATH = os.environ.get("BOTTLE_POSTER_PATH", "images/bottle-poster.jpg")
 FOOD_POSTER_PATH = os.environ.get("FOOD_POSTER_PATH", "images/food-poster.jpg")
+PARKING_POSTER_PATH = os.environ.get("PARKING_POSTER_PATH", "images/parking-poster.jpg")
 
 # If set, the logo is referenced as a normal hosted <img src="..."> instead of
 # being embedded as an inline cid: MIME part. This avoids Gmail's behavior of
@@ -847,3 +848,210 @@ def send_pending_reminder_email(to_email, guest_name, package_name, guests, tota
         print(f"Successfully sent pending reminder email to {to_email}")
     except Exception as e:
         print(f"ERROR sending reminder email to {to_email}: {str(e)}")
+
+
+# Parking lots near the venue, in the order guests should try them, with the
+# approximate walk time to Manila Yacht Club from each (see admin's Google
+# Maps screenshots). Update here if the club's own lot situation changes.
+PARKING_OPTIONS = [
+    ("Harbour Square", "~8 min walk", "Closest option — fills up fastest, so head here first."),
+    ("The Aristocrat Restaurant", "~11-12 min walk", "Reliable overflow option a few minutes further down Roxas Blvd."),
+    ("Aquasphere Public Parking Lot", "~13 min walk", "Furthest of the three, but rarely full."),
+]
+
+
+def send_parking_info_email(to_email, guest_name):
+    """Sends parking guidance to a confirmed guest.
+
+    Manila Yacht Club has very limited on-site parking, so guests are pointed
+    to three nearby public lots (see PARKING_OPTIONS) with a rough walk time
+    for each, ordered closest-first.
+    """
+    try:
+        service = get_gmail_service()
+        logo_bytes = None if LOGO_URL else _load_logo_bytes()
+        logo_msgid = None
+        logo_cid = None
+        if logo_bytes:
+            logo_msgid = make_msgid(domain="exclusivesph")
+            logo_cid = logo_msgid[1:-1]
+
+        parking_bytes = _load_image_bytes(PARKING_POSTER_PATH, "parking poster")
+        parking_msgid = None
+        parking_cid = None
+        if parking_bytes:
+            parking_msgid = make_msgid(domain="exclusivesph")
+            parking_cid = parking_msgid[1:-1]
+
+        if LOGO_URL:
+            wordmark_html = f"""
+          <img src="{LOGO_URL}" alt="Exclusives PH" width="200" style="display:block; width:200px; max-width:60%; height:auto; border:0; margin:0 auto;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:10px;">Manila Bay &middot; Yacht Sessions</div>
+          </div></div>"""
+        elif logo_cid:
+            wordmark_html = f"""
+          <img src="cid:{logo_cid}" alt="Exclusives PH" width="200" style="display:block; width:200px; max-width:60%; height:auto; border:0; margin:0 auto;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:10px;">Manila Bay &middot; Yacht Sessions</div>
+          </div></div>"""
+        else:
+            wordmark_html = """
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <span class="text-gold" style="font-family:'Courier New', monospace; font-size:12px; letter-spacing:4px; color:#F5C518; text-transform:uppercase; font-weight:bold;">EXCLUSIVES&nbsp;PH</span>
+            <div class="text-muted" style="font-family:'Courier New', monospace; font-size:9px; letter-spacing:3px; color:#8AA0AD; text-transform:uppercase; margin-top:6px;">Manila Bay &middot; Yacht Sessions</div>
+          </div></div>"""
+
+        def parking_rows_html(options):
+            rows = ""
+            for i, (name, walk_time, note) in enumerate(options, start=1):
+                rows += f"""
+              <tr>
+                <td valign="top" style="padding:10px 0; width:26px;">
+                  <div class="text-gold" style="color:#F5C518; font-family:'Courier New', monospace; font-size:13px; font-weight:bold;">{i}.</div>
+                </td>
+                <td valign="top" style="padding:10px 0;">
+                  <div class="text-cream" style="font-size:14px; color:#F2EADD; line-height:1.5; font-weight:bold;">{name} <span class="text-gold" style="color:#F5C518; font-weight:normal; font-family:'Courier New', monospace; font-size:11px;">&middot; {walk_time}</span></div>
+                  <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.5; margin-top:2px;">{note}</div>
+                </td>
+              </tr>"""
+            return rows
+
+        parking_rows = parking_rows_html(PARKING_OPTIONS)
+
+        # Poster sits OUTSIDE the blend wrapper with a gradient-locked
+        # container, same rule as the QR code and logo — see the dark-mode
+        # notes at the top of this file. Falls back to nothing (just the
+        # text list below it) if the file isn't found on disk.
+        parking_poster_html = ""
+        if parking_cid:
+            parking_poster_html = f"""
+        <tr><td align="center" style="padding:22px 32px 0 32px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card-edge" style="background-color:#60602D; background-image:linear-gradient(#60602D,#60602D); border-radius:16px; padding:1px;">
+            <tr><td style="line-height:0; font-size:0;">
+              <img src="cid:{parking_cid}" alt="Map showing nearby parking lots and walk times to Manila Yacht Club" width="416" style="display:block; width:100%; max-width:416px; height:auto; border:0; border-radius:15px;">
+            </td></tr>
+          </table>
+        </td></tr>"""
+
+        html_body = f"""\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
+<style>
+  :root {{ color-scheme: dark; supported-color-schemes: dark; }}
+  u + .body .gmail-blend-screen     {{ background:#000000; mix-blend-mode:screen; }}
+  u + .body .gmail-blend-difference {{ background:#000000; mix-blend-mode:difference; }}
+  u + .body .text-gold  {{ color:#F4BA00 !important; border-color:#F4BA00 !important; }}
+  u + .body .text-cream {{ color:#F1E6D3 !important; }}
+  u + .body .text-muted {{ color:#828D96 !important; }}
+  @media (prefers-color-scheme: dark) {{
+    .body-bg {{ background-color:#0A1A24 !important; }}
+    .card-edge {{ background-color:#60602D !important; }}
+    .card-bg {{ background-color:#102A38 !important; }}
+    .notice-edge{{ background-color:#4C532F !important; }}
+    .notice-bg  {{ background-color:#223635 !important; }}
+    .text-cream {{ color:#F2EADD !important; }}
+    .text-muted {{ color:#8AA0AD !important; }}
+    .text-gold  {{ color:#F5C518 !important; }}
+  }}
+</style>
+</head>
+<body class="body body-bg" style="margin:0; padding:0; background-color:#0A1A24; font-family:Arial, Helvetica, sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="body-bg" style="background-color:#0A1A24; background-image:linear-gradient(#0A1A24,#0A1A24); padding:32px 12px;">
+<tr><td align="center">
+  <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px; width:100%;">
+    <tr><td align="center" style="padding-bottom:28px;">{wordmark_html}</td></tr>
+    <tr><td class="card-edge" style="background-color:#60602D; background-image:linear-gradient(#60602D,#60602D); border-radius:24px; padding:1px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="card-bg" style="background-color:#102A38; background-image:linear-gradient(#102A38,#102A38); border-radius:23px;">
+        <tr><td align="center" style="padding:36px 32px 8px 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-gold" style="font-family:'Courier New', monospace; font-size:11px; letter-spacing:3px; color:#F5C518; text-transform:uppercase; margin-bottom:12px;">Where To Park</div>
+            <div class="text-cream" style="font-family:Georgia, 'Times New Roman', serif; font-size:26px; color:#F2EADD; letter-spacing:-0.5px;">Parking Is Limited At The Club</div>
+            <div class="text-muted" style="font-size:13px; color:#8AA0AD; line-height:1.6; padding:14px 8px 0 8px;">
+              Hi {guest_name}, on-site parking at Manila Yacht Club is very limited. We recommend using one of these nearby lots instead:
+            </div>
+          </div></div>
+        </td></tr>
+{parking_poster_html}
+        <tr><td style="padding:12px 32px 4px 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{parking_rows}
+            </table>
+          </div></div>
+        </td></tr>
+        <tr><td style="padding:20px 32px 8px 32px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="notice-edge" style="background-color:#4C532F; background-image:linear-gradient(#4C532F,#4C532F); border-radius:14px;">
+            <tr><td style="padding:1px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="notice-bg" style="background-color:#223635; background-image:linear-gradient(#223635,#223635); border-radius:13px;">
+                <tr><td style="padding:16px;">
+                  <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+                    <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6;">
+                      Walk times are approximate and measured from each lot to the club entrance along Roxas Blvd.
+                    </div>
+                  </div></div>
+                </td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:16px 32px 36px 32px;">
+          <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+            <div class="text-muted" style="font-size:12px; color:#8AA0AD; line-height:1.6; border-top:1px solid #1E3744; padding-top:16px;">
+              Check-in 8:00pm &middot; Manila Yacht Club. See you on board!
+            </div>
+          </div></div>
+        </td></tr>
+      </table>
+    </td></tr>
+    <tr><td align="center" style="padding:28px 20px 8px 20px;">
+      <div class="gmail-blend-screen"><div class="gmail-blend-difference">
+        <div class="text-muted" style="font-size:11px; color:#8AA0AD; line-height:1.7;">
+          Exclusives PH &middot; Manila Yacht Club, CCP Complex, Roxas Blvd, Malate, Manila<br>
+          Questions? Reply directly to this email.
+        </div>
+      </div></div>
+    </td></tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>"""
+
+        parking_text = "\n".join(
+            f"{i}. {name} ({walk_time}) - {note}"
+            for i, (name, walk_time, note) in enumerate(PARKING_OPTIONS, start=1)
+        )
+
+        text_body = (
+            f"Hi {guest_name},\n\n"
+            f"WHERE TO PARK\n"
+            f"On-site parking at Manila Yacht Club is very limited. We recommend using one of these nearby lots instead:\n\n"
+            f"{parking_text}\n\n"
+            f"Walk times are approximate, measured from each lot to the club entrance along Roxas Blvd.\n\n"
+            f"Check-in 8:00pm - Manila Yacht Club. See you on board!\n\n"
+            f"Exclusives PH"
+        )
+
+        msg = EmailMessage()
+        msg['To'] = to_email
+        msg['From'] = os.environ.get("SENDER_EMAIL", "your-email@gmail.com")
+        msg['Subject'] = "Where to park — Exclusives PH, Manila Yacht Club"
+        msg.set_content(text_body)
+        msg.add_alternative(html_body, subtype='html')
+
+        html_part = msg.get_payload()[1] if (logo_bytes or parking_bytes) else None
+        if logo_bytes:
+            html_part.add_related(logo_bytes, maintype='image', subtype='png', cid=logo_msgid, filename='logo.png', disposition='inline')
+        if parking_bytes:
+            html_part.add_related(parking_bytes, maintype='image', subtype='jpeg', cid=parking_msgid, filename='parking-poster.jpg', disposition='inline')
+
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        service.users().messages().send(userId="me", body={'raw': raw}).execute()
+        print(f"Successfully sent parking info email to {to_email}")
+    except Exception as e:
+        print(f"ERROR sending parking info email to {to_email}: {str(e)}")

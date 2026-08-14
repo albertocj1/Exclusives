@@ -13,7 +13,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, model_validato
 from supabase import Client, create_client
 
 # Branded confirmation email + inline QR & reminders (see email_module.py)
-from email_module import send_approval_email, send_pending_reminder_email, send_event_details_email
+from email_module import send_approval_email, send_pending_reminder_email, send_event_details_email, send_parking_info_email
 
 EVENT_CAPACITY = int(os.getenv("EVENT_CAPACITY", "135"))  # hard cap: no bookings accepted past this
 HOLD_MINUTES = int(os.getenv("HOLD_MINUTES", "15"))       # how long an unpaid booking holds its seat/table
@@ -179,6 +179,9 @@ class RemindPayload(BaseModel):
     booking_ids: Optional[list[str]] = None
 
 class NotifyPayload(BaseModel):
+    booking_ids: Optional[list[str]] = None
+
+class NotifyParkingPayload(BaseModel):
     booking_ids: Optional[list[str]] = None
 
 # ---------------------------------------------------------------------------
@@ -608,6 +611,36 @@ def notify_confirmed_bookings(payload: NotifyPayload, background_tasks: Backgrou
             to_email=email,
             guest_name=b["full_name"],
             table_id=b.get("table_id"),
+        )
+        notified_count += 1
+
+    return {
+        "status": "success",
+        "notified_count": notified_count,
+        "total_confirmed_rows": len(confirmed_rows),
+        "duplicates_skipped": len(confirmed_rows) - notified_count,
+    }
+
+@app.post("/api/bookings/notify-parking", dependencies=[Depends(require_admin)])
+def notify_parking_bookings(payload: NotifyParkingPayload, background_tasks: BackgroundTasks):
+    query = db().table("bookings").select("*").eq("status", "confirmed")
+    if payload.booking_ids:
+        query = query.in_("id", payload.booking_ids)
+    res = query.execute()
+    confirmed_rows = res.data or []
+
+    unique_confirmed = {}
+    for row in confirmed_rows:
+        email_key = row["email"].lower().strip()
+        if email_key not in unique_confirmed:
+            unique_confirmed[email_key] = row
+
+    notified_count = 0
+    for email, b in unique_confirmed.items():
+        background_tasks.add_task(
+            send_parking_info_email,
+            to_email=email,
+            guest_name=b["full_name"],
         )
         notified_count += 1
 
