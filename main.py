@@ -97,6 +97,9 @@ class BookingCreate(BaseModel):
     guests: int = Field(..., ge=1, le=14)
     guest_names: list[str] = Field(default_factory=list)
     accept_terms: bool
+    # Optional consent to future-event invites. Defaults to False so a missing
+    # field (old cached app.js, API calls) never counts as consent.
+    marketing_opt_in: bool = False
 
     @field_validator("guest_names")
     @classmethod
@@ -382,6 +385,8 @@ def create_booking(payload: BookingCreate):
             "package": payload.package, "table_id": payload.table_id, "guests": payload.guests,
             "guest_names": payload.guest_names,
             "unit_price": unit, "total_amount": total, "status": "pending",
+            "marketing_opt_in": payload.marketing_opt_in,
+            "marketing_opt_in_at": datetime.now(timezone.utc).isoformat() if payload.marketing_opt_in else None,
         }).execute()
     except Exception as e:
         if "23505" in str(e) or "duplicate key" in str(e).lower():
@@ -987,3 +992,24 @@ async def upload_order_receipt(order_id: str, receipt: UploadFile = File(...)):
 
     res = db().table("orders").update({"receipt_url": receipt_url}).eq("id", order_id).execute()
     return res.data[0]
+
+
+# ---------------------------------------------------------------------------
+#  FUTURE-EVENT INVITES
+#  Guests unsubscribe by replying to an invite / emailing
+#  exclusives.est2023@gmail.com. To remove someone, run in Supabase:
+#    update bookings set marketing_opt_in = false where lower(email) = lower('their@email.com');
+# ---------------------------------------------------------------------------
+
+@app.get("/api/marketing/opt-ins", dependencies=[Depends(require_admin)])
+def list_marketing_opt_ins():
+    """Admin: everyone currently opted in (one row per email, latest booking wins)."""
+    rows = db().table("bookings").select("full_name, email, marketing_opt_in, created_at") \
+        .eq("marketing_opt_in", True).order("created_at", desc=True).execute().data or []
+    seen, out = set(), []
+    for r in rows:
+        key = (r.get("email") or "").strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            out.append({"full_name": r.get("full_name"), "email": key})
+    return {"count": len(out), "guests": out}

@@ -515,6 +515,8 @@ document.addEventListener('DOMContentLoaded', () => {
         guests: parseInt(guestsSel ? guestsSel.value : '1', 10) || 1,
         guest_names: names,
         accept_terms: true,
+        // Optional future-event invites. Only an actually-ticked box counts.
+        marketing_opt_in: !!($('marketing-opt-in') && $('marketing-opt-in').checked),
       };
   
       setText('confirm-name', pendingPayload.full_name);

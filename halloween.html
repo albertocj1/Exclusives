@@ -269,6 +269,62 @@
       .itin-card { height: auto !important; min-height: 12rem; margin-bottom: 1.5rem; }
     }
 
+    /* DECK FLOOR PLAN ZOOM VIEWER */
+    .deck-panel img { cursor: zoom-in; }
+    #deck-zoom {
+      position: fixed; inset: 0; z-index: 65;
+      background: rgba(3, 3, 5, 0.96);
+      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+      font-family: 'VT323', monospace;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    #deck-zoom.closed { opacity: 0; visibility: hidden; pointer-events: none; }
+    #deck-zoom-stage {
+      position: absolute; inset: 0; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      touch-action: none; user-select: none; -webkit-user-select: none;
+    }
+    #deck-zoom-stage.zoomed { cursor: grab; }
+    #deck-zoom-stage.zoomed.dragging { cursor: grabbing; }
+    #deck-zoom-img {
+      max-width: 92vw; max-height: 72vh; object-fit: contain;
+      border-radius: 1rem; transform-origin: center center; will-change: transform;
+      filter: invert(0.1) sepia(0.5) hue-rotate(180deg) saturate(2);
+      pointer-events: none; -webkit-user-drag: none;
+    }
+    .deck-zoom-bar { position: absolute; left: 0; right: 0; z-index: 2; display: flex; pointer-events: none; }
+    .deck-zoom-bar > * { pointer-events: auto; }
+    .deck-zoom-top {
+      top: 0; justify-content: space-between; align-items: center;
+      padding: max(12px, env(safe-area-inset-top)) 16px 12px 20px;
+      background: linear-gradient(180deg, #030305 0%, rgba(3, 3, 5, 0) 100%);
+    }
+    .deck-zoom-bottom {
+      bottom: 0; flex-direction: column; align-items: center; gap: 8px;
+      padding: 16px 16px max(16px, env(safe-area-inset-bottom));
+      background: linear-gradient(0deg, #030305 0%, rgba(3, 3, 5, 0) 100%);
+    }
+    .deck-zoom-controls {
+      display: flex; align-items: center; gap: 8px; padding: 6px;
+      background: #131122; border: 1px solid rgba(28, 230, 255, 0.35); border-radius: 9999px;
+      box-shadow: 0 0 20px rgba(28, 230, 255, 0.15);
+    }
+    .deck-zoom-controls button {
+      width: 44px; height: 44px; border-radius: 9999px; background: transparent;
+      border: 1px solid rgba(229, 9, 20, 0.6); color: #E50914;
+      font-family: inherit; font-size: 26px; line-height: 1; cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .deck-zoom-controls button:hover, .deck-zoom-controls button:focus-visible { background: #E50914; color: #FFFFFF; outline: none; }
+    .deck-zoom-controls button:disabled { opacity: 0.35; cursor: default; background: transparent; color: #E50914; }
+    .deck-zoom-controls .deck-zoom-text-btn {
+      width: auto; padding: 0 16px; font-size: 18px; letter-spacing: 0.15em; text-transform: uppercase;
+      border-color: rgba(28, 230, 255, 0.5); color: #1CE6FF;
+    }
+    .deck-zoom-controls .deck-zoom-text-btn:hover, .deck-zoom-controls .deck-zoom-text-btn:focus-visible { background: #1CE6FF; color: #030305; }
+    #deck-zoom-level { min-width: 62px; text-align: center; color: #F8F8FF; font-size: 20px; }
+    .deck-zoom-hint { color: #7E8098; font-size: 15px; letter-spacing: 0.08em; text-align: center; margin: 0; }
+
     @media (prefers-reduced-motion: reduce) {
       * { animation: none !important; transition: none !important; }
       [data-reveal] { opacity: 1 !important; transform: none !important; filter: none !important; }
@@ -583,7 +639,7 @@
         <span class="font-mono text-lg md:text-xl tracking-widest text-brand-neonRed uppercase block mb-2 md:mb-3">Facility Blueprints</span>
         <h2 class="font-stranger text-4xl md:text-5xl tracking-widest text-brand-ice uppercase">Navigate The Lab</h2>
         <div class="w-16 h-[2px] bg-brand-neonRed mx-auto mt-4 md:mt-6 shadow-[0_0_10px_#E50914] rounded-full"></div>
-        <p class="text-brand-muted text-xs md:text-sm font-sans font-light leading-relaxed mt-4 md:mt-6">Three decks, one night on the bay. Flip through each level to see where the couches, bar, dance floor, and lounges sit.</p>
+        <p class="text-brand-muted text-xs md:text-sm font-sans font-light leading-relaxed mt-4 md:mt-6">Three decks, one night on the bay. Flip through each level to see where the couches, bar, dance floor, and lounges sit. Tap a plan to zoom in.</p>
       </div>
 
       <div class="flex flex-wrap justify-center gap-2 md:gap-4 mb-8 md:mb-10 font-mono" data-reveal>
@@ -603,6 +659,10 @@
         <div class="deck-panel hidden" data-deck="sky">
           <img src="images/deck-sky.png" alt="Sky Deck floor plan" class="w-full h-auto block" loading="lazy" decoding="async">
         </div>
+        <button id="deck-zoom-open" type="button" aria-label="Zoom into this floor plan" class="absolute bottom-3 right-3 md:bottom-6 md:right-6 z-20 flex items-center gap-2 font-mono text-sm md:text-lg tracking-widest uppercase text-brand-neonBlue bg-brand-void/80 border border-brand-neonBlue/50 px-4 py-1.5 rounded-full hover:bg-brand-neonBlue hover:text-brand-void transition-colors shadow-[0_0_15px_rgba(28,230,255,0.25)]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M10.5 7.5v6M7.5 10.5h6"/></svg>
+          Zoom
+        </button>
       </div>
 
       <div class="text-center mt-6 md:mt-8 font-mono" data-reveal>
@@ -1114,7 +1174,7 @@
         <p><strong class="text-brand-neonRed font-mono text-lg uppercase">> Who we are:</strong><br> Exclusives PH is the personal information controller for this booking site. Contact us at exclusives.est2023@gmail.com for anything about your data.</p>
         <p><strong class="text-brand-neonRed font-mono text-lg uppercase">> What we collect:</strong><br> Your full name, email, phone number, Instagram handle, the names of the guests in your booking, your package and table choice, and the payment receipt you upload.</p>
         <p><strong class="text-brand-neonRed font-mono text-lg uppercase">> Why we collect it:</strong><br> To verify your payment and booking, send your boarding pass and event updates (bottle and food picks, parking, reminders), check you in at the gate, and compile the passenger manifest required by the Philippine Coast Guard (PCG) and Manila Yacht Club (MYC).</p>
-        <p><strong class="text-brand-neonRed font-mono text-lg uppercase">> Future event invites (optional):</strong><br> Only if you tick the &ldquo;Email me invites to future Exclusives PH events&rdquo; box, we keep your name and email to invite you to future events. This is optional and doesn&rsquo;t affect your booking. Every invite includes a way to unsubscribe, and you can also withdraw your consent anytime by emailing us. We only use the booker&rsquo;s own details for this &mdash; never the names of guests you add to your booking.</p>
+        <p><strong class="text-brand-neonRed font-mono text-lg uppercase">> Future event invites (optional):</strong><br> Only if you tick the &ldquo;Email me invites to future Exclusives PH events&rdquo; box, we keep your name and email to invite you to future events. This is optional and doesn&rsquo;t affect your booking. To unsubscribe, just reply to any invite or email exclusives.est2023@gmail.com and we&rsquo;ll remove you from the list. We only use the booker&rsquo;s own details for this &mdash; never the names of guests you add to your booking.</p>
         <p><strong class="text-brand-neonRed font-mono text-lg uppercase">> Who we share it with:</strong><br> Your name and your guests&rsquo; names are shared with the yacht charter company (Happy Life Yacht), MYC, and PCG strictly for boarding clearance and maritime safety. We also use service providers that host our booking system and send our emails; they process your data only on our instructions. We never sell your data or share it with advertisers.</p>
         <p><strong class="text-brand-neonRed font-mono text-lg uppercase">> How long we keep it:</strong><br> Payment receipts, guest manifests, phone numbers, and Instagram handles are permanently deleted within 30 days after the event. If you opted in to future invites, we keep only your name and email until you unsubscribe, or for up to 2 years after the last event you booked, whichever comes first. If you didn&rsquo;t opt in, all of your booking data is deleted within the same 30 days.</p>
         <p><strong class="text-brand-neonRed font-mono text-lg uppercase">> Your rights:</strong><br> Under the Data Privacy Act of 2012, you can ask to access, correct, or erase your personal data, object to its processing, or withdraw your consent to event invites at any time. Email exclusives.est2023@gmail.com and we&rsquo;ll respond promptly. If you believe your data has been mishandled, you may also file a complaint with the National Privacy Commission (privacy.gov.ph).</p>
@@ -1162,6 +1222,26 @@
         <div class="flex justify-between border-t border-brand-neonRed/30 pt-2 md:pt-3 text-lg md:text-xl font-bold"><span class="text-brand-ice">CODE:</span><span id="ticket-code" class="text-brand-neonRed">EXC-PENDING</span></div>
       </div>
       <button id="close-receipt" class="w-full py-3 border-2 border-brand-neonRed text-brand-neonRed text-lg md:text-xl hover:bg-brand-neonRed hover:text-brand-void uppercase tracking-widest rounded-full">Close & Save</button>
+    </div>
+  </div>
+
+  <!-- DECK FLOOR PLAN ZOOM VIEWER -->
+  <div id="deck-zoom" class="closed" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="deck-zoom-title">
+    <div id="deck-zoom-stage">
+      <img id="deck-zoom-img" src="" alt="" draggable="false">
+    </div>
+    <div class="deck-zoom-bar deck-zoom-top">
+      <span id="deck-zoom-title" class="text-brand-neonBlue text-xl md:text-2xl tracking-widest uppercase">Floor plan</span>
+      <button id="deck-zoom-close" type="button" aria-label="Close floor plan" class="text-brand-neonRed hover:text-white text-4xl md:text-5xl leading-none px-2 rounded-full">&times;</button>
+    </div>
+    <div class="deck-zoom-bar deck-zoom-bottom">
+      <div class="deck-zoom-controls">
+        <button id="deck-zoom-out" type="button" aria-label="Zoom out">&minus;</button>
+        <span id="deck-zoom-level" aria-live="polite">100%</span>
+        <button id="deck-zoom-in" type="button" aria-label="Zoom in">+</button>
+        <button id="deck-zoom-reset" type="button" class="deck-zoom-text-btn">Reset</button>
+      </div>
+      <p class="deck-zoom-hint">Pinch or scroll to zoom &middot; drag to move &middot; double-tap to toggle</p>
     </div>
   </div>
 
@@ -1566,6 +1646,189 @@
       throw lastErr;
     }
     window.fetchJsonWithRetry = fetchJsonWithRetry;
+  })();
+  </script>
+  <script>
+  /* Deck floor plan zoom viewer: pinch, scroll-wheel, drag, double-tap, +/- buttons.
+     The page disables browser pinch-zoom (user-scalable=no), so plans need their own zoom. */
+  (function () {
+    'use strict';
+    var viewer  = document.getElementById('deck-zoom');
+    var stage   = document.getElementById('deck-zoom-stage');
+    var img     = document.getElementById('deck-zoom-img');
+    var titleEl = document.getElementById('deck-zoom-title');
+    var levelEl = document.getElementById('deck-zoom-level');
+    var btnIn   = document.getElementById('deck-zoom-in');
+    var btnOut  = document.getElementById('deck-zoom-out');
+    var btnReset = document.getElementById('deck-zoom-reset');
+    var btnClose = document.getElementById('deck-zoom-close');
+    var btnOpen  = document.getElementById('deck-zoom-open');
+    if (!viewer || !stage || !img) return;
+
+    var MIN = 1, MAX = 5, STEP = 1.5, DOUBLE_TAP_SCALE = 2.5;
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var s = 1, tx = 0, ty = 0;
+    var pointers = new Map();
+    var pinch = null;
+    var down = null;
+    var lastTap = { t: 0, x: 0, y: 0 };
+    var lastFocus = null;
+
+    function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+    function isOpen() { return !viewer.classList.contains('closed'); }
+
+    // Keep the plan from being dragged off-screen: you can pan only as far as its edges.
+    function limits() {
+      var r = stage.getBoundingClientRect();
+      var w = img.offsetWidth * s, h = img.offsetHeight * s;
+      return {
+        x: w > r.width  ? (w - r.width) / 2 + 24 : 0,
+        y: h > r.height ? (h - r.height) / 2 + 24 : 0
+      };
+    }
+
+    function apply(animate) {
+      var L = limits();
+      tx = clamp(tx, -L.x, L.x);
+      ty = clamp(ty, -L.y, L.y);
+      img.style.transition = (animate && !reduceMotion) ? 'transform 0.25s cubic-bezier(0.16,1,0.3,1)' : 'none';
+      img.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')';
+      if (levelEl) levelEl.textContent = Math.round(s * 100) + '%';
+      if (btnOut) btnOut.disabled = s <= MIN + 0.001;
+      if (btnIn) btnIn.disabled = s >= MAX - 0.001;
+      stage.classList.toggle('zoomed', s > MIN + 0.001);
+    }
+
+    // Zoom so the point under (clientX, clientY) stays under the finger/cursor.
+    function zoomAt(clientX, clientY, next, animate) {
+      next = clamp(next, MIN, MAX);
+      var r = stage.getBoundingClientRect();
+      var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      var vx = (clientX - cx - tx) / s, vy = (clientY - cy - ty) / s;
+      s = next;
+      tx = clientX - cx - vx * s;
+      ty = clientY - cy - vy * s;
+      if (s <= MIN + 0.001) { s = MIN; tx = 0; ty = 0; }
+      apply(animate);
+    }
+
+    function zoomCenter(factor) {
+      var r = stage.getBoundingClientRect();
+      zoomAt(r.left + r.width / 2, r.top + r.height / 2, s * factor, true);
+    }
+
+    function reset(animate) { s = MIN; tx = 0; ty = 0; apply(animate); }
+
+    function open() {
+      var src = document.querySelector('.deck-panel:not(.hidden) img') || document.querySelector('.deck-panel img');
+      if (!src) return;
+      img.src = src.currentSrc || src.src;
+      img.alt = src.alt || 'Floor plan';
+      if (titleEl) titleEl.textContent = (src.alt || '').replace(/\s*floor plan\s*$/i, '') || 'Floor plan';
+      lastFocus = document.activeElement;
+      reset(false);
+      viewer.classList.remove('closed');
+      viewer.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-active');
+      if (btnClose) btnClose.focus();
+    }
+
+    function close() {
+      viewer.classList.add('closed');
+      viewer.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-active');
+      pointers.clear(); pinch = null; down = null;
+      stage.classList.remove('dragging');
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+
+    function pinchInfo() {
+      var p = Array.from(pointers.values());
+      return {
+        x: (p[0].x + p[1].x) / 2,
+        y: (p[0].y + p[1].y) / 2,
+        dist: Math.max(1, Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y))
+      };
+    }
+
+    // ---- Open / close / buttons ----
+    document.querySelectorAll('.deck-panel img').forEach(function (el) { el.addEventListener('click', open); });
+    if (btnOpen)  btnOpen.addEventListener('click', open);
+    if (btnClose) btnClose.addEventListener('click', close);
+    if (btnIn)    btnIn.addEventListener('click', function () { zoomCenter(STEP); });
+    if (btnOut)   btnOut.addEventListener('click', function () { zoomCenter(1 / STEP); });
+    if (btnReset) btnReset.addEventListener('click', function () { reset(true); });
+    img.addEventListener('load', function () { if (isOpen()) apply(false); });
+    window.addEventListener('resize', function () { if (isOpen()) apply(false); });
+
+    // ---- Touch + mouse: drag to pan, two fingers to pinch, double-tap to toggle ----
+    stage.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 1) down = { x: e.clientX, y: e.clientY, t: Date.now(), moved: false };
+      if (pointers.size === 2) { pinch = pinchInfo(); if (down) down.moved = true; }
+      stage.classList.add('dragging');
+    });
+
+    stage.addEventListener('pointermove', function (e) {
+      if (!pointers.has(e.pointerId)) return;
+      var prev = pointers.get(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) down.moved = true;
+
+      if (pointers.size >= 2 && pinch) {
+        var p = pinchInfo();
+        tx += p.x - pinch.x;
+        ty += p.y - pinch.y;
+        zoomAt(p.x, p.y, s * (p.dist / pinch.dist), false);
+        pinch = p;
+      } else if (pointers.size === 1 && s > MIN + 0.001) {
+        tx += e.clientX - prev.x;
+        ty += e.clientY - prev.y;
+        apply(false);
+      }
+    });
+
+    function pointerEnd(e) {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinch = null;
+      if (pointers.size > 0) return;
+
+      stage.classList.remove('dragging');
+      if (e.type === 'pointerup' && down && !down.moved && Date.now() - down.t < 300) {
+        var now = Date.now();
+        if (now - lastTap.t < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
+          zoomAt(e.clientX, e.clientY, s > MIN + 0.001 ? MIN : DOUBLE_TAP_SCALE, true);
+          lastTap.t = 0;
+        } else {
+          lastTap = { t: now, x: e.clientX, y: e.clientY };
+        }
+      }
+      down = null;
+    }
+    stage.addEventListener('pointerup', pointerEnd);
+    stage.addEventListener('pointercancel', pointerEnd);
+
+    // ---- Mouse wheel / trackpad pinch ----
+    stage.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var k = e.ctrlKey ? 0.01 : 0.0015; // ctrlKey = trackpad pinch on most browsers
+      zoomAt(e.clientX, e.clientY, s * Math.exp(-e.deltaY * k), false);
+    }, { passive: false });
+
+    // iOS Safari: stop its own gesture zoom from fighting ours.
+    stage.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+
+    // ---- Keyboard ----
+    document.addEventListener('keydown', function (e) {
+      if (!isOpen()) return;
+      if (e.key === 'Escape') { close(); }
+      else if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomCenter(STEP); }
+      else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomCenter(1 / STEP); }
+      else if (e.key === '0') { e.preventDefault(); reset(true); }
+    });
   })();
   </script>
 </body>
