@@ -206,6 +206,21 @@
       border-radius: 1.5rem; /* ROUNDY UPDATE */
     }
 
+    /* DJ LINEUP PHOTOS — per-photo focal point + zoom so faces line up */
+    .dj-photo {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: var(--pos, 50% 30%);
+      transform: scale(var(--zoom, 1));
+      transform-origin: var(--origin, 50% 50%);
+      transition: transform 0.7s cubic-bezier(0.16,1,0.3,1);
+    }
+    .group:hover .dj-photo {
+      transform: scale(calc(var(--zoom, 1) * 1.1));
+    }
+
     /* ITINERARY RETRO TIMELINE */
     #itinerary { isolation: isolate; }
     .itin-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
@@ -510,6 +525,7 @@
     </div>
   </section>
 
+  <!-- ================= LINEUP (photos aligned via .dj-photo) ================= -->
   <section id="lineup" class="py-16 md:py-28 bg-brand-upside backdrop-blur-md border-b border-brand-neonRed/20 relative z-20">
     <div class="max-w-7xl mx-auto px-4 md:px-6">
       <div class="text-center max-w-2xl mx-auto mb-12 md:mb-20" data-reveal>
@@ -520,36 +536,39 @@
       <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
         <div data-reveal class="group border-2 border-brand-slate hover:border-brand-neonBlue transition-colors duration-300 bg-brand-void p-3 rounded-3xl">
           <div class="relative overflow-hidden aspect-square mb-4 filter contrast-125 sepia-[0.3] rounded-2xl">
-            <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/ro-png.png');"></div>
+            <img src="images/ims.jpg" alt="I.M.S" class="dj-photo" loading="lazy" decoding="async"
+                 style="--zoom: 1; --pos: 50% 30%;">
             <div class="absolute inset-0 bg-brand-neonBlue/20 mix-blend-color pointer-events-none"></div>
           </div>
           <div class="text-center font-mono">
             <span class="text-brand-neonRed text-xs md:text-sm tracking-widest uppercase border border-brand-neonRed px-3 py-1 mb-2 md:mb-3 inline-block rounded-full">The Paladin</span>
-            <h3 class="text-2xl md:text-3xl text-white uppercase mb-1">RØ</h3>
+            <h3 class="text-2xl md:text-3xl text-white uppercase mb-1">I.M.S</h3>
             <p class="text-brand-neonBlue text-sm md:text-lg tracking-widest mb-1 md:mb-2">9:00 PM — 11:00 PM</p>
             <p class="text-brand-muted text-xs md:text-sm font-sans">Opening synth waves.</p>
           </div>
         </div>
         <div data-reveal class="group border-2 border-brand-neonRed hover:shadow-[0_0_30px_rgba(229,9,20,0.4)] transition-all duration-300 bg-brand-void p-3 md:-translate-y-6 rounded-3xl">
           <div class="relative overflow-hidden aspect-square mb-4 filter contrast-125 sepia-[0.3] rounded-2xl">
-            <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/ae-natalie.png'); background-position: center 15%;"></div>
+            <img src="images/yuichi.jpg" alt="Yuichi" class="dj-photo" loading="lazy" decoding="async"
+                 style="--zoom: 1; --pos: 50% 47%;">
             <div class="absolute inset-0 bg-brand-neonRed/20 mix-blend-color pointer-events-none"></div>
           </div>
           <div class="text-center font-mono">
             <span class="bg-brand-neonRed text-white text-xs md:text-sm tracking-widest uppercase px-4 py-1 mb-2 md:mb-3 inline-block shadow-[0_0_10px_#E50914] rounded-full">The Mage</span>
-            <h3 class="text-3xl md:text-4xl text-white uppercase mb-1 text-shadow-[0_0_10px_#fff]">Ae Nathalie</h3>
+            <h3 class="text-3xl md:text-4xl text-white uppercase mb-1 text-shadow-[0_0_10px_#fff]">Yuichi</h3>
             <p class="text-brand-neonBlue text-sm md:text-lg tracking-widest mb-1 md:mb-2">11:00 PM — 1:00 AM</p>
             <p class="text-brand-ice text-xs md:text-sm font-sans">Headlining the breach.</p>
           </div>
         </div>
         <div data-reveal class="group border-2 border-brand-slate hover:border-brand-neonBlue transition-colors duration-300 bg-brand-void p-3 rounded-3xl">
           <div class="relative overflow-hidden aspect-square mb-4 filter contrast-125 sepia-[0.3] rounded-2xl">
-            <div class="w-full h-full bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style="background-image: url('images/yuichi.jpg');"></div>
+            <img src="images/rowan.jpg" alt="Rowan" class="dj-photo" loading="lazy" decoding="async"
+                 style="--zoom: 1; --pos: 50% 30%;">
             <div class="absolute inset-0 bg-brand-neonBlue/20 mix-blend-color pointer-events-none"></div>
           </div>
           <div class="text-center font-mono">
             <span class="text-brand-neonRed text-xs md:text-sm tracking-widest uppercase border border-brand-neonRed px-3 py-1 mb-2 md:mb-3 inline-block rounded-full">The Cleric</span>
-            <h3 class="text-2xl md:text-3xl text-white uppercase mb-1">Yuichi</h3>
+            <h3 class="text-2xl md:text-3xl text-white uppercase mb-1">Rowan</h3>
             <p class="text-brand-neonBlue text-sm md:text-lg tracking-widest mb-1 md:mb-2">1:00 AM — 3:00 AM</p>
             <p class="text-brand-muted text-xs md:text-sm font-sans">Closing out the night.</p>
           </div>
