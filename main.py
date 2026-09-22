@@ -43,7 +43,7 @@ PACKAGES = {
 
 # Which physical spots belong to which package (DB keeps these IDs).
 PACKAGE_SPOTS = {
-    "Standing Table": ["DT1", "DT2"],
+    "Standing Table": ["DT1", "DT2", "DT3", "DT4"],
     "Indoor Couch":   ["LC4", "LC7"],
     "Outdoor Couch":  ["DC1", "DC2"],
     "SVIP Couch":     ["LC1", "LC2", "LC3", "LC5", "LC6"],
@@ -53,7 +53,7 @@ PACKAGE_SPOTS = {
 SPOT_DISPLAY_NAMES = {
     "LC1": "SVIP 1", "LC2": "SVIP 2", "LC3": "SVIP 3", "LC5": "SVIP 4", "LC6": "SVIP 5",
     "LC4": "VIP 1",  "LC7": "VIP 2",  "DC1": "VIP 3",  "DC2": "VIP 4",
-    "DT1": "Table 1", "DT2": "Table 2",
+    "DT1": "Table 1", "DT2": "Table 2", "DT3": "Table 3", "DT4": "Table 4",
 }
 
 def compute_total(package: str, guests: int) -> int:

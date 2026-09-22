@@ -64,7 +64,7 @@ SCOPES = ['https://www.googleapis.com/auth/gmail.send']
 SPOT_DISPLAY_NAMES = {
     "LC1": "SVIP 1", "LC2": "SVIP 2", "LC3": "SVIP 3", "LC5": "SVIP 4", "LC6": "SVIP 5",
     "LC4": "VIP 1",  "LC7": "VIP 2",  "DC1": "VIP 3",  "DC2": "VIP 4",
-    "DT1": "Table 1", "DT2": "Table 2",
+    "DT1": "Table 1", "DT2": "Table 2", "DT3": "Table 3", "DT4": "Table 4",
 }
 
 # ---- Event facts — keep in sync with index.html -----------------------------
