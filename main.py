@@ -17,6 +17,12 @@ from email_module import send_approval_email, send_pending_reminder_email, send_
 
 EVENT_CAPACITY = int(os.getenv("EVENT_CAPACITY", "135"))  # hard cap: no bookings accepted past this
 HOLD_MINUTES = int(os.getenv("HOLD_MINUTES", "15"))       # how long an unpaid booking holds its seat/table
+
+# Scopes bookings/orders to the current event so old events' data stays in the
+# DB (for history) but never counts toward capacity or shows up in admin/
+# reception views. Bump this string per event; existing rows keep their old
+# value and are effectively archived.
+EVENT_ID = os.getenv("EVENT_ID", "stranger-halloween-2026")
 EXTRA_HEAD_FEE = 2500
 
 # Receipt upload validation
@@ -290,12 +296,12 @@ def _get_booking(booking_id: str):
     return res.data[0]
 
 def _confirmed_guest_count() -> int:
-    res = db().table("bookings").select("guests").eq("status", "confirmed").execute()
+    res = db().table("bookings").select("guests").eq("status", "confirmed").eq("event_id", EVENT_ID).execute()
     return sum(row.get("guests", 0) for row in (res.data or []))
 
 def _committed_guest_count() -> int:
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
-    res = db().table("bookings").select("guests, status, created_at").in_("status", ["confirmed", "verifying", "pending"]).execute()
+    res = db().table("bookings").select("guests, status, created_at").eq("event_id", EVENT_ID).in_("status", ["confirmed", "verifying", "pending"]).execute()
     
     taken = 0
     for r in (res.data or []):
@@ -332,7 +338,7 @@ def get_tables():
     all_tables = db().table("tables").select("*").execute().data
     lock_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
 
-    res = db().table("bookings").select("table_id, status, created_at").in_("status", ["confirmed", "verifying", "pending"]).not_.is_("table_id", "null").execute()
+    res = db().table("bookings").select("table_id, status, created_at").eq("event_id", EVENT_ID).in_("status", ["confirmed", "verifying", "pending"]).not_.is_("table_id", "null").execute()
     bookings = res.data or []
 
     taken_ids = set()
@@ -364,7 +370,7 @@ def create_booking(payload: BookingCreate):
     if payload.table_id:
         lock_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
         
-        res = db().table("bookings").select("id, status, created_at").eq("table_id", payload.table_id).in_("status", ["confirmed", "verifying", "pending"]).execute()
+        res = db().table("bookings").select("id, status, created_at").eq("table_id", payload.table_id).eq("event_id", EVENT_ID).in_("status", ["confirmed", "verifying", "pending"]).execute()
         for b in (res.data or []):
             st = b.get("status")
             if st == "confirmed":
@@ -382,6 +388,7 @@ def create_booking(payload: BookingCreate):
             "package": payload.package, "table_id": payload.table_id, "guests": payload.guests,
             "guest_names": payload.guest_names,
             "unit_price": unit, "total_amount": total, "status": "pending",
+            "event_id": EVENT_ID,
         }).execute()
     except Exception as e:
         if "23505" in str(e) or "duplicate key" in str(e).lower():
@@ -434,7 +441,7 @@ async def submit_payment(booking_id: str, receipt: UploadFile = File(...)):
 
 @app.get("/api/bookings", dependencies=[Depends(require_admin)])
 def list_bookings():
-    return db().table("bookings").select("*").order("created_at", desc=True).limit(1000).execute().data
+    return db().table("bookings").select("*").eq("event_id", EVENT_ID).order("created_at", desc=True).limit(1000).execute().data
 
 @app.patch("/api/bookings/{booking_id}", response_model=Booking, dependencies=[Depends(require_admin)])
 def update_booking(booking_id: str, payload: BookingUpdate):
@@ -488,7 +495,7 @@ def update_booking(booking_id: str, payload: BookingUpdate):
         lock_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=HOLD_MINUTES)).isoformat()
         res = (
             db().table("bookings").select("id, status, created_at")
-            .eq("table_id", table_id).neq("id", booking_id)
+            .eq("table_id", table_id).neq("id", booking_id).eq("event_id", EVENT_ID)
             .in_("status", ["confirmed", "verifying", "pending"]).execute()
         )
         for b in (res.data or []):
@@ -562,7 +569,7 @@ def cancel_booking(booking_id: str):
 
 @app.post("/api/bookings/remind-pending", dependencies=[Depends(require_admin)])
 def remind_pending_bookings(payload: RemindPayload, background_tasks: BackgroundTasks):
-    query = db().table("bookings").select("*").eq("status", "pending")
+    query = db().table("bookings").select("*").eq("status", "pending").eq("event_id", EVENT_ID)
     if payload.booking_ids:
         query = query.in_("id", payload.booking_ids)
     res = query.execute()
@@ -595,7 +602,7 @@ def remind_pending_bookings(payload: RemindPayload, background_tasks: Background
 
 @app.post("/api/bookings/notify-confirmed", dependencies=[Depends(require_admin)])
 def notify_confirmed_bookings(payload: NotifyPayload, background_tasks: BackgroundTasks):
-    query = db().table("bookings").select("*").eq("status", "confirmed")
+    query = db().table("bookings").select("*").eq("status", "confirmed").eq("event_id", EVENT_ID)
     if payload.booking_ids:
         query = query.in_("id", payload.booking_ids)
     res = query.execute()
@@ -626,7 +633,7 @@ def notify_confirmed_bookings(payload: NotifyPayload, background_tasks: Backgrou
 
 @app.post("/api/bookings/notify-parking", dependencies=[Depends(require_admin)])
 def notify_parking_bookings(payload: NotifyParkingPayload, background_tasks: BackgroundTasks):
-    query = db().table("bookings").select("*").eq("status", "confirmed")
+    query = db().table("bookings").select("*").eq("status", "confirmed").eq("event_id", EVENT_ID)
     if payload.booking_ids:
         query = query.in_("id", payload.booking_ids)
     res = query.execute()
@@ -656,7 +663,7 @@ def notify_parking_bookings(payload: NotifyParkingPayload, background_tasks: Bac
 
 @app.post("/api/bookings/notify-final-reminder", dependencies=[Depends(require_admin)])
 def notify_final_reminder_bookings(payload: NotifyFinalReminderPayload, background_tasks: BackgroundTasks):
-    query = db().table("bookings").select("*").eq("status", "confirmed")
+    query = db().table("bookings").select("*").eq("status", "confirmed").eq("event_id", EVENT_ID)
     if payload.booking_ids:
         query = query.in_("id", payload.booking_ids)
     res = query.execute()
@@ -696,7 +703,7 @@ def reception_search(q: str):
     if not query_str or len(query_str) < 2:
         raise HTTPException(status_code=400, detail="Search query must be at least 2 characters.")
 
-    all_rows = db().table("bookings").select("*").neq("status", "cancelled").execute().data or []
+    all_rows = db().table("bookings").select("*").eq("event_id", EVENT_ID).neq("status", "cancelled").execute().data or []
     q_lower = query_str.lower()
     matches = []
     for b in all_rows:
@@ -723,7 +730,7 @@ def reception_search(q: str):
 
 @app.get("/api/reception/guests", dependencies=[Depends(require_reception)])
 def reception_guests():
-    all_rows = db().table("bookings").select("*").neq("status", "cancelled").execute().data or []
+    all_rows = db().table("bookings").select("*").eq("event_id", EVENT_ID).neq("status", "cancelled").execute().data or []
 
     guests = []
     for b in all_rows:
@@ -765,7 +772,7 @@ def reception_guests():
 @app.get("/api/reception/lookup/{ticket_code}", dependencies=[Depends(require_reception)])
 def reception_lookup(ticket_code: str):
     code = (ticket_code or "").strip().upper()
-    res = db().table("bookings").select("*").eq("ticket_code", code).execute()
+    res = db().table("bookings").select("*").eq("ticket_code", code).eq("event_id", EVENT_ID).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Ticket not found.")
     b = res.data[0]
@@ -836,7 +843,7 @@ def reception_undo_checkin(booking_id: str):
 
 @app.get("/api/reception/summary", dependencies=[Depends(require_reception)])
 def reception_summary():
-    confirmed = db().table("bookings").select("*").eq("status", "confirmed").execute().data or []
+    confirmed = db().table("bookings").select("*").eq("status", "confirmed").eq("event_id", EVENT_ID).execute().data or []
 
     total_bookings = len(confirmed)
     checked_in_bookings = sum(1 for b in confirmed if b.get("checked_in"))
@@ -881,6 +888,7 @@ def reception_tables():
     tables = db().table("tables").select("*").execute().data or []
     confirmed = db().table("bookings").select("*") \
         .eq("status", "confirmed") \
+        .eq("event_id", EVENT_ID) \
         .not_.is_("table_id", "null") \
         .execute().data or []
 
@@ -928,6 +936,7 @@ def create_order(payload: OrderCreate):
         "status": payload.status,
         "payment_method": payload.payment_method,
         "total_amount": total,
+        "event_id": EVENT_ID,
     }
     res = db().table("orders").insert(row).execute()
     if not res.data:
@@ -936,7 +945,7 @@ def create_order(payload: OrderCreate):
 
 @app.get("/api/orders", dependencies=[Depends(require_staff)])
 def list_orders(status_filter: Optional[str] = None):
-    query = db().table("orders").select("*").order("created_at", desc=True).limit(500)
+    query = db().table("orders").select("*").eq("event_id", EVENT_ID).order("created_at", desc=True).limit(500)
     if status_filter:
         query = query.eq("status", status_filter)
     return query.execute().data
