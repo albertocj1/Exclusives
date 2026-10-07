@@ -494,15 +494,17 @@ def send_approval_email(to_email, guest_name, ticket_code, package_name, guests=
 # ============================================================================
 #  2. Event details (bottle / food picks)
 # ============================================================================
-# bottle_count: how many complimentary bottles this tier picks (0 = none).
+# bottle_count: how many complimentary hard bottles this tier picks (0 = none).
+# cans: how many in-cans come with the package (no pick needed; 0 = none).
 # food: whether a complimentary food pick is offered.
+# Keep in sync with the package cards in index.html.
 PACKAGE_TIER_CONFIG = {
-    "SVIP Couch":           {"bottle_count": 2, "food": True},
-    "Indoor Couch":         {"bottle_count": 1, "food": True},
-    "Outdoor Couch":        {"bottle_count": 1, "food": True},
-    "6-Pax Bottle Bundle":  {"bottle_count": 1, "food": False},
-    "Standing Table":       {"bottle_count": 0, "food": False},
-    "Entrance Fee":         {"bottle_count": 0, "food": False},
+    "SVIP Couch":           {"bottle_count": 2, "cans": 8, "food": True},
+    "Indoor Couch":         {"bottle_count": 1, "cans": 4, "food": True},
+    "Outdoor Couch":        {"bottle_count": 1, "cans": 4, "food": True},
+    "6-Pax Bottle Bundle":  {"bottle_count": 1, "cans": 0, "food": False},
+    "Standing Table":       {"bottle_count": 0, "cans": 0, "food": False},
+    "Entrance Fee":         {"bottle_count": 0, "cans": 0, "food": False},
 }
 
 BOTTLE_OPTIONS = [
@@ -522,8 +524,9 @@ def send_event_details_email(to_email, guest_name, package_name=None, table_id=N
     """Pre-event details email. Content depends on package tier (PACKAGE_TIER_CONFIG).
     Unknown package → no bottle/food section (never over-promise a perk)."""
     try:
-        cfg = PACKAGE_TIER_CONFIG.get(package_name, {"bottle_count": 0, "food": False})
+        cfg = PACKAGE_TIER_CONFIG.get(package_name, {"bottle_count": 0, "cans": 0, "food": False})
         bottle_count = cfg["bottle_count"]
+        cans = cfg.get("cans", 0)
         has_bottle = bottle_count > 0
         has_food = cfg["food"]
         name = escape(str(guest_name))
@@ -542,7 +545,8 @@ def send_event_details_email(to_email, guest_name, package_name=None, table_id=N
             if food_bytes:
                 food_msgid, food_cid = _new_cid()
 
-        bottle_heading = "Your complimentary bottles &mdash; pick 2" if bottle_count == 2 else "Your complimentary bottle"
+        bottle_heading = ("Your complimentary hard bottles &mdash; pick 2" if bottle_count == 2
+                          else "Your complimentary hard bottle")
 
         if has_bottle and has_food:
             heading = "Choose your bottle &amp; food"
@@ -570,6 +574,12 @@ def send_event_details_email(to_email, guest_name, package_name=None, table_id=N
                             for n, m in BOTTLE_OPTIONS]
             rows += _row(_t(_label(bottle_heading, "blue", " margin-bottom:4px;") + _numbered_rows(bottle_items)),
                          pad="22px 32px 4px 32px")
+
+        if cans:
+            rows += _row(_panel(_body(
+                f'<span class="text-blue" style="color:{BLUE}; font-weight:bold;">Plus {cans} in-cans</span> '
+                f'are included with your package &mdash; no need to pick these.', size=12),
+                edge="blue"), pad="8px 32px 4px 32px")
 
         if has_bottle and has_food:
             rows += _dashed_row()
@@ -600,8 +610,10 @@ def send_event_details_email(to_email, guest_name, package_name=None, table_id=N
         text_sections = []
         if has_bottle:
             bottle_text = "\n".join(f"{i}. {n} - with {m}" for i, (n, m) in enumerate(BOTTLE_OPTIONS, start=1))
-            label = "YOUR COMPLIMENTARY BOTTLES (PICK 2)" if bottle_count == 2 else "YOUR COMPLIMENTARY BOTTLE"
+            label = "YOUR COMPLIMENTARY HARD BOTTLES (PICK 2)" if bottle_count == 2 else "YOUR COMPLIMENTARY HARD BOTTLE"
             text_sections.append(f"{label}\n{bottle_text}")
+        if cans:
+            text_sections.append(f"PLUS {cans} IN-CANS are included with your package - no need to pick these.")
         if has_food:
             food_text = "\n".join(f"{i}. {item}" for i, item in enumerate(FOOD_OPTIONS, start=1))
             text_sections.append(f"YOUR COMPLIMENTARY FOOD ITEM\n{food_text}")
