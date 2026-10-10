@@ -217,6 +217,35 @@
     </div>
   </div>
 
+  <div id="delete-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-brand-obsidian/85 backdrop-blur-md p-4" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+    <div class="w-full max-w-md max-h-[90vh] overflow-y-auto bg-brand-slate border border-red-500/30 rounded-3xl p-6 md:p-8">
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <h2 id="delete-title" class="font-serif text-2xl text-red-300">Delete booking?</h2>
+          <p class="font-mono text-[10px] tracking-widest text-brand-muted uppercase mt-1">This cannot be undone</p>
+        </div>
+        <button id="delete-close" type="button" aria-label="Close" class="text-brand-muted hover:text-brand-ice text-2xl leading-none px-2">&times;</button>
+      </div>
+
+      <dl id="delete-details" class="grid grid-cols-[auto,1fr] gap-x-4 gap-y-2 text-sm bg-brand-obsidian/50 border border-white/5 rounded-2xl p-4 mb-4"></dl>
+
+      <p class="text-xs text-brand-muted mb-5">This removes the booking from the database. Use <span class="text-brand-ice">Cancel</span> on the booking instead if you only want to free the spot.</p>
+
+      <label for="delete-confirm-input" class="block font-mono text-[10px] tracking-widest uppercase text-brand-muted mb-2">Type <span class="text-red-300">delete</span> to confirm</label>
+      <input id="delete-confirm-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="delete"
+             class="w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-red-400 text-brand-ice text-sm px-4 py-3 outline-none mb-3">
+
+      <p id="delete-error" class="text-red-400 text-xs font-mono hidden mb-3"></p>
+
+      <div class="flex gap-3 pt-1">
+        <button id="delete-cancel-btn" type="button"
+                class="flex-1 font-mono text-[11px] tracking-widest uppercase border border-white/10 text-brand-muted hover:text-brand-ice hover:border-white/20 rounded-full py-3 transition-colors">Keep booking</button>
+        <button id="delete-confirm-btn" type="button" disabled
+                class="flex-1 font-mono text-[11px] tracking-widest uppercase bg-red-600 text-white font-bold rounded-full py-3 hover:bg-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <script>
   (function () {
     'use strict';
@@ -960,7 +989,7 @@
           btn.addEventListener('click', () => cancelBooking(btn.getAttribute('data-cancel')));
         });
         container.querySelectorAll('[data-delete]').forEach((btn) => {
-          btn.addEventListener('click', () => deleteBooking(btn.getAttribute('data-delete')));
+          btn.addEventListener('click', () => openDeleteModal(btn.getAttribute('data-delete')));
         });
         container.querySelectorAll('[data-approve]').forEach((btn) => {
           btn.addEventListener('click', () => approveBooking(btn.getAttribute('data-approve')));
@@ -1032,39 +1061,84 @@
       }, 3000);
     }
 
-    async function deleteBooking(id) {
-      const b = allRows.find((r) => String(r.id) === String(id)) || {};
-      const summary = [
-        b.full_name ? `Guest: ${b.full_name}` : null,
-        b.email ? `Email: ${b.email}` : null,
-        b.package ? `Package: ${b.package}${b.table_id ? ' · ' + spotLabel(b.table_id) : ''}` : null,
-        b.guests ? `Pax: ${b.guests}` : null,
-        b.status ? `Status: ${b.status}` : null,
-        b.ticket_code ? `Ticket: ${b.ticket_code}` : null,
-      ].filter(Boolean).join('\n');
-      const typed = prompt(`Permanently DELETE this booking?\n\n${summary}\n\nThis removes it from the database and cannot be undone. Use Cancel instead if you only want to free the spot.\n\nType "delete" to confirm:`);
-      if (typed === null) return;
-      if (typed.trim().toLowerCase() !== 'delete') {
-        showToast('Not deleted: you must type "delete" to confirm.', 'error');
-        return;
-      }
+    let deletingId = null;
+    let deleteBusy = false;
+
+    function deleteWordOk() {
+      return $('delete-confirm-input').value.trim().toLowerCase() === 'delete';
+    }
+
+    function openDeleteModal(id) {
+      const b = allRows.find((r) => String(r.id) === String(id));
+      if (!b) return;
+      deletingId = b.id;
+      const details = [
+        ['Guest', b.full_name],
+        ['Email', b.email],
+        ['Package', b.package ? b.package + (b.table_id ? ' · ' + spotLabel(b.table_id) : '') : ''],
+        ['Pax', b.guests],
+        ['Status', b.status],
+        ['Ticket', b.ticket_code],
+      ].filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== '');
+      $('delete-details').innerHTML = details.map(([k, v]) =>
+        `<dt class="font-mono text-[10px] tracking-widest uppercase text-brand-muted pt-0.5">${esc(k)}</dt><dd class="text-brand-ice break-words">${esc(v)}</dd>`
+      ).join('');
+      $('delete-confirm-input').value = '';
+      $('delete-confirm-btn').disabled = true;
+      $('delete-confirm-btn').textContent = 'Delete';
+      $('delete-error').classList.add('hidden');
+      $('delete-modal').classList.remove('hidden');
+      setTimeout(() => $('delete-confirm-input').focus(), 0);
+    }
+
+    function closeDeleteModal() {
+      if (deleteBusy) return;
+      deletingId = null;
+      $('delete-modal').classList.add('hidden');
+    }
+
+    async function confirmDelete() {
+      if (!deletingId || deleteBusy || !deleteWordOk()) return;
+      const b = allRows.find((r) => String(r.id) === String(deletingId)) || {};
+      deleteBusy = true;
+      $('delete-confirm-btn').disabled = true;
+      $('delete-confirm-btn').textContent = 'Deleting…';
+      $('delete-error').classList.add('hidden');
       try {
-        const res = await fetch(`${API_BASE}/api/bookings/${id}`, {
+        const res = await fetch(`${API_BASE}/api/bookings/${deletingId}`, {
           method: 'DELETE',
           headers: { 'X-Admin-Key': adminKey },
         });
-        if (res.status === 401) { showGate(); return; }
+        if (res.status === 401) { deleteBusy = false; closeDeleteModal(); showGate(); return; }
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
-          alert((d && d.detail) || 'Could not delete booking.');
-          return;
+          throw new Error((d && d.detail) || 'Could not delete booking.');
         }
+        deleteBusy = false;
+        closeDeleteModal();
         showToast(`Deleted${b.full_name ? ': ' + b.full_name : ''}`);
         load();
       } catch (e) {
-        alert('Could not reach the server.');
+        deleteBusy = false;
+        $('delete-error').textContent = e instanceof TypeError ? 'Could not reach the server.' : e.message;
+        $('delete-error').classList.remove('hidden');
+        $('delete-confirm-btn').textContent = 'Delete';
+        $('delete-confirm-btn').disabled = !deleteWordOk();
+        $('delete-confirm-input').focus();
       }
     }
+
+    $('delete-confirm-input').addEventListener('input', () => {
+      $('delete-confirm-btn').disabled = deleteBusy || !deleteWordOk();
+    });
+    $('delete-confirm-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmDelete(); });
+    $('delete-confirm-btn').addEventListener('click', confirmDelete);
+    $('delete-cancel-btn').addEventListener('click', closeDeleteModal);
+    $('delete-close').addEventListener('click', closeDeleteModal);
+    $('delete-modal').addEventListener('click', (e) => { if (e.target === $('delete-modal')) closeDeleteModal(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !$('delete-modal').classList.contains('hidden')) closeDeleteModal();
+    });
 
     // -------------------------------------------------------------------
     // Edit booking modal
