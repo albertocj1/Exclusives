@@ -871,9 +871,7 @@
         if (canCancel) {
            actionButtons += `<button data-cancel="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-red-300 hover:text-red-200 border border-red-400/30 hover:border-red-300 rounded-full px-3 py-1 transition-colors">Cancel</button>`;
         }
-        if (!actionButtons) {
-           actionButtons = `<span class="text-brand-muted text-xs">—</span>`;
-        }
+        actionButtons += `<button data-delete="${esc(r.id)}" title="Permanently delete this booking" class="font-mono text-[10px] tracking-widest uppercase text-red-400 hover:text-white hover:bg-red-600 border border-red-500/50 hover:border-red-500 rounded-full px-3 py-1 transition-colors ${actionButtons ? 'ml-2' : ''}">Delete</button>`;
 
         // --- Mobile card version of this same booking, same computed values above ---
         const cardCb = canSelect
@@ -961,6 +959,9 @@
         container.querySelectorAll('[data-cancel]').forEach((btn) => {
           btn.addEventListener('click', () => cancelBooking(btn.getAttribute('data-cancel')));
         });
+        container.querySelectorAll('[data-delete]').forEach((btn) => {
+          btn.addEventListener('click', () => deleteBooking(btn.getAttribute('data-delete')));
+        });
         container.querySelectorAll('[data-approve]').forEach((btn) => {
           btn.addEventListener('click', () => approveBooking(btn.getAttribute('data-approve')));
         });
@@ -1000,6 +1001,34 @@
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
           alert((d && d.detail) || 'Could not cancel booking.');
+          return;
+        }
+        load();
+      } catch (e) {
+        alert('Could not reach the server.');
+      }
+    }
+
+    async function deleteBooking(id) {
+      const b = allRows.find((r) => String(r.id) === String(id)) || {};
+      const summary = [
+        b.full_name ? `Guest: ${b.full_name}` : null,
+        b.email ? `Email: ${b.email}` : null,
+        b.package ? `Package: ${b.package}${b.table_id ? ' · ' + spotLabel(b.table_id) : ''}` : null,
+        b.guests ? `Pax: ${b.guests}` : null,
+        b.status ? `Status: ${b.status}` : null,
+        b.ticket_code ? `Ticket: ${b.ticket_code}` : null,
+      ].filter(Boolean).join('\n');
+      if (!confirm(`Permanently DELETE this booking?\n\n${summary}\n\nThis removes it from the database and cannot be undone. Use Cancel instead if you only want to free the spot.`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/bookings/${id}`, {
+          method: 'DELETE',
+          headers: { 'X-Admin-Key': adminKey },
+        });
+        if (res.status === 401) { showGate(); return; }
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          alert((d && d.detail) || 'Could not delete booking.');
           return;
         }
         load();
