@@ -1,6 +1,6 @@
 fastapi[standard]
 uvicorn[standard]
-supabase>=2.16  # 2.15 and older reject the new sb_secret_ keys
+supabase
 pydantic[email]
 httpx
 python-multipart
