@@ -1009,6 +1009,29 @@
       }
     }
 
+    function showToast(message, kind) {
+      let wrap = document.getElementById('toast-wrap');
+      if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = 'toast-wrap';
+        wrap.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-2 pointer-events-none';
+        document.body.appendChild(wrap);
+      }
+      const toast = document.createElement('div');
+      const tone = kind === 'error'
+        ? 'border-red-400/40 text-red-200'
+        : 'border-emerald-400/40 text-emerald-200';
+      toast.className = `font-mono text-xs tracking-widest uppercase bg-brand-obsidian/95 border ${tone} rounded-full px-5 py-3 shadow-lg transition-all duration-300 opacity-0 translate-y-2`;
+      toast.setAttribute('role', 'status');
+      toast.textContent = message;
+      wrap.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.remove('opacity-0', 'translate-y-2'));
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
     async function deleteBooking(id) {
       const b = allRows.find((r) => String(r.id) === String(id)) || {};
       const summary = [
@@ -1019,7 +1042,12 @@
         b.status ? `Status: ${b.status}` : null,
         b.ticket_code ? `Ticket: ${b.ticket_code}` : null,
       ].filter(Boolean).join('\n');
-      if (!confirm(`Permanently DELETE this booking?\n\n${summary}\n\nThis removes it from the database and cannot be undone. Use Cancel instead if you only want to free the spot.`)) return;
+      const typed = prompt(`Permanently DELETE this booking?\n\n${summary}\n\nThis removes it from the database and cannot be undone. Use Cancel instead if you only want to free the spot.\n\nType "delete" to confirm:`);
+      if (typed === null) return;
+      if (typed.trim().toLowerCase() !== 'delete') {
+        showToast('Not deleted: you must type "delete" to confirm.', 'error');
+        return;
+      }
       try {
         const res = await fetch(`${API_BASE}/api/bookings/${id}`, {
           method: 'DELETE',
@@ -1031,6 +1059,7 @@
           alert((d && d.detail) || 'Could not delete booking.');
           return;
         }
+        showToast(`Deleted${b.full_name ? ': ' + b.full_name : ''}`);
         load();
       } catch (e) {
         alert('Could not reach the server.');
