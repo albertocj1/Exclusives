@@ -565,6 +565,12 @@ def cancel_booking(booking_id: str):
     res = db().table("bookings").update({"status": "cancelled"}).eq("id", booking_id).execute()
     return Booking(**res.data[0])
 
+@app.delete("/api/bookings/{booking_id}", dependencies=[Depends(require_admin)])
+def delete_booking(booking_id: str):
+    _get_booking(booking_id)
+    db().table("bookings").delete().eq("id", booking_id).execute()
+    return {"status": "deleted", "id": booking_id}
+
 @app.post("/api/bookings/remind-pending", dependencies=[Depends(require_admin)])
 def remind_pending_bookings(payload: RemindPayload, background_tasks: BackgroundTasks):
     query = db().table("bookings").select("*").eq("status", "pending")
