@@ -75,8 +75,8 @@ EVENT_CHECKIN_TIME = "8:00 PM"
 EVENT_DECK_UNTIL = "3:00 AM"
 EVENT_VENUE_LINE = "Manila Yacht Club, CCP Complex, Roxas Boulevard, Malate, Manila"
 EVENT_TAGLINE = "The Upside Down Yacht Party"
-DRESS_CODE_HTML = "Black or your best Stranger Things / 80s / Halloween costume. No shorts of any kind."
-DRESS_CODE_TEXT = "Black or your best Stranger Things / 80s / Halloween costume. No shorts of any kind."
+DRESS_CODE_HTML = "Black or your best Stranger Things / 80s / Halloween costume. All shorts are allowed for both men and women."
+DRESS_CODE_TEXT = "Black or your best Stranger Things / 80s / Halloween costume. All shorts are allowed for both men and women."
 
 # Reply-by deadline for the bottle/food picks (2 days before the event).
 RSVP_DEADLINE = "October 28, 2026"
