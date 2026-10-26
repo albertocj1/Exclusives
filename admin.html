@@ -776,20 +776,23 @@
       }
 
       // --- DYNAMIC BREAKDOWN LOGIC ---
+      // Mirrors PACKAGE_TIER_CONFIG in email_module.py: what each package is asked to pick.
+      const PICKS_BY_PACKAGE = {
+        'SVIP Couch':          '2 bottles + 1 food',
+        'Indoor Couch':        '1 bottle + 1 food',
+        'Outdoor Couch':       '1 bottle + 1 food',
+        '6-Pax Bottle Bundle': '1 bottle',
+      };
       const processedEmails = new Set();
-      let svipCount = 0;
-      let standardCount = 0;
+      const groups = {};
 
       targetRows.forEach((r) => {
         const email = String(r.email).toLowerCase().trim();
         if (!processedEmails.has(email)) {
           processedEmails.add(email);
-          const spotName = SPOT_NAMES[r.table_id] || '';
-          if (spotName.includes('SVIP')) {
-            svipCount++;
-          } else {
-            standardCount++;
-          }
+          const picks = PICKS_BY_PACKAGE[r.package] || 'no picks, confirmation only';
+          const key = `${r.package || 'Unknown package'} (${picks})`;
+          groups[key] = (groups[key] || 0) + 1;
         }
       });
 
@@ -797,7 +800,10 @@
       const selectedIds = targetRows.map((r) => r.id);
 
       let confirmMsg = `Send the pre-event details email to ${processedEmails.size} unique guest(s)?\n\n`;
-      confirmMsg += `Breakdown:\n- SVIP Guests (2 bottles): ${svipCount}\n- VIP/Standard Guests (1 bottle): ${standardCount}`;
+      confirmMsg += `Breakdown:\n` + Object.keys(groups).sort().map((k) => `- ${k}: ${groups[k]}`).join('\n');
+      confirmMsg += `\n\nBottles: Absolut Vodka, Johnnie Walker Black Label, Jägermeister`;
+      confirmMsg += `\nFood: Nachos, Fruit Platter, Charcuterie Board`;
+      confirmMsg += `\nReply-by date: October 28, 2026`;
 
       if (dups > 0) {
         confirmMsg += `\n\n(${dups} duplicate email address attempt${dups === 1 ? '' : 'es'} will automatically be skipped.)`;
