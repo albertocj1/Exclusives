@@ -512,7 +512,7 @@ BOTTLE_OPTIONS = [
     ("Johnnie Walker Black Label", "Coca-Cola"),
     ("J\u00e4germeister", "Red Bull"),
 ]
-FOOD_OPTIONS = ["Nachos", "Tacos", "Charcuterie Board"]
+FOOD_OPTIONS = ["Nachos", "Fruit Platter", "Charcuterie Board"]
 
 FOOTWEAR_HTML = (
     f'Wear <strong>shoes</strong> to arrive &mdash; slippers aren\'t allowed at the club gate. '
@@ -585,7 +585,7 @@ def send_event_details_email(to_email, guest_name, package_name=None, table_id=N
             rows += _dashed_row()
 
         if has_food:
-            rows += _poster_row(food_cid, "Choose one complimentary food item: Nachos, Tacos, or Charcuterie Board", pad="20px 32px 0 32px")
+            rows += _poster_row(food_cid, "Choose one complimentary food item: Nachos, Fruit Platter, or Charcuterie Board", pad="20px 32px 0 32px")
             rows += _row(_t(_label("Your complimentary food item", "blue", " margin-bottom:4px;") +
                             _numbered_rows([(f, None) for f in FOOD_OPTIONS])),
                          pad="20px 32px 4px 32px")
