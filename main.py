@@ -13,7 +13,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, model_validato
 from supabase import Client, create_client
 
 # Branded confirmation email + inline QR & reminders (see email_module.py)
-from email_module import send_approval_email, send_pending_reminder_email, send_event_details_email, send_parking_info_email, send_final_reminder_email
+from email_module import send_approval_email, send_pending_reminder_email, send_event_details_email, send_parking_info_email, send_final_reminder_email, PACKAGE_TIER_CONFIG
 
 EVENT_CAPACITY = int(os.getenv("EVENT_CAPACITY", "130"))  # hard cap: no bookings accepted past this
 HOLD_MINUTES = int(os.getenv("HOLD_MINUTES", "15"))       # how long an unpaid booking holds its seat/table
@@ -612,10 +612,16 @@ def notify_confirmed_bookings(payload: NotifyPayload, background_tasks: Backgrou
     res = query.execute()
     confirmed_rows = res.data or []
 
+    # One email per address. If a guest has several bookings, keep the one with
+    # the most perks so an SVIP guest isn't sent the "no picks" version.
+    def perk_rank(row):
+        cfg = PACKAGE_TIER_CONFIG.get(row.get("package"), {})
+        return (cfg.get("bottle_count", 0), cfg.get("food", False), cfg.get("cans", 0))
+
     unique_confirmed = {}
     for row in confirmed_rows:
         email_key = row["email"].lower().strip()
-        if email_key not in unique_confirmed:
+        if email_key not in unique_confirmed or perk_rank(row) > perk_rank(unique_confirmed[email_key]):
             unique_confirmed[email_key] = row
 
     notified_count = 0
@@ -624,6 +630,7 @@ def notify_confirmed_bookings(payload: NotifyPayload, background_tasks: Backgrou
             send_event_details_email,
             to_email=email,
             guest_name=b["full_name"],
+            package_name=b.get("package"),
             table_id=b.get("table_id"),
         )
         notified_count += 1

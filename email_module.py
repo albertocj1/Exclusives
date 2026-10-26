@@ -568,6 +568,14 @@ def send_event_details_email(to_email, guest_name, package_name=None, table_id=N
 
         rows = _header_rows("Before you board", heading, f"Hi {name}, {intro_line}")
 
+        booking_line = escape(package_name or "Confirmed booking")
+        if table_id:
+            booking_line += f" &middot; {escape(_spot_label(table_id))}"
+        rows += _row(_panel(
+            _label("Your booking", "blue", " margin-bottom:4px;") +
+            _body(booking_line, size=14, color_cls="text-ice", color=ICE),
+            edge="blue"), pad="14px 32px 4px 32px")
+
         if has_bottle:
             rows += _poster_row(bottle_cid, "Choose your complimentary bottle: Absolut Vodka, Johnnie Walker Black Label, or J\u00e4germeister")
             bottle_items = [(f'{n} <span class="text-muted" style="color:{MUTED}; font-weight:normal;">&mdash; with {m}</span>', None)
@@ -619,6 +627,7 @@ def send_event_details_email(to_email, guest_name, package_name=None, table_id=N
             text_sections.append(f"YOUR COMPLIMENTARY FOOD ITEM\n{food_text}")
 
         text_body = f"Hi {guest_name},\n\n"
+        text_body += f"YOUR BOOKING: {package_name or 'Confirmed booking'}" + (f" - {_spot_label(table_id)}" if table_id else "") + "\n\n"
         text_body += ("Two quick picks" if (has_bottle and has_food) else "A quick note") + " before you board Exclusives PH - Halloween Party:\n\n"
         if text_sections:
             text_body += "\n\n".join(text_sections) + "\n\n"
