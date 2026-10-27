@@ -93,6 +93,34 @@
       <button data-filter="cancelled" class="filter-btn font-mono text-[10px] sm:text-[11px] tracking-widest uppercase rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-white/10 text-brand-muted hover:text-brand-gold hover:border-brand-gold transition-colors">Cancelled</button>
     </div>
 
+    <div class="flex flex-col lg:flex-row gap-2 mb-3">
+      <input id="admin-search" type="search" autocomplete="off" placeholder="Search name, email, phone, IG, ticket, guest, referrer, table&hellip;"
+             class="flex-1 bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-4 py-2.5 outline-none placeholder:text-brand-muted/60">
+      <div class="flex gap-2">
+        <select id="admin-package" class="flex-1 lg:flex-none bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-3 py-2.5 outline-none">
+          <option value="">All packages</option>
+          <option>SVIP Couch</option>
+          <option>Indoor Couch</option>
+          <option>Outdoor Couch</option>
+          <option>Standing Table</option>
+          <option>6-Pax Bottle Bundle</option>
+          <option>Entrance Fee</option>
+        </select>
+        <select id="admin-show" class="flex-1 lg:flex-none bg-brand-slate border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-3 py-2.5 outline-none">
+          <option value="">Show: everything</option>
+          <option value="picks-missing">Picks missing</option>
+          <option value="names-missing">Guest names missing</option>
+          <option value="checked-in">Checked in</option>
+          <option value="not-checked-in">Not checked in (confirmed)</option>
+          <option value="receipt">Has receipt</option>
+          <option value="no-receipt">No receipt</option>
+          <option value="referred">Has referrer</option>
+        </select>
+        <button id="admin-clear" type="button" class="hidden font-mono text-[10px] tracking-widest uppercase border border-white/10 text-brand-muted hover:text-brand-ice rounded-xl px-3">Clear</button>
+      </div>
+    </div>
+    <div id="admin-count" class="font-mono text-[11px] text-brand-muted mb-1">&nbsp;</div>
+
     <div id="export-hint" class="font-mono text-[11px] text-brand-muted mb-4">&nbsp;</div>
 
     <div class="bg-brand-slate border border-white/5 rounded-2xl overflow-hidden">
@@ -509,6 +537,7 @@
       const el = $('export-hint');
       if (!rows.length) { el.innerHTML = '&nbsp;'; return; }
       let txt = `Export scope: ${scopeLabel()} — ${rows.length} booking${rows.length === 1 ? '' : 's'}, ${manifest.length} passenger${manifest.length === 1 ? '' : 's'}.`;
+      if (filtersActive()) txt += ' (Exports ignore the search and filters above.)';
       el.textContent = txt;
       el.className = 'font-mono text-[11px] text-brand-muted mb-4';
       if (missing) {
@@ -860,18 +889,73 @@
       }
     });
 
+    // -------------------------------------------------------------------
+    // Search + filters (on top of the status buttons). Exports ignore these.
+    // -------------------------------------------------------------------
+    const fold = (t) => String(t == null ? '' : t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    function searchText(r) {
+      return fold([
+        r.full_name, r.email, r.phone, r.instagram, String(r.instagram || '').replace(/^@+/, ''),
+        r.referrer, r.ticket_code, r.package, r.table_id, r.table_id ? spotLabel(r.table_id) : '', r.id,
+        (Array.isArray(r.guest_names) ? r.guest_names : []).join(' '),
+      ].join(' '));
+    }
+    function matchesShow(r, show) {
+      const names = (Array.isArray(r.guest_names) ? r.guest_names : []).filter((n) => String(n).trim());
+      switch (show) {
+        case 'picks-missing': {
+          const a = compAllowance(r.package);
+          if (r.status !== 'confirmed' || !a.any) return false;
+          return (r.comp_bottles || []).filter(Boolean).length < a.bottle || (a.food && !r.comp_food);
+        }
+        case 'names-missing':  return names.length < (Number(r.guests) || 0);
+        case 'checked-in':     return !!r.checked_in;
+        case 'not-checked-in': return r.status === 'confirmed' && !r.checked_in;
+        case 'receipt':        return !!r.receipt_url;
+        case 'no-receipt':     return !r.receipt_url;
+        case 'referred':       return !!String(r.referrer || '').trim();
+        default:               return true;
+      }
+    }
+    function visibleRows() {
+      const q = fold($('admin-search').value.trim());
+      const pkg = $('admin-package').value;
+      const show = $('admin-show').value;
+      return allRows.filter((r) =>
+        (currentFilter === 'all' || r.status === currentFilter) &&
+        (!pkg || r.package === pkg) &&
+        matchesShow(r, show) &&
+        (!q || q.split(/\s+/).every((w) => searchText(r).indexOf(w) !== -1)));
+    }
+    function filtersActive() {
+      return !!($('admin-search').value.trim() || $('admin-package').value || $('admin-show').value);
+    }
+    $('admin-search').addEventListener('input', () => render());
+    $('admin-search').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.target.value = ''; render(); } });
+    $('admin-package').addEventListener('change', () => render());
+    $('admin-show').addEventListener('change', () => render());
+    $('admin-clear').addEventListener('click', () => {
+      $('admin-search').value = ''; $('admin-package').value = ''; $('admin-show').value = '';
+      render();
+    });
+
     function render() {
       updateExportHint();
       if ($('select-all-cb')) $('select-all-cb').checked = false;
       if ($('select-all-cb-mobile')) $('select-all-cb-mobile').checked = false;
 
-      const rows = currentFilter === 'all' ? allRows : allRows.filter((r) => r.status === currentFilter);
+      const rows = visibleRows();
+      const statusTotal = exportRows().length;
+      $('admin-clear').classList.toggle('hidden', !filtersActive());
+      $('admin-count').textContent = filtersActive()
+        ? `Showing ${rows.length} of ${statusTotal} booking${statusTotal === 1 ? '' : 's'} in "${scopeLabel()}"`
+        : '\u00a0';
       const tbody = $('rows');
       const cardsWrap = $('rows-mobile');
       if (!rows.length) {
         tbody.innerHTML = '';
         cardsWrap.innerHTML = '';
-        $('empty').textContent = 'No bookings in this view.';
+        $('empty').textContent = filtersActive() ? 'No bookings match the search / filters.' : 'No bookings in this view.';
         $('empty').classList.remove('hidden');
         return;
       }
