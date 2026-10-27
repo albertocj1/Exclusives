@@ -177,6 +177,9 @@ class BookingUpdate(BaseModel):
 
 class CheckinBody(BaseModel):
     heads_present: int = Field(..., ge=0, le=50)
+    # Positions in the booking's guest_names of the people who are inside (ticked at the door).
+    # Optional so older reception pages that only send a head count keep working.
+    checked_in_guests: Optional[list[int]] = None
 
 class RemindPayload(BaseModel):
     booking_ids: Optional[list[str]] = None
@@ -735,6 +738,7 @@ def reception_search(q: str):
                 "checked_in_at": b.get("checked_in_at"),
                 "heads_present": b.get("heads_present", 0),
                 "guest_names": b.get("guest_names") or [],
+                "checked_in_guests": b.get("checked_in_guests") or [],
             })
     matches.sort(key=lambda m: 0 if m["status"] == "confirmed" else 1)
     return {"results": matches}
@@ -757,6 +761,7 @@ def reception_guests():
             "checked_in_at": b.get("checked_in_at"),
             "heads_present": b.get("heads_present", 0),
             "guest_names": b.get("guest_names") or [],
+            "checked_in_guests": b.get("checked_in_guests") or [],
         })
 
     # Confirmed-and-not-yet-arrived first, then confirmed-checked-in, then anything else (pending/etc).
@@ -799,7 +804,21 @@ def reception_lookup(ticket_code: str):
         "checked_in_at": b.get("checked_in_at"),
         "heads_present": b.get("heads_present", 0),
         "guest_names": b.get("guest_names") or [],
+        "checked_in_guests": b.get("checked_in_guests") or [],
     }
+
+
+def _update_checkin(booking_id: str, update: dict):
+    """Write a check-in update. If the checked_in_guests column hasn't been added to the
+    database yet, save everything else so the door keeps working on head counts alone."""
+    try:
+        return db().table("bookings").update(update).eq("id", booking_id).execute()
+    except Exception as e:
+        if "checked_in_guests" in update and "checked_in_guests" in str(e):
+            print(f"WARNING: bookings.checked_in_guests column missing; saving head count only. ({e})")
+            rest = {k: v for k, v in update.items() if k != "checked_in_guests"}
+            return db().table("bookings").update(rest).eq("id", booking_id).execute()
+        raise
 
 @app.post("/api/reception/checkin/{booking_id}", dependencies=[Depends(require_reception)])
 def reception_checkin(booking_id: str, body: CheckinBody):
@@ -816,10 +835,20 @@ def reception_checkin(booking_id: str, body: CheckinBody):
 
     already = bool(b.get("checked_in"))
     update = {"checked_in": True, "heads_present": body.heads_present}
+
+    if body.checked_in_guests is not None:
+        n_names = len(b.get("guest_names") or [])
+        ticked = sorted(set(body.checked_in_guests))
+        if any(i < 0 or i >= n_names for i in ticked):
+            raise HTTPException(status_code=400, detail="Ticked guest is not on this booking. Refresh and try again.")
+        if len(ticked) > body.heads_present:
+            raise HTTPException(status_code=400, detail="More guests ticked than the head count.")
+        update["checked_in_guests"] = ticked
+
     if not already:
         update["checked_in_at"] = datetime.now(timezone.utc).isoformat()
 
-    res = db().table("bookings").update(update).eq("id", booking_id).execute()
+    res = _update_checkin(booking_id, update)
     row = res.data[0]
     return {
         "id": row["id"],
@@ -829,6 +858,7 @@ def reception_checkin(booking_id: str, body: CheckinBody):
         "heads_present": row.get("heads_present", 0),
         "checked_in": row.get("checked_in", False),
         "checked_in_at": row.get("checked_in_at"),
+        "checked_in_guests": row.get("checked_in_guests") or [],
         "already_checked_in": already,
     }
 
@@ -838,8 +868,8 @@ def reception_undo_checkin(booking_id: str):
     if not b.get("checked_in"):
         raise HTTPException(status_code=400, detail="This booking isn't checked in.")
 
-    update = {"checked_in": False, "heads_present": 0, "checked_in_at": None}
-    res = db().table("bookings").update(update).eq("id", booking_id).execute()
+    update = {"checked_in": False, "heads_present": 0, "checked_in_at": None, "checked_in_guests": []}
+    res = _update_checkin(booking_id, update)
     row = res.data[0]
     return {
         "id": row["id"],
@@ -850,6 +880,7 @@ def reception_undo_checkin(booking_id: str):
         "heads_present": row.get("heads_present", 0),
         "checked_in": row.get("checked_in", False),
         "checked_in_at": row.get("checked_in_at"),
+        "checked_in_guests": row.get("checked_in_guests") or [],
     }
 
 @app.get("/api/reception/summary", dependencies=[Depends(require_reception)])
