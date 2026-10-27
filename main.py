@@ -199,8 +199,8 @@ class NotifyFinalReminderPayload(BaseModel):
 
 POS_MENU_PRICES = {
     "pkg-breeze":       ("Breeze", 3550),
-    "pkg-ignition-ab":  ("Ignition", 3850),
-    "pkg-ignition-jg":  ("Ignition", 4000),
+    "pkg-ignition-ab":  ("Ignition (Absolut)", 3850),
+    "pkg-ignition-jg":  ("Ignition (Jägermeister)", 4000),
     "btl-absolut":      ("Absolut Vodka", 2850),
     "btl-jager":        ("Jägermeister", 3000),
     "btl-jwblack":      ("Johnnie Walker Black Label", 3195),
