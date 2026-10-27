@@ -513,7 +513,6 @@
         ['Date', EVENT.date],
         ['Venue', EVENT.venue],
         ['Scope', scopeLabel()],
-        ['Bookings', rows.length],
         ['Total passengers', manifest.length],
         ['Names still missing', missing],
         ['Generated', new Date().toLocaleString('en-PH')],
@@ -593,10 +592,9 @@
 
       doc.setTextColor(15, 15, 15);
       doc.text('Scope: ' + scopeLabel(), W - 40, 66, { align: 'right' });
-      doc.text('Bookings: ' + rows.length, W - 40, 79, { align: 'right' });
       doc.text(
         'Passengers: ' + manifest.length + (missing ? '  (' + missing + ' name' + (missing === 1 ? '' : 's') + ' missing)' : ''),
-        W - 40, 92, { align: 'right' }
+        W - 40, 79, { align: 'right' }
       );
 
       const names = manifest.map((m) => m.guest_name);
