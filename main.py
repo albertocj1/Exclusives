@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Literal, Optional
 from email.message import EmailMessage
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status, UploadFile, File, BackgroundTasks
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, status, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
@@ -200,9 +200,9 @@ class NotifyFinalReminderPayload(BaseModel):
 POS_MENU_PRICES = {
     "pkg-breeze":       ("Breeze", 3550),
     "pkg-ignition-ab":  ("Ignition (Absolut)", 3850),
-    "pkg-ignition-jg":  ("Ignition (Jägermeister)", 4000),
+    "pkg-ignition-jg":  ("Ignition (Jagermeister)", 4000),
     "btl-absolut":      ("Absolut Vodka", 2850),
-    "btl-jager":        ("Jägermeister", 3000),
+    "btl-jager":        ("Jagermeister", 3000),
     "btl-jwblack":      ("Johnnie Walker Black Label", 3195),
     "bev-water":        ("Bottled Water", 130),
     "bev-coke":         ("Coca-Cola Regular", 150),
@@ -986,8 +986,9 @@ def create_order(payload: OrderCreate):
     return res.data[0]
 
 @app.get("/api/orders", dependencies=[Depends(require_staff)])
-def list_orders(status_filter: Optional[str] = None):
-    query = db().table("orders").select("*").order("created_at", desc=True).limit(500)
+def list_orders(status_filter: Optional[str] = None, limit: int = Query(500, ge=1, le=5000)):
+    # The bar polls with the default 500; the end-of-night export asks for more.
+    query = db().table("orders").select("*").order("created_at", desc=True).limit(limit)
     if status_filter:
         query = query.eq("status", status_filter)
     return query.execute().data
