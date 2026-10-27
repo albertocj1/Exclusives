@@ -210,7 +210,7 @@ POS_MENU_PRICES = {
     "bev-redbull":      ("Red Bull Energy Drink", 200),
     "bev-lemondou":     ("Lemon-Dou Peach Lemon", 150),
     "bev-cocktail":     ("Cocktail Drinks", 250),
-    "food-tacos":       ("Tacos", 500),
+    "food-fruit":       ("Fruit Platter", 500),
     "food-nachos":      ("Nachos", 550),
     "food-board":       ("Charcuterie Board", 750),
 }
