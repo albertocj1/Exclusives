@@ -741,6 +741,8 @@ def reception_search(q: str):
                 "heads_present": b.get("heads_present", 0),
                 "guest_names": b.get("guest_names") or [],
                 "checked_in_guests": b.get("checked_in_guests") or [],
+                "comp_bottles": b.get("comp_bottles") or [],
+                "comp_food": b.get("comp_food"),
             })
     matches.sort(key=lambda m: 0 if m["status"] == "confirmed" else 1)
     return {"results": matches}
@@ -765,6 +767,8 @@ def reception_guests():
             "heads_present": b.get("heads_present", 0),
             "guest_names": b.get("guest_names") or [],
             "checked_in_guests": b.get("checked_in_guests") or [],
+            "comp_bottles": b.get("comp_bottles") or [],
+            "comp_food": b.get("comp_food"),
         })
 
     # Confirmed-and-not-yet-arrived first, then confirmed-checked-in, then anything else (pending/etc).
@@ -808,6 +812,8 @@ def reception_lookup(ticket_code: str):
         "heads_present": b.get("heads_present", 0),
         "guest_names": b.get("guest_names") or [],
         "checked_in_guests": b.get("checked_in_guests") or [],
+        "comp_bottles": b.get("comp_bottles") or [],
+        "comp_food": b.get("comp_food"),
     }
 
 
@@ -966,20 +972,29 @@ def reception_tables():
 COMP_BOTTLES = ["Absolut Vodka", "Johnnie Walker Black Label", "Jagermeister"]
 COMP_FOOD = list(FOOD_OPTIONS)
 COMP_CANS = ["Sprite", "Coca-Cola", "Red Bull"]
-COMP_TYPES = ("bottle", "food", "can")
+COMP_DRINKS = ["Cocktail Drinks"]
+COMP_TYPES = ("bottle", "food", "can", "drink")
+# Complimentary drinks per person who has checked in (no table packages).
+COMP_DRINKS_PER_PERSON = {"Entrance Fee": 2}
 
 class CompPicks(BaseModel):
     bottles: list[str] = Field(default_factory=list)
     food: Optional[str] = None
 
 class CompClaimIn(BaseModel):
-    item_type: Literal["bottle", "food", "can"]
+    item_type: Literal["bottle", "food", "can", "drink"]
     item_name: Optional[str] = Field(None, max_length=60)
     qty: int = Field(1, ge=1, le=12)
 
-def _comp_allowance(package: Optional[str]) -> dict:
+def _comp_allowance(package: Optional[str], booking: Optional[dict] = None) -> dict:
     cfg = PACKAGE_TIER_CONFIG.get(package or "", {})
-    return {"bottle": cfg.get("bottle_count", 0), "food": 1 if cfg.get("food") else 0, "can": cfg.get("cans", 0)}
+    per_person = COMP_DRINKS_PER_PERSON.get(package or "", 0)
+    people = 0
+    if per_person and booking is not None:
+        # Before check-in show the booked number; after check-in only the people actually inside count.
+        people = (booking.get("heads_present") or 0) if booking.get("checked_in") else (booking.get("guests") or 0)
+    return {"bottle": cfg.get("bottle_count", 0), "food": 1 if cfg.get("food") else 0,
+            "can": cfg.get("cans", 0), "drink": per_person * people}
 
 def _active_claims(booking_ids: Optional[list] = None) -> list:
     q = db().table("comp_claims").select("*").is_("voided_at", "null")
@@ -990,7 +1005,7 @@ def _active_claims(booking_ids: Optional[list] = None) -> list:
     return q.order("created_at").execute().data or []
 
 def _comp_view(b: dict, claims: list) -> dict:
-    allowance = _comp_allowance(b.get("package"))
+    allowance = _comp_allowance(b.get("package"), b)
     mine = [c for c in claims if str(c["booking_id"]) == str(b["id"])]
     given = {t: sum(1 for c in mine if c["item_type"] == t) for t in COMP_TYPES}
     groups = {}
@@ -1006,6 +1021,9 @@ def _comp_view(b: dict, claims: list) -> dict:
         "table_id": b.get("table_id"),
         "ticket_code": b.get("ticket_code"),
         "checked_in": bool(b.get("checked_in")),
+        "guests": b.get("guests") or 0,
+        "heads_present": b.get("heads_present") or 0,
+        "drinks_per_person": COMP_DRINKS_PER_PERSON.get(b.get("package") or "", 0),
         "allowance": allowance,
         "given": given,
         "remaining": {t: max(0, allowance[t] - given[t]) for t in COMP_TYPES},
@@ -1036,13 +1054,13 @@ def set_comp_picks(booking_id: str, payload: CompPicks):
 def list_comps():
     """Every confirmed booking with complimentary items, what it picked and what's left."""
     rows = db().table("bookings").select("*").eq("status", "confirmed").execute().data or []
-    rows = [b for b in rows if any(_comp_allowance(b.get("package")).values())]
+    rows = [b for b in rows if any(_comp_allowance(b.get("package"), b).values())]
     claims = _active_claims([b["id"] for b in rows])
     out = [_comp_view(b, claims) for b in rows]
     out.sort(key=lambda x: (str(x.get("table_id") or "~"), x["full_name"].lower()))
     return {
         "bookings": out,
-        "options": {"bottle": COMP_BOTTLES, "food": COMP_FOOD, "can": COMP_CANS},
+        "options": {"bottle": COMP_BOTTLES, "food": COMP_FOOD, "can": COMP_CANS, "drink": COMP_DRINKS},
     }
 
 @app.post("/api/comps/{booking_id}/claim")
@@ -1054,22 +1072,24 @@ def claim_comp(booking_id: str, payload: CompClaimIn, user=Depends(require_staff
         raise HTTPException(status_code=400, detail="Guest is not checked in yet \u2014 send them to reception first.")
 
     t = payload.item_type
-    options = {"bottle": COMP_BOTTLES, "food": COMP_FOOD, "can": COMP_CANS}[t]
-    name = payload.item_name or None
+    options = {"bottle": COMP_BOTTLES, "food": COMP_FOOD, "can": COMP_CANS, "drink": COMP_DRINKS}[t]
+    name = payload.item_name or (COMP_DRINKS[0] if t == "drink" else None)
     if t in ("bottle", "food") and name not in options:
         raise HTTPException(status_code=400, detail=f"Choose which {t}: " + ", ".join(options) + ".")
-    if t == "can" and name and name not in options:
-        raise HTTPException(status_code=400, detail="Choose which can: " + ", ".join(options) + ".")
-    qty = payload.qty if t == "can" else 1
+    if t in ("can", "drink") and name and name not in options:
+        raise HTTPException(status_code=400, detail=f"Choose which {t}: " + ", ".join(options) + ".")
+    qty = payload.qty if t in ("can", "drink") else 1
 
-    allowance = _comp_allowance(b.get("package"))[t]
+    allowance = _comp_allowance(b.get("package"), b)[t]
     if not allowance:
+        if t == "drink" and COMP_DRINKS_PER_PERSON.get(b.get("package") or ""):
+            raise HTTPException(status_code=400, detail="Nobody from this booking is checked in yet.")
         raise HTTPException(status_code=400, detail=f"{b['package']} does not include complimentary {t}s.")
     active = [c for c in _active_claims([booking_id]) if c["item_type"] == t]
     free_slots = [n for n in range(1, allowance + 1) if n not in {c["slot"] for c in active}]
     if qty > len(free_slots):
         left = len(free_slots)
-        raise HTTPException(status_code=409, detail=f"Only {left} {t}{'s' if left != 1 else ''} left for this table ({len(active)} of {allowance} already given).")
+        raise HTTPException(status_code=409, detail=f"Only {left} {t}{'s' if left != 1 else ''} left for this booking ({len(active)} of {allowance} already given).")
 
     claim_id = str(uuid.uuid4())
     rows = [{
