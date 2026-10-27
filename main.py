@@ -2,6 +2,7 @@ import os
 import json
 import base64
 import secrets
+import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Literal, Optional
 from email.message import EmailMessage
@@ -13,7 +14,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, model_validato
 from supabase import Client, create_client
 
 # Branded confirmation email + inline QR & reminders (see email_module.py)
-from email_module import send_approval_email, send_pending_reminder_email, send_event_details_email, send_parking_info_email, send_final_reminder_email, PACKAGE_TIER_CONFIG
+from email_module import send_approval_email, send_pending_reminder_email, send_event_details_email, send_parking_info_email, send_final_reminder_email, PACKAGE_TIER_CONFIG, FOOD_OPTIONS
 
 EVENT_CAPACITY = int(os.getenv("EVENT_CAPACITY", "135"))  # hard cap: no bookings accepted past this
 HOLD_MINUTES = int(os.getenv("HOLD_MINUTES", "15"))       # how long an unpaid booking holds its seat/table
@@ -955,6 +956,159 @@ def reception_tables():
         })
     out.sort(key=lambda x: str(x["id"]))
     return {"tables": out}
+
+# ---------------------------------------------------------------------------
+#  COMPLIMENTARY BOTTLES / FOOD / CANS
+#  Allowances come from PACKAGE_TIER_CONFIG (same rules as the guest emails).
+#  Picks are entered in admin; items are handed out from the bar display.
+# ---------------------------------------------------------------------------
+
+COMP_BOTTLES = ["Absolut Vodka", "Johnnie Walker Black Label", "Jagermeister"]
+COMP_FOOD = list(FOOD_OPTIONS)
+COMP_CANS = ["Sprite", "Coca-Cola", "Red Bull"]
+COMP_TYPES = ("bottle", "food", "can")
+
+class CompPicks(BaseModel):
+    bottles: list[str] = Field(default_factory=list)
+    food: Optional[str] = None
+
+class CompClaimIn(BaseModel):
+    item_type: Literal["bottle", "food", "can"]
+    item_name: Optional[str] = Field(None, max_length=60)
+    qty: int = Field(1, ge=1, le=12)
+
+def _comp_allowance(package: Optional[str]) -> dict:
+    cfg = PACKAGE_TIER_CONFIG.get(package or "", {})
+    return {"bottle": cfg.get("bottle_count", 0), "food": 1 if cfg.get("food") else 0, "can": cfg.get("cans", 0)}
+
+def _active_claims(booking_ids: Optional[list] = None) -> list:
+    q = db().table("comp_claims").select("*").is_("voided_at", "null")
+    if booking_ids is not None:
+        if not booking_ids:
+            return []
+        q = q.in_("booking_id", [str(i) for i in booking_ids])
+    return q.order("created_at").execute().data or []
+
+def _comp_view(b: dict, claims: list) -> dict:
+    allowance = _comp_allowance(b.get("package"))
+    mine = [c for c in claims if str(c["booking_id"]) == str(b["id"])]
+    given = {t: sum(1 for c in mine if c["item_type"] == t) for t in COMP_TYPES}
+    groups = {}
+    for c in mine:
+        g = groups.setdefault(c["claim_id"], {"claim_id": c["claim_id"], "item_type": c["item_type"],
+                                              "item_name": c.get("item_name"), "qty": 0,
+                                              "created_at": c["created_at"], "given_by": c.get("given_by")})
+        g["qty"] += 1
+    return {
+        "id": b["id"],
+        "full_name": b["full_name"],
+        "package": b["package"],
+        "table_id": b.get("table_id"),
+        "ticket_code": b.get("ticket_code"),
+        "checked_in": bool(b.get("checked_in")),
+        "allowance": allowance,
+        "given": given,
+        "remaining": {t: max(0, allowance[t] - given[t]) for t in COMP_TYPES},
+        "picks": {"bottles": b.get("comp_bottles") or [], "food": b.get("comp_food")},
+        "claims": sorted(groups.values(), key=lambda g: g["created_at"]),
+    }
+
+@app.put("/api/bookings/{booking_id}/comp-picks", dependencies=[Depends(require_admin)])
+def set_comp_picks(booking_id: str, payload: CompPicks):
+    b = _get_booking(booking_id)
+    allowance = _comp_allowance(b.get("package"))
+    bottles = [x for x in (payload.bottles or []) if x]
+    if len(bottles) > allowance["bottle"]:
+        raise HTTPException(status_code=400, detail=f"{b['package']} gets {allowance['bottle']} bottle(s), not {len(bottles)}.")
+    bad = [x for x in bottles if x not in COMP_BOTTLES]
+    if bad:
+        raise HTTPException(status_code=400, detail=f"Unknown bottle: {bad[0]}")
+    food = payload.food or None
+    if food and not allowance["food"]:
+        raise HTTPException(status_code=400, detail=f"{b['package']} does not include food.")
+    if food and food not in COMP_FOOD:
+        raise HTTPException(status_code=400, detail=f"Unknown food: {food}")
+    res = db().table("bookings").update({"comp_bottles": bottles, "comp_food": food}).eq("id", booking_id).execute()
+    row = res.data[0]
+    return {"id": row["id"], "comp_bottles": row.get("comp_bottles") or [], "comp_food": row.get("comp_food")}
+
+@app.get("/api/comps", dependencies=[Depends(require_staff)])
+def list_comps():
+    """Every confirmed booking with complimentary items, what it picked and what's left."""
+    rows = db().table("bookings").select("*").eq("status", "confirmed").execute().data or []
+    rows = [b for b in rows if any(_comp_allowance(b.get("package")).values())]
+    claims = _active_claims([b["id"] for b in rows])
+    out = [_comp_view(b, claims) for b in rows]
+    out.sort(key=lambda x: (str(x.get("table_id") or "~"), x["full_name"].lower()))
+    return {
+        "bookings": out,
+        "options": {"bottle": COMP_BOTTLES, "food": COMP_FOOD, "can": COMP_CANS},
+    }
+
+@app.post("/api/comps/{booking_id}/claim")
+def claim_comp(booking_id: str, payload: CompClaimIn, user=Depends(require_staff)):
+    b = _get_booking(booking_id)
+    if b["status"] != "confirmed":
+        raise HTTPException(status_code=400, detail="Booking is not confirmed.")
+    if not b.get("checked_in"):
+        raise HTTPException(status_code=400, detail="Guest is not checked in yet \u2014 send them to reception first.")
+
+    t = payload.item_type
+    options = {"bottle": COMP_BOTTLES, "food": COMP_FOOD, "can": COMP_CANS}[t]
+    name = payload.item_name or None
+    if t in ("bottle", "food") and name not in options:
+        raise HTTPException(status_code=400, detail=f"Choose which {t}: " + ", ".join(options) + ".")
+    if t == "can" and name and name not in options:
+        raise HTTPException(status_code=400, detail="Choose which can: " + ", ".join(options) + ".")
+    qty = payload.qty if t == "can" else 1
+
+    allowance = _comp_allowance(b.get("package"))[t]
+    if not allowance:
+        raise HTTPException(status_code=400, detail=f"{b['package']} does not include complimentary {t}s.")
+    active = [c for c in _active_claims([booking_id]) if c["item_type"] == t]
+    free_slots = [n for n in range(1, allowance + 1) if n not in {c["slot"] for c in active}]
+    if qty > len(free_slots):
+        left = len(free_slots)
+        raise HTTPException(status_code=409, detail=f"Only {left} {t}{'s' if left != 1 else ''} left for this table ({len(active)} of {allowance} already given).")
+
+    claim_id = str(uuid.uuid4())
+    rows = [{
+        "claim_id": claim_id, "booking_id": str(booking_id), "table_id": b.get("table_id"),
+        "item_type": t, "item_name": name, "slot": slot,
+        "given_by": getattr(user, "email", None),
+    } for slot in free_slots[:qty]]
+    try:
+        db().table("comp_claims").insert(rows).execute()
+    except Exception as e:
+        if "23505" in str(e) or "duplicate key" in str(e).lower():
+            raise HTTPException(status_code=409, detail="Another bar device just gave this item. Refresh and check what's left.")
+        raise
+    return _comp_view(b, _active_claims([booking_id]))
+
+@app.post("/api/comps/claims/{claim_id}/undo", dependencies=[Depends(require_staff)])
+def undo_comp_claim(claim_id: str):
+    rows = db().table("comp_claims").select("*").eq("claim_id", claim_id).is_("voided_at", "null").execute().data or []
+    if not rows:
+        raise HTTPException(status_code=404, detail="Nothing to undo (already undone?).")
+    db().table("comp_claims").update({"voided_at": datetime.now(timezone.utc).isoformat()}) \
+        .eq("claim_id", claim_id).is_("voided_at", "null").execute()
+    b = _get_booking(rows[0]["booking_id"])
+    return _comp_view(b, _active_claims([rows[0]["booking_id"]]))
+
+@app.get("/api/comps/claims", dependencies=[Depends(require_staff)])
+def list_comp_claims():
+    """Every active claim, for the bar dashboard and Excel export."""
+    claims = _active_claims()
+    ids = list({str(c["booking_id"]) for c in claims})
+    names = {}
+    if ids:
+        for b in db().table("bookings").select("id, full_name, package").in_("id", ids).execute().data or []:
+            names[str(b["id"])] = b
+    for c in claims:
+        b = names.get(str(c["booking_id"]), {})
+        c["full_name"] = b.get("full_name")
+        c["package"] = b.get("package")
+    return {"claims": claims}
 
 # ---------------------------------------------------------------------------
 #  POS — orders
