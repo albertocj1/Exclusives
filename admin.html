@@ -217,6 +217,25 @@
     </div>
   </div>
 
+  <div id="picks-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-brand-obsidian/85 backdrop-blur-md p-4" role="dialog" aria-modal="true" aria-labelledby="picks-title">
+    <div class="w-full max-w-md max-h-[90vh] overflow-y-auto bg-brand-slate border border-cyan-400/30 rounded-3xl p-6 md:p-8">
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <h2 id="picks-title" class="font-serif text-2xl text-brand-ice">Complimentary picks</h2>
+          <p id="picks-subtitle" class="font-mono text-[10px] tracking-widest text-brand-muted uppercase mt-1">&nbsp;</p>
+        </div>
+        <button id="picks-close" type="button" aria-label="Close" class="text-brand-muted hover:text-brand-ice text-2xl leading-none px-2">&times;</button>
+      </div>
+      <div id="picks-fields" class="space-y-4 mb-5"></div>
+      <p class="text-xs text-brand-muted mb-4">From the guest's email reply. Leave as "Not chosen yet" if they didn't reply &mdash; the bar will ask them.</p>
+      <p id="picks-error" class="text-red-400 text-xs font-mono hidden mb-3"></p>
+      <div class="flex gap-3">
+        <button id="picks-cancel" type="button" class="flex-1 font-mono text-[11px] tracking-widest uppercase border border-white/10 text-brand-muted hover:text-brand-ice rounded-full py-3 transition-colors">Cancel</button>
+        <button id="picks-save" type="button" class="flex-1 font-mono text-[11px] tracking-widest uppercase bg-brand-gold text-brand-obsidian font-bold rounded-full py-3 hover:bg-brand-ice transition-colors disabled:opacity-40">Save picks</button>
+      </div>
+    </div>
+  </div>
+
   <div id="delete-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-brand-obsidian/85 backdrop-blur-md p-4" role="dialog" aria-modal="true" aria-labelledby="delete-title">
     <div class="w-full max-w-md max-h-[90vh] overflow-y-auto bg-brand-slate border border-red-500/30 rounded-3xl p-6 md:p-8">
       <div class="flex items-center justify-between mb-5">
@@ -523,18 +542,19 @@
       ws1['!cols'] = [{wch:5},{wch:30},{wch:26},{wch:16},{wch:18},{wch:14},{wch:12},{wch:16}];
 
       const s2 = [
-        ['Booking ID','Lead Booker','Email','Phone','Instagram','Referred by','Package','Spot / Table','Pax','Total (PHP)','Status','Ticket Code','Guest Names','Created'],
+        ['Booking ID','Lead Booker','Email','Phone','Instagram','Referred by','Package','Spot / Table','Pax','Total (PHP)','Status','Ticket Code','Guest Names','Complimentary picks','Created'],
       ].concat(rows.map((r) => [
         r.id, r.full_name, r.email, r.phone,
         r.instagram || '', r.referrer || '',
         r.package, spotLabel(r.table_id),
         r.guests, r.total_amount, r.status, r.ticket_code || '',
         (Array.isArray(r.guest_names) ? r.guest_names : []).join(', '),
+        picksText(r),
         r.created_at ? new Date(r.created_at).toLocaleString('en-PH') : '',
       ]));
 
       const ws2 = XLSX.utils.aoa_to_sheet(s2);
-      ws2['!cols'] = [{wch:38},{wch:24},{wch:26},{wch:14},{wch:16},{wch:16},{wch:16},{wch:18},{wch:6},{wch:12},{wch:12},{wch:14},{wch:60},{wch:20}];
+      ws2['!cols'] = [{wch:38},{wch:24},{wch:26},{wch:14},{wch:16},{wch:16},{wch:16},{wch:18},{wch:6},{wch:12},{wch:12},{wch:14},{wch:60},{wch:40},{wch:20}];
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws1, 'Passenger Manifest');
@@ -888,7 +908,7 @@
           guestsCell = `${esc(r.guests)} <span class="text-amber-300 text-[10px] font-mono">no names</span>`;
         }
         const receiptLink = r.receipt_url ? `<a href="${esc(r.receipt_url)}" target="_blank" class="text-cyan-300 underline hover:text-cyan-100">View</a>` : '—';
-        const pkgText = r.table_id ? `${esc(spotLabel(r.table_id))} · ${esc(r.package)}` : esc(r.package);
+        const pkgText = (r.table_id ? `${esc(spotLabel(r.table_id))} · ${esc(r.package)}` : esc(r.package)) + picksLine(r);
 
         let actionButtons = '';
         if (canCancel) {
@@ -896,6 +916,9 @@
         }
         if (canApprove) {
            actionButtons += `<button data-approve="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-emerald-300 hover:text-emerald-200 border border-emerald-400/30 hover:border-emerald-300 rounded-full px-3 py-1 transition-colors mr-2">Approve</button>`;
+        }
+        if (r.status === 'confirmed' && compAllowance(r.package).any) {
+           actionButtons += `<button data-picks="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-cyan-300 hover:text-cyan-100 border border-cyan-400/30 hover:border-cyan-300 rounded-full px-3 py-1 transition-colors mr-2">Picks</button>`;
         }
         if (canCancel) {
            actionButtons += `<button data-cancel="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-red-300 hover:text-red-200 border border-red-400/30 hover:border-red-300 rounded-full px-3 py-1 transition-colors">Cancel</button>`;
@@ -987,6 +1010,9 @@
       [tbody, cardsWrap].forEach((container) => {
         container.querySelectorAll('[data-cancel]').forEach((btn) => {
           btn.addEventListener('click', () => cancelBooking(btn.getAttribute('data-cancel')));
+        });
+        container.querySelectorAll('[data-picks]').forEach((btn) => {
+          btn.addEventListener('click', () => openPicksModal(btn.getAttribute('data-picks')));
         });
         container.querySelectorAll('[data-delete]').forEach((btn) => {
           btn.addEventListener('click', () => openDeleteModal(btn.getAttribute('data-delete')));
@@ -1138,6 +1164,95 @@
     $('delete-modal').addEventListener('click', (e) => { if (e.target === $('delete-modal')) closeDeleteModal(); });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && !$('delete-modal').classList.contains('hidden')) closeDeleteModal();
+    });
+
+    // -------------------------------------------------------------------
+    // Complimentary picks (from the guests' email replies)
+    // -------------------------------------------------------------------
+    // Mirrors PACKAGE_TIER_CONFIG / COMP_* in the backend.
+    const COMP_RULES = {
+      'SVIP Couch':          { bottle: 2, food: 1 },
+      'Indoor Couch':        { bottle: 1, food: 1 },
+      'Outdoor Couch':       { bottle: 1, food: 1 },
+      '6-Pax Bottle Bundle': { bottle: 1, food: 0 },
+    };
+    const COMP_BOTTLES = ['Absolut Vodka', 'Johnnie Walker Black Label', 'Jagermeister'];
+    const COMP_FOOD = ['Nachos', 'Fruit Platter', 'Charcuterie Board'];
+
+    function compAllowance(pkg) {
+      const r = COMP_RULES[pkg] || { bottle: 0, food: 0 };
+      return { bottle: r.bottle, food: r.food, any: !!(r.bottle || r.food) };
+    }
+    function picksText(r) {
+      const a = compAllowance(r.package);
+      if (!a.any) return '';
+      const bottles = (Array.isArray(r.comp_bottles) ? r.comp_bottles : []).filter(Boolean);
+      const parts = [];
+      if (a.bottle) parts.push(bottles.length ? bottles.join(' + ') : 'bottle not chosen');
+      if (a.food) parts.push(r.comp_food || 'food not chosen');
+      return parts.join(' · ');
+    }
+    function picksLine(r) {
+      if (r.status !== 'confirmed' || !compAllowance(r.package).any) return '';
+      const complete = compAllowance(r.package).bottle <= (r.comp_bottles || []).filter(Boolean).length &&
+                       (!compAllowance(r.package).food || r.comp_food);
+      return `<div class="text-[11px] mt-0.5 ${complete ? 'text-cyan-300' : 'text-amber-300'}">Picks: ${esc(picksText(r))}</div>`;
+    }
+
+    let picksId = null;
+    function pickSelect(id, options, value, label) {
+      return `<label class="block"><span class="block font-mono text-[10px] tracking-widest text-brand-muted uppercase mb-1">${esc(label)}</span>
+        <select id="${id}" class="w-full bg-brand-obsidian border border-white/10 rounded-xl focus:border-brand-gold text-brand-ice text-sm px-3 py-3 outline-none">
+          <option value="">Not chosen yet</option>
+          ${options.map((o) => `<option${o === value ? ' selected' : ''}>${esc(o)}</option>`).join('')}
+        </select></label>`;
+    }
+    function openPicksModal(id) {
+      const r = allRows.find((x) => String(x.id) === String(id));
+      if (!r) return;
+      picksId = r.id;
+      const a = compAllowance(r.package);
+      const bottles = Array.isArray(r.comp_bottles) ? r.comp_bottles : [];
+      $('picks-subtitle').textContent = r.full_name + ' · ' + r.package + (r.table_id ? ' · ' + spotLabel(r.table_id) : '');
+      let html = '';
+      for (let i = 0; i < a.bottle; i++) html += pickSelect('pick-bottle-' + i, COMP_BOTTLES, bottles[i] || '', a.bottle > 1 ? 'Bottle ' + (i + 1) : 'Bottle');
+      if (a.food) html += pickSelect('pick-food', COMP_FOOD, r.comp_food || '', 'Food');
+      $('picks-fields').innerHTML = html;
+      $('picks-error').classList.add('hidden');
+      $('picks-save').disabled = false; $('picks-save').textContent = 'Save picks';
+      $('picks-modal').classList.remove('hidden');
+    }
+    function closePicksModal() { picksId = null; $('picks-modal').classList.add('hidden'); }
+    $('picks-close').addEventListener('click', closePicksModal);
+    $('picks-cancel').addEventListener('click', closePicksModal);
+    $('picks-modal').addEventListener('click', (e) => { if (e.target === $('picks-modal')) closePicksModal(); });
+    $('picks-save').addEventListener('click', async () => {
+      if (!picksId) return;
+      const r = allRows.find((x) => String(x.id) === String(picksId));
+      const a = compAllowance(r.package);
+      const bottles = [];
+      for (let i = 0; i < a.bottle; i++) { const v = $('pick-bottle-' + i).value; if (v) bottles.push(v); }
+      const food = a.food ? ($('pick-food').value || null) : null;
+      const btn = $('picks-save');
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const res = await fetch(`${API_BASE}/api/bookings/${encodeURIComponent(picksId)}/comp-picks`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+          body: JSON.stringify({ bottles, food }),
+        });
+        if (res.status === 401) { closePicksModal(); showGate(); return; }
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error((d && typeof d.detail === 'string' && d.detail) || 'Could not save picks.');
+        r.comp_bottles = d.comp_bottles; r.comp_food = d.comp_food;
+        closePicksModal();
+        showToast('Picks saved: ' + r.full_name);
+        render();
+      } catch (e) {
+        $('picks-error').textContent = e.message === 'Failed to fetch' ? 'Could not reach the server.' : e.message;
+        $('picks-error').classList.remove('hidden');
+        btn.disabled = false; btn.textContent = 'Save picks';
+      }
     });
 
     // -------------------------------------------------------------------
