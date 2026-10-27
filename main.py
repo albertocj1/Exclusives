@@ -741,6 +741,8 @@ def reception_search(q: str):
                 "heads_present": b.get("heads_present", 0),
                 "guest_names": b.get("guest_names") or [],
                 "checked_in_guests": b.get("checked_in_guests") or [],
+                "comp_bottles": b.get("comp_bottles") or [],
+                "comp_food": b.get("comp_food"),
             })
     matches.sort(key=lambda m: 0 if m["status"] == "confirmed" else 1)
     return {"results": matches}
@@ -765,6 +767,8 @@ def reception_guests():
             "heads_present": b.get("heads_present", 0),
             "guest_names": b.get("guest_names") or [],
             "checked_in_guests": b.get("checked_in_guests") or [],
+            "comp_bottles": b.get("comp_bottles") or [],
+            "comp_food": b.get("comp_food"),
         })
 
     # Confirmed-and-not-yet-arrived first, then confirmed-checked-in, then anything else (pending/etc).
@@ -808,6 +812,8 @@ def reception_lookup(ticket_code: str):
         "heads_present": b.get("heads_present", 0),
         "guest_names": b.get("guest_names") or [],
         "checked_in_guests": b.get("checked_in_guests") or [],
+        "comp_bottles": b.get("comp_bottles") or [],
+        "comp_food": b.get("comp_food"),
     }
 
 
