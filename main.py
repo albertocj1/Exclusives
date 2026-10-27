@@ -974,8 +974,9 @@ COMP_FOOD = list(FOOD_OPTIONS)
 COMP_CANS = ["Sprite", "Coca-Cola", "Red Bull"]
 COMP_DRINKS = ["Cocktail Drinks"]
 COMP_TYPES = ("bottle", "food", "can", "drink")
-# Complimentary drinks per person who has checked in (no table packages).
-COMP_DRINKS_PER_PERSON = {"Entrance Fee": 2}
+# Complimentary cocktails per person who has checked in. Tracked per guest when reception
+# ticked names at check-in; otherwise as a group total (2 x heads present).
+COMP_DRINKS_PER_PERSON = {"Entrance Fee": 2, "6-Pax Bottle Bundle": 2}
 
 class CompPicks(BaseModel):
     bottles: list[str] = Field(default_factory=list)
@@ -985,14 +986,29 @@ class CompClaimIn(BaseModel):
     item_type: Literal["bottle", "food", "can", "drink"]
     item_name: Optional[str] = Field(None, max_length=60)
     qty: int = Field(1, ge=1, le=12)
+    # For cocktails tracked per guest: the guest's position in guest_names.
+    guest_index: Optional[int] = Field(None, ge=0, le=100)
+
+def _inside_guests(b: dict) -> list:
+    """Positions in guest_names that reception ticked as inside."""
+    n = len(b.get("guest_names") or [])
+    return sorted({i for i in (b.get("checked_in_guests") or []) if isinstance(i, int) and 0 <= i < n})
+
+def _drinks_per_guest_mode(b: dict) -> bool:
+    """Cocktails are tracked per guest once the booking is checked in with ticked names."""
+    return bool(COMP_DRINKS_PER_PERSON.get(b.get("package") or "")) and bool(b.get("checked_in")) and bool(_inside_guests(b))
 
 def _comp_allowance(package: Optional[str], booking: Optional[dict] = None) -> dict:
     cfg = PACKAGE_TIER_CONFIG.get(package or "", {})
     per_person = COMP_DRINKS_PER_PERSON.get(package or "", 0)
     people = 0
     if per_person and booking is not None:
-        # Before check-in show the booked number; after check-in only the people actually inside count.
-        people = (booking.get("heads_present") or 0) if booking.get("checked_in") else (booking.get("guests") or 0)
+        if not booking.get("checked_in"):
+            people = booking.get("guests") or 0              # shown only; claiming needs check-in
+        elif _inside_guests(booking):
+            people = len(_inside_guests(booking))            # per guest
+        else:
+            people = booking.get("heads_present") or 0       # checked in by head count only
     return {"bottle": cfg.get("bottle_count", 0), "food": 1 if cfg.get("food") else 0,
             "can": cfg.get("cans", 0), "drink": per_person * people}
 
@@ -1008,12 +1024,32 @@ def _comp_view(b: dict, claims: list) -> dict:
     allowance = _comp_allowance(b.get("package"), b)
     mine = [c for c in claims if str(c["booking_id"]) == str(b["id"])]
     given = {t: sum(1 for c in mine if c["item_type"] == t) for t in COMP_TYPES}
+    names = [str(n) for n in (b.get("guest_names") or [])]
     groups = {}
     for c in mine:
+        gi = c.get("guest_index")
         g = groups.setdefault(c["claim_id"], {"claim_id": c["claim_id"], "item_type": c["item_type"],
                                               "item_name": c.get("item_name"), "qty": 0,
+                                              "guest_index": gi,
+                                              "guest_name": names[gi] if isinstance(gi, int) and 0 <= gi < len(names) else None,
                                               "created_at": c["created_at"], "given_by": c.get("given_by")})
         g["qty"] += 1
+
+    remaining = {t: max(0, allowance[t] - given[t]) for t in COMP_TYPES}
+    per_person = COMP_DRINKS_PER_PERSON.get(b.get("package") or "", 0)
+    people = []
+    if per_person and names:
+        inside = set(_inside_guests(b)) if b.get("checked_in") else set()
+        for i, name in enumerate(names):
+            got = [c for c in mine if c["item_type"] == "drink" and c.get("guest_index") == i]
+            people.append({
+                "index": i, "name": name, "inside": i in inside,
+                "given": len(got),
+                "left": max(0, per_person - len(got)) if i in inside else 0,
+                "last_at": max((c["created_at"] for c in got), default=None),
+            })
+        if _drinks_per_guest_mode(b):
+            remaining["drink"] = sum(p["left"] for p in people)
     return {
         "id": b["id"],
         "full_name": b["full_name"],
@@ -1023,10 +1059,12 @@ def _comp_view(b: dict, claims: list) -> dict:
         "checked_in": bool(b.get("checked_in")),
         "guests": b.get("guests") or 0,
         "heads_present": b.get("heads_present") or 0,
-        "drinks_per_person": COMP_DRINKS_PER_PERSON.get(b.get("package") or "", 0),
+        "drinks_per_person": per_person,
+        "drinks_per_guest": _drinks_per_guest_mode(b),
+        "people": people,
         "allowance": allowance,
         "given": given,
-        "remaining": {t: max(0, allowance[t] - given[t]) for t in COMP_TYPES},
+        "remaining": remaining,
         "picks": {"bottles": b.get("comp_bottles") or [], "food": b.get("comp_food")},
         "claims": sorted(groups.values(), key=lambda g: g["created_at"]),
     }
@@ -1085,16 +1123,34 @@ def claim_comp(booking_id: str, payload: CompClaimIn, user=Depends(require_staff
         if t == "drink" and COMP_DRINKS_PER_PERSON.get(b.get("package") or ""):
             raise HTTPException(status_code=400, detail="Nobody from this booking is checked in yet.")
         raise HTTPException(status_code=400, detail=f"{b['package']} does not include complimentary {t}s.")
+
+    guest_index = None
     active = [c for c in _active_claims([booking_id]) if c["item_type"] == t]
-    free_slots = [n for n in range(1, allowance + 1) if n not in {c["slot"] for c in active}]
-    if qty > len(free_slots):
-        left = len(free_slots)
-        raise HTTPException(status_code=409, detail=f"Only {left} {t}{'s' if left != 1 else ''} left for this booking ({len(active)} of {allowance} already given).")
+    if t == "drink" and _drinks_per_guest_mode(b):
+        # Each checked-in guest has their own cocktails.
+        guest_index = payload.guest_index
+        names = b.get("guest_names") or []
+        if guest_index is None:
+            raise HTTPException(status_code=400, detail="Choose which guest is claiming.")
+        if guest_index not in _inside_guests(b):
+            who = names[guest_index] if 0 <= guest_index < len(names) else "That guest"
+            raise HTTPException(status_code=400, detail=f"{who} is not checked in \u2014 send them to reception first.")
+        allowance = COMP_DRINKS_PER_PERSON[b["package"]]
+        active = [c for c in active if c.get("guest_index") == guest_index]
+        free_slots = [n for n in range(1, allowance + 1) if n not in {c["slot"] for c in active}]
+        if qty > len(free_slots):
+            left = len(free_slots)
+            raise HTTPException(status_code=409, detail=f"{names[guest_index]} has {left} cocktail{'s' if left != 1 else ''} left ({len(active)} of {allowance} already given).")
+    else:
+        free_slots = [n for n in range(1, allowance + 1) if n not in {c["slot"] for c in active}]
+        if qty > len(free_slots):
+            left = len(free_slots)
+            raise HTTPException(status_code=409, detail=f"Only {left} {t}{'s' if left != 1 else ''} left for this booking ({len(active)} of {allowance} already given).")
 
     claim_id = str(uuid.uuid4())
     rows = [{
         "claim_id": claim_id, "booking_id": str(booking_id), "table_id": b.get("table_id"),
-        "item_type": t, "item_name": name, "slot": slot,
+        "item_type": t, "item_name": name, "slot": slot, "guest_index": guest_index,
         "given_by": getattr(user, "email", None),
     } for slot in free_slots[:qty]]
     try:
@@ -1122,12 +1178,14 @@ def list_comp_claims():
     ids = list({str(c["booking_id"]) for c in claims})
     names = {}
     if ids:
-        for b in db().table("bookings").select("id, full_name, package").in_("id", ids).execute().data or []:
+        for b in db().table("bookings").select("id, full_name, package, guest_names").in_("id", ids).execute().data or []:
             names[str(b["id"])] = b
     for c in claims:
         b = names.get(str(c["booking_id"]), {})
         c["full_name"] = b.get("full_name")
         c["package"] = b.get("package")
+        gi, gn = c.get("guest_index"), b.get("guest_names") or []
+        c["guest_name"] = gn[gi] if isinstance(gi, int) and 0 <= gi < len(gn) else None
     return {"claims": claims}
 
 # ---------------------------------------------------------------------------
