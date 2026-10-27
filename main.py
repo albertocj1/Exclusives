@@ -717,7 +717,8 @@ def reception_search(q: str):
     if not query_str or len(query_str) < 2:
         raise HTTPException(status_code=400, detail="Search query must be at least 2 characters.")
 
-    all_rows = db().table("bookings").select("*").neq("status", "cancelled").execute().data or []
+    # Reception only works with confirmed bookings; pending/verifying guests are not on the door list.
+    all_rows = db().table("bookings").select("*").eq("status", "confirmed").execute().data or []
     q_lower = query_str.lower()
     matches = []
     for b in all_rows:
@@ -745,7 +746,8 @@ def reception_search(q: str):
 
 @app.get("/api/reception/guests", dependencies=[Depends(require_reception)])
 def reception_guests():
-    all_rows = db().table("bookings").select("*").neq("status", "cancelled").execute().data or []
+    # Reception only works with confirmed bookings; pending/verifying guests are not on the door list.
+    all_rows = db().table("bookings").select("*").eq("status", "confirmed").execute().data or []
 
     guests = []
     for b in all_rows:
