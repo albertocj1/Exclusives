@@ -1127,8 +1127,6 @@ def claim_comp(booking_id: str, payload: CompClaimIn, user=Depends(require_staff
     if t == "can" and not name:
         raise HTTPException(status_code=400, detail="Choose which can: " + ", ".join(options) + ".")
     qty = payload.qty if t in ("can", "drink") else 1
-    if COMP_STOCK.get(name or ""):
-        _check_stock({COMP_STOCK[name]: qty})
 
     allowance = _comp_allowance(b.get("package"), b)[t]
     if not allowance:
@@ -1206,7 +1204,8 @@ def list_comp_claims():
 # On hand = the latest physical count of an item, plus restocks and adjustments since,
 # minus bottles opened for pouring, POS orders (not cancelled) and complimentary items
 # given (not undone) since that count. Nothing is stored per sale, so a cancelled order
-# or an undone claim puts the stock back on its own.
+# or an undone claim puts the stock back on its own. Stock never blocks a sale: on hand
+# can go below zero until the bar restocks or counts.
 
 INVENTORY_ITEMS = {
     # key: (name, unit, warn at or below)
@@ -1334,25 +1333,6 @@ def _inventory_state() -> dict:
         m["name"] = INVENTORY_ITEMS.get(m.get("item"), (m.get("item"),))[0]
     return {"items": items, "menu_available": menu, "moves": recent}
 
-def _check_stock(need: dict):
-    """Refuse when a counted item has less on hand than needed. need = {key: qty}."""
-    if not need:
-        return
-    try:
-        items = _inventory_state()["items"]
-    except Exception as e:
-        # Never stop sales because inventory can't be read (e.g. migration not run yet).
-        print(f"Inventory check skipped: {e}")
-        return
-    by_key = {i["key"]: i for i in items}
-    for key, qty in need.items():
-        it = by_key.get(key)
-        if it and it["counted"] and it["on_hand"] < qty:
-            left = max(0, it["on_hand"])
-            raise HTTPException(status_code=409, detail=(
-                f"Out of stock: only {left} {it['name']} left. "
-                "If the count is wrong, fix it in the bar's Inventory tab."))
-
 @app.get("/api/inventory", dependencies=[Depends(require_staff)])
 def get_inventory():
     return _inventory_state()
@@ -1370,8 +1350,6 @@ def add_inventory_move(payload: InventoryMoveIn, user=Depends(require_staff)):
         raise HTTPException(status_code=400, detail="Only liquor for shots is opened for pouring.")
     if k == "adjust" and q == 0:
         raise HTTPException(status_code=400, detail="Enter how many to add or remove.")
-    if k == "open":
-        _check_stock({payload.item: q})
     db().table("inventory_moves").insert({
         "item": payload.item, "kind": k, "qty": q,
         "note": (payload.note or "").strip() or None, "by_email": getattr(user, "email", None),
@@ -1393,12 +1371,6 @@ def create_order(payload: OrderCreate):
         name, price = found
         line_items.append({"id": it.id, "name": name, "price": price, "qty": it.qty})
         total += price * it.qty
-
-    need = {}
-    for it in payload.items:
-        for key, per in MENU_STOCK.get(it.id, {}).items():
-            need[key] = need.get(key, 0) + per * it.qty
-    _check_stock(need)
 
     row = {
         "table_name": payload.table_name,
