@@ -2,6 +2,7 @@ import os
 import json
 import base64
 import secrets
+import re
 import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Literal, Optional
@@ -212,7 +213,7 @@ POS_MENU_PRICES = {
     "ctl-black-coke":   ("Black x Coke", 450),
     "ctl-absolut-sprite": ("Absolut x Sprite", 450),
     "ctl-jager-redbull": ("Jager x Red Bull", 450),
-    "bev-water":        ("Bottled Water", 130),
+    "bev-water":        ("Evian", 130),
     "bev-coke":         ("Coca-Cola Regular", 150),
     "bev-sprite":       ("Sprite Lemon-Lime Soda", 150),
     "bev-redbull":      ("Red Bull Energy Drink", 200),
@@ -1123,7 +1124,11 @@ def claim_comp(booking_id: str, payload: CompClaimIn, user=Depends(require_staff
         raise HTTPException(status_code=400, detail=f"Choose which {t}: " + ", ".join(options) + ".")
     if t in ("can", "drink") and name and name not in options:
         raise HTTPException(status_code=400, detail=f"Choose which {t}: " + ", ".join(options) + ".")
+    if t == "can" and not name:
+        raise HTTPException(status_code=400, detail="Choose which can: " + ", ".join(options) + ".")
     qty = payload.qty if t in ("can", "drink") else 1
+    if COMP_STOCK.get(name or ""):
+        _check_stock({COMP_STOCK[name]: qty})
 
     allowance = _comp_allowance(b.get("package"), b)[t]
     if not allowance:
@@ -1196,6 +1201,184 @@ def list_comp_claims():
     return {"claims": claims}
 
 # ---------------------------------------------------------------------------
+#  INVENTORY — bottles and mixers on hand
+# ---------------------------------------------------------------------------
+# On hand = the latest physical count of an item, plus restocks and adjustments since,
+# minus bottles opened for pouring, POS orders (not cancelled) and complimentary items
+# given (not undone) since that count. Nothing is stored per sale, so a cancelled order
+# or an undone claim puts the stock back on its own.
+
+INVENTORY_ITEMS = {
+    # key: (name, unit, warn at or below)
+    "jager":     ("Jagermeister", "bottle", 3),
+    "absolut":   ("Absolut Vodka", "bottle", 3),
+    "jwblack":   ("Johnnie Walker Black Label", "bottle", 3),
+    "greygoose": ("Grey Goose 750ml", "bottle", 1),
+    "evian":     ("Evian", "bottle", 12),
+    "redbull":   ("Red Bull", "can", 24),
+    "coke":      ("Coca-Cola", "can", 12),
+    "sprite":    ("Sprite", "can", 12),
+}
+# Liquor that shots are poured from: the bar opens a bottle in Inventory instead of per shot.
+POUR_ITEMS = ("jager", "absolut", "jwblack")
+# Stock used by one of each POS item.
+MENU_STOCK = {
+    "pkg-breeze":         {"absolut": 1, "sprite": 6},
+    "pkg-ignition-ab":    {"absolut": 1, "redbull": 6},
+    "pkg-ignition-jg":    {"jager": 1, "redbull": 6},
+    "btl-absolut":        {"absolut": 1},
+    "btl-jager":          {"jager": 1},
+    "btl-jwblack":        {"jwblack": 1},
+    "btl-greygoose":      {"greygoose": 1},
+    "bev-water":          {"evian": 1},
+    "bev-coke":           {"coke": 1},
+    "bev-sprite":         {"sprite": 1},
+    "bev-redbull":        {"redbull": 1},
+    "ctl-black-coke":     {"coke": 1},
+    "ctl-absolut-sprite": {"sprite": 1},
+    "ctl-jager-redbull":  {"redbull": 1},
+}
+# Complimentary bottle / can names to stock.
+COMP_STOCK = {
+    "Absolut Vodka": "absolut", "Johnnie Walker Black Label": "jwblack", "Jagermeister": "jager",
+    "Sprite": "sprite", "Coca-Cola": "coke", "Red Bull": "redbull",
+}
+
+class InventoryMoveIn(BaseModel):
+    item: str
+    # count: qty is the number on hand now. restock: qty added. open: bottles opened for
+    # pouring. adjust: qty added (+) or removed (-), e.g. broken.
+    kind: Literal["count", "restock", "open", "adjust"]
+    qty: int = Field(..., ge=-500, le=5000)
+    note: Optional[str] = Field(None, max_length=120)
+
+def _ts(value) -> datetime:
+    """Supabase timestamps (any number of fraction digits, Z or offset) to an aware datetime."""
+    s = str(value or "").strip().replace("Z", "+00:00").replace(" ", "T", 1)
+    m = re.match(r"^(.*?T\d{2}:\d{2}:\d{2})(\.\d+)?(.*)$", s)
+    if m:
+        frac = (m.group(2) or "")[:7].ljust(7, "0") if m.group(2) else ""
+        s = m.group(1) + frac + (m.group(3) or "")
+    try:
+        d = datetime.fromisoformat(s)
+    except ValueError:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
+def _all_rows(query_fn, page: int = 1000) -> list:
+    """Every row of a select, past Supabase's 1000-row cap."""
+    out, start = [], 0
+    while True:
+        rows = query_fn().range(start, start + page - 1).execute().data or []
+        out += rows
+        if len(rows) < page:
+            return out
+        start += page
+
+def _inventory_state() -> dict:
+    moves = sorted(db().table("inventory_moves").select("*").execute().data or [], key=lambda m: _ts(m["created_at"]))
+    st = {k: {"base": 0, "base_at": None, "restocked": 0, "adjusted": 0, "opened": 0, "sold": 0, "comp": 0}
+          for k in INVENTORY_ITEMS}
+    for m in moves:
+        it = st.get(m.get("item"))
+        if not it:
+            continue
+        q = int(m.get("qty") or 0)
+        if m["kind"] == "count":
+            it.update(base=q, base_at=_ts(m["created_at"]), restocked=0, adjusted=0, opened=0)
+        elif m["kind"] == "restock":
+            it["restocked"] += q
+        elif m["kind"] == "open":
+            it["opened"] += q
+        else:
+            it["adjusted"] += q
+
+    counted = [v["base_at"] for v in st.values() if v["base_at"]]
+    if counted:
+        since = min(counted).isoformat()
+        orders = _all_rows(lambda: db().table("orders").select("id, items, status, created_at")
+                           .gte("created_at", since).neq("status", "cancelled").order("created_at"))
+        claims = _all_rows(lambda: db().table("comp_claims").select("item_name, created_at")
+                           .gte("created_at", since).is_("voided_at", "null").order("created_at"))
+        for o in orders:
+            t = _ts(o["created_at"])
+            for li in o.get("items") or []:
+                for key, per in MENU_STOCK.get(li.get("id"), {}).items():
+                    if st[key]["base_at"] and t > st[key]["base_at"]:
+                        st[key]["sold"] += per * int(li.get("qty") or 0)
+        for c in claims:
+            key = COMP_STOCK.get(c.get("item_name") or "")
+            if key and st[key]["base_at"] and _ts(c["created_at"]) > st[key]["base_at"]:
+                st[key]["comp"] += 1
+
+    items = []
+    for key, (name, unit, low) in INVENTORY_ITEMS.items():
+        v = st[key]
+        on_hand = v["base"] + v["restocked"] + v["adjusted"] - v["opened"] - v["sold"] - v["comp"]
+        items.append({
+            "key": key, "name": name, "unit": unit, "low_at": low, "pour": key in POUR_ITEMS,
+            "counted": v["base_at"] is not None, "count": v["base"],
+            "counted_at": v["base_at"].isoformat() if v["base_at"] else None,
+            "restocked": v["restocked"], "adjusted": v["adjusted"], "opened": v["opened"],
+            "sold": v["sold"], "comp": v["comp"], "on_hand": on_hand,
+        })
+    on_hand = {i["key"]: i["on_hand"] for i in items if i["counted"]}
+    # How many of each POS item can still be sold, for the POS menu.
+    menu = {}
+    for mid, uses in MENU_STOCK.items():
+        caps = [max(0, on_hand[k]) // per for k, per in uses.items() if k in on_hand]
+        if caps:
+            menu[mid] = min(caps)
+    recent = moves[-60:][::-1]
+    for m in recent:
+        m["name"] = INVENTORY_ITEMS.get(m.get("item"), (m.get("item"),))[0]
+    return {"items": items, "menu_available": menu, "moves": recent}
+
+def _check_stock(need: dict):
+    """Refuse when a counted item has less on hand than needed. need = {key: qty}."""
+    if not need:
+        return
+    try:
+        items = _inventory_state()["items"]
+    except Exception as e:
+        # Never stop sales because inventory can't be read (e.g. migration not run yet).
+        print(f"Inventory check skipped: {e}")
+        return
+    by_key = {i["key"]: i for i in items}
+    for key, qty in need.items():
+        it = by_key.get(key)
+        if it and it["counted"] and it["on_hand"] < qty:
+            left = max(0, it["on_hand"])
+            raise HTTPException(status_code=409, detail=(
+                f"Out of stock: only {left} {it['name']} left. "
+                "If the count is wrong, fix it in the bar's Inventory tab."))
+
+@app.get("/api/inventory", dependencies=[Depends(require_staff)])
+def get_inventory():
+    return _inventory_state()
+
+@app.post("/api/inventory/moves")
+def add_inventory_move(payload: InventoryMoveIn, user=Depends(require_staff)):
+    if payload.item not in INVENTORY_ITEMS:
+        raise HTTPException(status_code=400, detail="Unknown inventory item.")
+    k, q = payload.kind, payload.qty
+    if k == "count" and q < 0:
+        raise HTTPException(status_code=400, detail="A count can't be below 0.")
+    if k in ("restock", "open") and q < 1:
+        raise HTTPException(status_code=400, detail="Enter at least 1.")
+    if k == "open" and payload.item not in POUR_ITEMS:
+        raise HTTPException(status_code=400, detail="Only liquor for shots is opened for pouring.")
+    if k == "adjust" and q == 0:
+        raise HTTPException(status_code=400, detail="Enter how many to add or remove.")
+    if k == "open":
+        _check_stock({payload.item: q})
+    db().table("inventory_moves").insert({
+        "item": payload.item, "kind": k, "qty": q,
+        "note": (payload.note or "").strip() or None, "by_email": getattr(user, "email", None),
+    }).execute()
+    return _inventory_state()
+
+# ---------------------------------------------------------------------------
 #  POS — orders
 # ---------------------------------------------------------------------------
 
@@ -1210,6 +1393,12 @@ def create_order(payload: OrderCreate):
         name, price = found
         line_items.append({"id": it.id, "name": name, "price": price, "qty": it.qty})
         total += price * it.qty
+
+    need = {}
+    for it in payload.items:
+        for key, per in MENU_STOCK.get(it.id, {}).items():
+            need[key] = need.get(key, 0) + per * it.qty
+    _check_stock(need)
 
     row = {
         "table_name": payload.table_name,
