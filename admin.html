@@ -124,7 +124,7 @@
     <div id="export-hint" class="font-mono text-[11px] text-brand-muted mb-4">&nbsp;</div>
 
     <div class="bg-brand-slate border border-white/5 rounded-2xl overflow-hidden">
-      <div class="hidden md:block overflow-x-auto">
+      <div class="hidden xl:block overflow-x-auto">
         <table class="w-full text-sm min-w-[950px]">
           <thead class="bg-brand-obsidian/50 text-brand-muted font-mono text-[10px] tracking-widest uppercase">
             <tr>
@@ -147,9 +147,9 @@
       </div>
 
       <!-- Mobile card list: same data as the table above, laid out for a phone-width screen -->
-      <div class="md:hidden">
+      <div class="xl:hidden">
         <div class="flex items-center gap-2 px-4 py-3 border-b border-white/5 bg-brand-obsidian/50">
-          <input type="checkbox" id="select-all-cb-mobile" class="rounded bg-brand-obsidian border-white/20 accent-brand-gold cursor-pointer w-4 h-4">
+          <input type="checkbox" id="select-all-cb-mobile" class="rounded bg-brand-obsidian border-white/20 accent-brand-gold cursor-pointer w-6 h-6">
           <label for="select-all-cb-mobile" class="font-mono text-[10px] tracking-widest text-brand-muted uppercase">Select all</label>
         </div>
         <div id="rows-mobile" class="divide-y divide-white/5"></div>
@@ -996,22 +996,22 @@
 
         let actionButtons = '';
         if (canCancel) {
-           actionButtons += `<button data-edit="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-brand-gold hover:text-brand-ice border border-brand-gold/30 hover:border-brand-gold rounded-full px-3 py-1 transition-colors mr-2">Edit</button>`;
+           actionButtons += `<button data-edit="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-brand-gold hover:text-brand-ice border border-brand-gold/30 hover:border-brand-gold rounded-full px-4 py-2 transition-colors mr-2">Edit</button>`;
         }
         if (canApprove) {
-           actionButtons += `<button data-approve="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-emerald-300 hover:text-emerald-200 border border-emerald-400/30 hover:border-emerald-300 rounded-full px-3 py-1 transition-colors mr-2">Approve</button>`;
+           actionButtons += `<button data-approve="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-emerald-300 hover:text-emerald-200 border border-emerald-400/30 hover:border-emerald-300 rounded-full px-4 py-2 transition-colors mr-2">Approve</button>`;
         }
         if (r.status === 'confirmed' && compAllowance(r.package).any) {
-           actionButtons += `<button data-picks="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-cyan-300 hover:text-cyan-100 border border-cyan-400/30 hover:border-cyan-300 rounded-full px-3 py-1 transition-colors mr-2">Picks</button>`;
+           actionButtons += `<button data-picks="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-cyan-300 hover:text-cyan-100 border border-cyan-400/30 hover:border-cyan-300 rounded-full px-4 py-2 transition-colors mr-2">Picks</button>`;
         }
         if (canCancel) {
-           actionButtons += `<button data-cancel="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-red-300 hover:text-red-200 border border-red-400/30 hover:border-red-300 rounded-full px-3 py-1 transition-colors">Cancel</button>`;
+           actionButtons += `<button data-cancel="${esc(r.id)}" class="font-mono text-[10px] tracking-widest uppercase text-red-300 hover:text-red-200 border border-red-400/30 hover:border-red-300 rounded-full px-4 py-2 transition-colors">Cancel</button>`;
         }
-        actionButtons += `<button data-delete="${esc(r.id)}" title="Permanently delete this booking" class="font-mono text-[10px] tracking-widest uppercase text-red-400 hover:text-white hover:bg-red-600 border border-red-500/50 hover:border-red-500 rounded-full px-3 py-1 transition-colors ${actionButtons ? 'ml-2' : ''}">Delete</button>`;
+        actionButtons += `<button data-delete="${esc(r.id)}" title="Permanently delete this booking" class="font-mono text-[10px] tracking-widest uppercase text-red-400 hover:text-white hover:bg-red-600 border border-red-500/50 hover:border-red-500 rounded-full px-4 py-2 transition-colors ${actionButtons ? 'ml-2' : ''}">Delete</button>`;
 
         // --- Mobile card version of this same booking, same computed values above ---
         const cardCb = canSelect
-          ? `<input type="checkbox" class="row-cb rounded bg-brand-obsidian border-white/20 accent-brand-gold cursor-pointer w-4 h-4 mt-1 shrink-0" value="${esc(r.id)}">`
+          ? `<input type="checkbox" class="row-cb rounded bg-brand-obsidian border-white/20 accent-brand-gold cursor-pointer w-6 h-6 mt-0.5 shrink-0" value="${esc(r.id)}">`
           : `<span class="w-4 shrink-0"></span>`;
 
         cardHtmlParts.push(`<div class="p-4">
