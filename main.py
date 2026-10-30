@@ -983,7 +983,7 @@ COMP_DRINKS = ["Cocktail Drinks"]
 COMP_TYPES = ("bottle", "food", "can", "drink")
 # Complimentary cocktails per person who has checked in, by package. Tracked per guest when
 # reception ticked names at check-in; otherwise as a group total (2 x heads present).
-COMP_DRINKS_PER_PERSON: dict[str, int] = {"Entrance Fee": 2}
+COMP_DRINKS_PER_PERSON: dict[str, int] = {"Entrance Fee": 2, "6-Pax Bottle Bundle": 2}
 
 class CompPicks(BaseModel):
     bottles: list[str] = Field(default_factory=list)
