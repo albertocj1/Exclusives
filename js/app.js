@@ -335,7 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     guestsSel && guestsSel.addEventListener('change', function(){ updateEstimate(); renderGuestNameFields(); });
   
-    const PUBLIC_CAPACITY = 145;
+    const PUBLIC_CAPACITY = 134;
     const LOW_STOCK_AT = 100;
 
     function scarcityStrip() {
